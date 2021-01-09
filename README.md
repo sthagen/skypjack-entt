@@ -1,4 +1,4 @@
-![EnTT: Gaming meets modern C++](https://user-images.githubusercontent.com/1812216/42513718-ee6e98d0-8457-11e8-9baf-8d83f61a3097.png)
+![EnTT: Gaming meets modern C++](https://user-images.githubusercontent.com/1812216/103550016-90752280-4ea8-11eb-8667-12ed2219e137.png)
 
 <!--
 @cond TURN_OFF_DOXYGEN
@@ -13,13 +13,12 @@
 [![Donate](https://img.shields.io/badge/donate-paypal-blue.svg)](https://www.paypal.me/skypjack)
 
 `EnTT` is a header-only, tiny and easy to use library for game programming and
-much more written in **modern C++**, mainly known for its innovative
-**entity-component-system (ECS)** model.<br/>
+much more written in **modern C++**.<br/>
 [Among others](https://github.com/skypjack/entt/wiki/EnTT-in-Action), it's used
-in [**Minecraft**](https://minecraft.net/en-us/attribution/) and
-[**Minecraft Earth**](https://www.minecraft.net/en-us/about-earth) by Mojang,
-and the [**ArcGIS Runtime SDKs**](https://developers.arcgis.com/arcgis-runtime/)
-by Esri.<br/>
+in [**Minecraft**](https://minecraft.net/en-us/attribution/) by Mojang, the
+[**ArcGIS Runtime SDKs**](https://developers.arcgis.com/arcgis-runtime/) by Esri
+and the amazing [**Ragdoll**](https://ragdolldynamics.com/) Autodesk Maya
+plugin.<br/>
 If you don't see your project in the list, please open an issue, submit a PR or
 add the [#entt](https://github.com/topics/entt) tag to your _topics_! :+1:
 
@@ -394,14 +393,14 @@ know who has participated so far.
 
 # License
 
-Code and documentation Copyright (c) 2017-2020 Michele Caini.<br/>
-Logo Copyright (c) 2018-2020 Richard Caseres.
+Code and documentation Copyright (c) 2017-2021 Michele Caini.<br/>
+Colorful logo Copyright (c) 2018-2021 Richard Caseres.
 
 Code released under
-[the MIT license](https://github.com/skypjack/entt/blob/master/LICENSE).
+[the MIT license](https://github.com/skypjack/entt/blob/master/LICENSE).<br/>
 Documentation released under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).<br/>
-Logo released under
+All logos released under
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
 <!--

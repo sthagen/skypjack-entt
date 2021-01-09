@@ -252,6 +252,14 @@ public:
     }
 
     /**
+     * @brief Reserves enough space to store `count` pools.
+     * @param count Number of pools to reserve space for.
+     */
+    void reserve_pools(const size_t count) {
+        pools.reserve(count);
+    }
+
+    /**
      * @brief Returns the capacity of the pool for the given component.
      * @tparam Component Type of component in which one is interested.
      * @return Capacity of the pool of the given component.
@@ -716,6 +724,7 @@ public:
     template<typename... Component>
     void remove(const entity_type entity) {
         ENTT_ASSERT(valid(entity));
+        static_assert(sizeof...(Component) > 0);
         (assure<Component>()->remove(*this, entity), ...);
     }
 
@@ -732,6 +741,7 @@ public:
     template<typename... Component, typename It>
     void remove(It first, It last) {
         ENTT_ASSERT(std::all_of(first, last, [this](const auto entity) { return valid(entity); }));
+        static_assert(sizeof...(Component) > 0);
         (assure<Component>()->remove(*this, first, last), ...);
     }
 
@@ -1296,7 +1306,7 @@ public:
      * @return A newly created group.
      */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> group(get_t<Get...>, exclude_t<Exclude...> = {}) const {
+    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> group_if_exists(get_t<Get...>, exclude_t<Exclude...> = {}) const {
         static_assert(std::conjunction_v<std::is_const<Owned>..., std::is_const<Get>...>, "Invalid non-const type");
 
         if(auto it = std::find_if(groups.cbegin(), groups.cend(), [](const auto &gdata) {
@@ -1330,15 +1340,15 @@ public:
     /**
      * @brief Returns a group for the given components.
      *
-     * @sa group
+     * @sa group_if_exists
      *
      * @tparam Owned Types of components owned by the group.
      * @tparam Exclude Types of components used to filter the group.
      * @return A newly created group.
      */
     template<typename... Owned, typename... Exclude>
-    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<>, Owned...> group(exclude_t<Exclude...> = {}) const {
-        return group<Owned...>(get_t<>{}, exclude<Exclude...>);
+    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<>, Owned...> group_if_exists(exclude_t<Exclude...> = {}) const {
+        return group_if_exists<Owned...>(get_t<>{}, exclude<Exclude...>);
     }
 
     /**

@@ -37,6 +37,8 @@ struct Defined: entt::type_list<
 };
 
 struct impl {
+    impl() = default;
+    impl(int v): value{v} {}
     void incr() { ++value; }
     void set(int v) { value = v; }
     int get() const { return value; }
@@ -103,6 +105,11 @@ TEST(PolyDefined, Functionalities) {
     ASSERT_TRUE(move);
     ASSERT_FALSE(copy);
     ASSERT_EQ(move->get(), 3);
+
+    move.reset();
+
+    ASSERT_FALSE(move);
+    ASSERT_EQ(move.type(), entt::type_info{});
 }
 
 TEST(PolyDefined, Owned) {

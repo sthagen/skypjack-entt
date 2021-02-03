@@ -208,7 +208,7 @@ public:
      */
     template<typename Type>
     poly(std::reference_wrapper<Type> value)
-        : poly{std::in_place_type<Type &>, &value.get()}
+        : poly{std::in_place_type<Type &>, value.get()}
     {}
 
     /**
@@ -278,6 +278,11 @@ public:
     void emplace(Args &&... args) {
         storage.emplace<Type>(std::forward<Args>(args)...);
         vtable = poly_vtable<Concept>::template instance<Type>();
+    }
+
+    /*! @brief Destroys contained object */
+    void reset() {
+        *this = poly{};
     }
 
     /**

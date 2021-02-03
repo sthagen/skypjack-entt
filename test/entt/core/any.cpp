@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <unordered_map>
+#include <vector>
 #include <gtest/gtest.h>
 #include <entt/core/any.hpp>
 
@@ -20,6 +22,16 @@ struct empty {
 
 struct not_comparable {
     bool operator==(const not_comparable &) const = delete;
+};
+
+template<auto Sz>
+struct not_copyable {
+    not_copyable(): payload{} {}
+    not_copyable(const not_copyable &) = delete;
+    not_copyable(not_copyable &&) = default;
+    not_copyable & operator=(const not_copyable &) = delete;
+    not_copyable & operator=(not_copyable &&) = default;
+    double payload[Sz];
 };
 
 TEST(Any, SBO) {
@@ -288,7 +300,6 @@ TEST(Any, NoSBOMoveConstruction) {
 
     ASSERT_FALSE(any);
     ASSERT_TRUE(other);
-    ASSERT_FALSE(any.type());
     ASSERT_EQ(other.type(), entt::type_id<fat>());
     ASSERT_EQ(entt::any_cast<double>(&other), nullptr);
     ASSERT_EQ(entt::any_cast<fat>(other), instance);
@@ -303,7 +314,6 @@ TEST(Any, NoSBOMoveAssignment) {
 
     ASSERT_FALSE(any);
     ASSERT_TRUE(other);
-    ASSERT_FALSE(any.type());
     ASSERT_EQ(other.type(), entt::type_id<fat>());
     ASSERT_EQ(entt::any_cast<double>(&other), nullptr);
     ASSERT_EQ(entt::any_cast<fat>(other), instance);
@@ -451,6 +461,18 @@ TEST(Any, EmplaceVoid) {
     ASSERT_FALSE(any);
     ASSERT_FALSE(any.type());
  }
+
+TEST(Any, Reset) {
+    entt::any any{42};
+
+    ASSERT_TRUE(any);
+    ASSERT_EQ(any.type(), entt::type_id<int>());
+
+    any.reset();
+
+    ASSERT_FALSE(any);
+    ASSERT_EQ(any.type(), entt::type_info{});
+}
 
 TEST(Any, SBOSwap) {
     entt::any lhs{'c'};
@@ -737,15 +759,21 @@ TEST(Any, Comparable) {
 }
 
 TEST(Any, NotComparable) {
-    entt::any any{not_comparable{}};
+    auto test = [](const auto &instance) {
+        entt::any any{std::cref(instance)};
 
-    ASSERT_EQ(any, any);
-    ASSERT_NE(any, entt::any{not_comparable{}});
-    ASSERT_NE(entt::any{}, any);
+        ASSERT_EQ(any, any);
+        ASSERT_NE(any, entt::any{instance});
+        ASSERT_NE(entt::any{}, any);
 
-    ASSERT_TRUE(any == any);
-    ASSERT_FALSE(any == entt::any{not_comparable{}});
-    ASSERT_TRUE(entt::any{} != any);
+        ASSERT_TRUE(any == any);
+        ASSERT_FALSE(any == entt::any{instance});
+        ASSERT_TRUE(entt::any{} != any);
+    };
+
+    test(not_comparable{});
+    test(std::unordered_map<int, not_comparable>{});
+    test(std::vector<not_comparable>{});
 }
 
 TEST(Any, CompareVoid) {
@@ -774,4 +802,38 @@ TEST(Any, AnyCast) {
     ASSERT_EQ(entt::any_cast<int &>(any), 42);
     ASSERT_EQ(entt::any_cast<const int &>(cany), 42);
     ASSERT_EQ(entt::any_cast<int>(42), 42);
+}
+
+TEST(Any, NotCopyableType) {
+    auto test = [](entt::any any) {
+        entt::any copy{any};
+
+        ASSERT_TRUE(any);
+        ASSERT_FALSE(copy);
+
+        copy = any;
+
+        ASSERT_TRUE(any);
+        ASSERT_FALSE(copy);
+    };
+
+    test(entt::any{std::in_place_type<not_copyable<1>>});
+    test(entt::any{std::in_place_type<not_copyable<4>>});
+}
+
+TEST(Any, Array) {
+    entt::any any{std::in_place_type<int[1]>};
+    entt::any copy{any};
+
+    ASSERT_TRUE(any);
+    ASSERT_FALSE(copy);
+
+    ASSERT_EQ(any.type(), entt::type_id<int[1]>());
+    ASSERT_NE(entt::any_cast<int[1]>(&any), nullptr);
+    ASSERT_EQ(entt::any_cast<int[2]>(&any), nullptr);
+    ASSERT_EQ(entt::any_cast<int *>(&any), nullptr);
+
+    entt::any_cast<int(&)[1]>(any)[0] = 42;
+
+    ASSERT_EQ(entt::any_cast<const int(&)[1]>(std::as_const(any))[0], 42);
 }

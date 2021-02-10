@@ -697,7 +697,7 @@ TEST(Any, AsRef) {
     ASSERT_EQ(entt::any_cast<const int &>(any), 42);
     ASSERT_EQ(entt::any_cast<int &>(ref), 42);
     ASSERT_EQ(entt::any_cast<const int &>(ref), 42);
-    ASSERT_DEATH(entt::any_cast<int &>(cref), ".*");
+    ASSERT_EQ(entt::any_cast<int>(&cref), nullptr);
     ASSERT_EQ(entt::any_cast<const int &>(cref), 42);
 
     entt::any_cast<int &>(any) = 3;
@@ -719,8 +719,8 @@ TEST(Any, AsRef) {
     ASSERT_EQ(entt::any_cast<const int>(&ref), any.data());
     ASSERT_EQ(entt::any_cast<const int>(&cref), any.data());
 
-    ASSERT_DEATH(entt::any_cast<int &>(ref), ".*");
-    ASSERT_DEATH(entt::any_cast<int &>(cref), ".*");
+    ASSERT_EQ(entt::any_cast<int>(&ref), nullptr);
+    ASSERT_EQ(entt::any_cast<int>(&cref), nullptr);
 
     ASSERT_EQ(entt::any_cast<const int &>(ref), 3);
     ASSERT_EQ(entt::any_cast<const int &>(cref), 3);
@@ -836,4 +836,36 @@ TEST(Any, Array) {
     entt::any_cast<int(&)[1]>(any)[0] = 42;
 
     ASSERT_EQ(entt::any_cast<const int(&)[1]>(std::as_const(any))[0], 42);
+}
+
+TEST(Any, CopyMoveReference) {
+    auto test = [](int &value, auto ref) {
+        value = 3;
+
+        entt::any any{ref};
+        entt::any move = std::move(any);
+        entt::any copy = move;
+
+        ASSERT_FALSE(any);
+        ASSERT_TRUE(move);
+        ASSERT_TRUE(copy);
+
+        ASSERT_EQ(move.type(), entt::type_id<int>());
+        ASSERT_EQ(copy.type(), entt::type_id<int>());
+
+        ASSERT_EQ(std::as_const(move).data(), &value);
+        ASSERT_NE(std::as_const(copy).data(), &value);
+
+        ASSERT_EQ(entt::any_cast<int>(move), 3);
+        ASSERT_EQ(entt::any_cast<int>(copy), 3);
+
+        value = 42;
+
+        ASSERT_EQ(entt::any_cast<const int &>(move), 42);
+        ASSERT_EQ(entt::any_cast<const int &>(copy), 3);
+    };
+
+    int value{};
+    test(value, std::ref(value));
+    test(value, std::cref(value));
 }

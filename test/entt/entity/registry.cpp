@@ -122,8 +122,8 @@ TEST(Registry, Functionalities) {
     registry.emplace<int>(e1);
     registry.emplace<char>(e1);
 
-    ASSERT_TRUE(registry.has<>(e0));
-    ASSERT_FALSE(registry.any<>(e1));
+    ASSERT_TRUE(registry.all_of<>(e0));
+    ASSERT_FALSE(registry.any_of<>(e1));
 
     ASSERT_EQ(registry.size<int>(), 1u);
     ASSERT_EQ(registry.size<char>(), 1u);
@@ -132,10 +132,10 @@ TEST(Registry, Functionalities) {
 
     ASSERT_NE(e0, e1);
 
-    ASSERT_FALSE((registry.has<int, char>(e0)));
-    ASSERT_TRUE((registry.has<int, char>(e1)));
-    ASSERT_FALSE((registry.any<int, double>(e0)));
-    ASSERT_TRUE((registry.any<int, double>(e1)));
+    ASSERT_FALSE((registry.all_of<int, char>(e0)));
+    ASSERT_TRUE((registry.all_of<int, char>(e1)));
+    ASSERT_FALSE((registry.any_of<int, double>(e0)));
+    ASSERT_TRUE((registry.any_of<int, double>(e1)));
 
     ASSERT_EQ(registry.try_get<int>(e0), nullptr);
     ASSERT_NE(registry.try_get<int>(e1), nullptr);
@@ -149,17 +149,17 @@ TEST(Registry, Functionalities) {
     ASSERT_NO_THROW(registry.remove<int>(e1));
     ASSERT_NO_THROW(registry.remove<char>(e1));
 
-    ASSERT_TRUE((registry.has<int, char>(e0)));
-    ASSERT_FALSE((registry.has<int, char>(e1)));
-    ASSERT_TRUE((registry.any<int, double>(e0)));
-    ASSERT_FALSE((registry.any<int, double>(e1)));
+    ASSERT_TRUE((registry.all_of<int, char>(e0)));
+    ASSERT_FALSE((registry.all_of<int, char>(e1)));
+    ASSERT_TRUE((registry.any_of<int, double>(e0)));
+    ASSERT_FALSE((registry.any_of<int, double>(e1)));
 
     const auto e2 = registry.create();
 
     registry.emplace_or_replace<int>(e2, registry.get<int>(e0));
     registry.emplace_or_replace<char>(e2, registry.get<char>(e0));
 
-    ASSERT_TRUE((registry.has<int, char>(e2)));
+    ASSERT_TRUE((registry.all_of<int, char>(e2)));
     ASSERT_EQ(registry.get<int>(e0), 42);
     ASSERT_EQ(registry.get<char>(e0), 'c');
 
@@ -220,7 +220,7 @@ TEST(Registry, Functionalities) {
     ASSERT_EQ(registry.size<char>(), 1u);
     ASSERT_FALSE(registry.empty<int>());
     ASSERT_FALSE(registry.empty<char>());
-    ASSERT_TRUE((registry.has<int, char>(e3)));
+    ASSERT_TRUE((registry.all_of<int, char>(e3)));
     ASSERT_EQ(registry.get<int>(e3), 3);
     ASSERT_EQ(registry.get<char>(e3), 'c');
 
@@ -353,7 +353,7 @@ TEST(Registry, CreateManyEntitiesAtOnceWithListener) {
     registry.insert(std::begin(entities), std::end(entities), 'a');
     registry.insert<empty_type>(std::begin(entities), std::end(entities));
 
-    ASSERT_TRUE(registry.has<empty_type>(entities[0]));
+    ASSERT_TRUE(registry.all_of<empty_type>(entities[0]));
     ASSERT_EQ(registry.get<char>(entities[2]), 'a');
     ASSERT_EQ(listener.counter, 6);
 }
@@ -479,7 +479,7 @@ TEST(Registry, Each) {
     match = 0u;
 
     registry.each([&](auto entity) {
-        if(registry.has<int>(entity)) { ++match; }
+        if(registry.all_of<int>(entity)) { ++match; }
         registry.create();
         ++tot;
     });
@@ -491,7 +491,7 @@ TEST(Registry, Each) {
     match = 0u;
 
     registry.each([&](auto entity) {
-        if(registry.has<int>(entity)) {
+        if(registry.all_of<int>(entity)) {
             registry.destroy(entity);
             ++match;
         }
@@ -506,7 +506,7 @@ TEST(Registry, Each) {
     match = 0u;
 
     registry.each([&](auto entity) {
-        if(registry.has<int>(entity)) { ++match; }
+        if(registry.all_of<int>(entity)) { ++match; }
         registry.destroy(entity);
         ++tot;
     });
@@ -1168,16 +1168,16 @@ TEST(Registry, Insert) {
 
     registry.emplace<int>(e2);
 
-    ASSERT_FALSE(registry.has<float>(e0));
-    ASSERT_FALSE(registry.has<float>(e1));
-    ASSERT_FALSE(registry.has<float>(e2));
+    ASSERT_FALSE(registry.all_of<float>(e0));
+    ASSERT_FALSE(registry.all_of<float>(e1));
+    ASSERT_FALSE(registry.all_of<float>(e2));
 
     const auto icview = registry.view<int, char>();
     registry.insert(icview.begin(), icview.end(), 3.f);
 
     ASSERT_EQ(registry.get<float>(e0), 3.f);
     ASSERT_EQ(registry.get<float>(e1), 3.f);
-    ASSERT_FALSE(registry.has<float>(e2));
+    ASSERT_FALSE(registry.all_of<float>(e2));
 
     registry.clear<float>();
     float value[3]{0.f, 1.f, 2.f};
@@ -1206,16 +1206,16 @@ TEST(Registry, Remove) {
 
     registry.emplace<int>(e2);
 
-    ASSERT_TRUE(registry.has<int>(e0));
-    ASSERT_TRUE(registry.has<int>(e1));
-    ASSERT_TRUE(registry.has<int>(e2));
+    ASSERT_TRUE(registry.all_of<int>(e0));
+    ASSERT_TRUE(registry.all_of<int>(e1));
+    ASSERT_TRUE(registry.all_of<int>(e2));
 
     const auto view = registry.view<int, char>();
     registry.remove<int>(view.begin(), view.end());
 
-    ASSERT_FALSE(registry.has<int>(e0));
-    ASSERT_FALSE(registry.has<int>(e1));
-    ASSERT_TRUE(registry.has<int>(e2));
+    ASSERT_FALSE(registry.all_of<int>(e0));
+    ASSERT_FALSE(registry.all_of<int>(e1));
+    ASSERT_TRUE(registry.all_of<int>(e2));
 }
 
 TEST(Registry, NonOwningGroupInterleaved) {
@@ -1315,7 +1315,7 @@ TEST(Registry, GetOrEmplace) {
     entt::registry registry;
     const auto entity = registry.create();
     const auto value = registry.get_or_emplace<int>(entity, 3);
-    ASSERT_TRUE(registry.has<int>(entity));
+    ASSERT_TRUE(registry.all_of<int>(entity));
     ASSERT_EQ(registry.get<int>(entity), value);
     ASSERT_EQ(registry.get<int>(entity), 3);
 }
@@ -1363,24 +1363,24 @@ TEST(Registry, Dependencies) {
     registry.on_destroy<int>().connect<remove>();
     registry.emplace<double>(entity, .3);
 
-    ASSERT_FALSE(registry.has<int>(entity));
+    ASSERT_FALSE(registry.all_of<int>(entity));
     ASSERT_EQ(registry.get<double>(entity), .3);
 
     registry.emplace<int>(entity);
 
-    ASSERT_TRUE(registry.has<int>(entity));
+    ASSERT_TRUE(registry.all_of<int>(entity));
     ASSERT_EQ(registry.get<double>(entity), .0);
 
     registry.remove<int>(entity);
 
-    ASSERT_FALSE((registry.any<int, double>(entity)));
+    ASSERT_FALSE((registry.any_of<int, double>(entity)));
 
     registry.on_construct<int>().disconnect<emplace_or_replace>();
     registry.on_destroy<int>().disconnect<remove>();
     registry.emplace<int>(entity);
 
-    ASSERT_TRUE((registry.any<int, double>(entity)));
-    ASSERT_FALSE(registry.has<double>(entity));
+    ASSERT_TRUE((registry.any_of<int, double>(entity)));
+    ASSERT_FALSE(registry.all_of<double>(entity));
 }
 
 TEST(Registry, StableEmplace) {

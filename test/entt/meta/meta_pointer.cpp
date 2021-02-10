@@ -9,7 +9,6 @@
 template<typename Type>
 struct wrapped_shared_ptr {
     wrapped_shared_ptr(Type init): ptr{new Type {init}} {}
-
     Type & deref() const { return *ptr; }
 
 private:
@@ -18,8 +17,9 @@ private:
 
 struct self {
     using element_type = int;
+    self(int v): value{v} {}
     const self & operator*() const { return *this; }
-    int value{};
+    int value;
 };
 
 template<typename Type>
@@ -164,9 +164,9 @@ TEST(MetaPointerLike, PointerToConstMoveOnlyType) {
     ASSERT_TRUE(any);
     ASSERT_TRUE(deref);
 
-    ASSERT_DEATH(deref.cast<not_copyable_t &>() = {}, ".*");
     ASSERT_EQ(deref.try_cast<not_copyable_t>(), nullptr);
     ASSERT_NE(deref.try_cast<const not_copyable_t>(), nullptr);
+    ASSERT_EQ(&deref.cast<const not_copyable_t &>(), &instance);
 }
 
 TEST(MetaPointerLike, AsRef) {

@@ -284,15 +284,15 @@ if(registry.has<velocity>(entity)) {
 }
 ```
 
-The `has` and `any` member functions may also be useful if in doubt about
+The `all_of` and `any_of` member functions may also be useful if in doubt about
 whether or not an entity has all the components in a set or any of them:
 
 ```cpp
 // true if entity has all the given components
-bool all = registry.has<position, velocity>(entity);
+bool all = registry.all_of<position, velocity>(entity);
 
 // true if entity has at least one of the given components
-bool any = registry.any<position, velocity>(entity);
+bool any = registry.any_of<position, velocity>(entity);
 ```
 
 If the goal is to delete a component from an entity that owns it, the `remove`
@@ -1878,10 +1878,10 @@ mentioning.
 
 When an empty type is detected, it's not instantiated in any case. Therefore,
 only the entities to which it's assigned are made available.<br/>
-There doesn't exist a way to _iterate_ empty types. Views and groups will never
-return instances of empty types (for example, during a call to `each`) and some
-functions such as `try_get` or the raw access to the list of components aren't
-available for them. Finally, the `sort` functionality accepts only callbacks
+There doesn't exist a way to _get_ empty types from a registry, views and groups
+will never return instances for them (for example, during a call to `each`) and
+some functions such as `try_get` or the raw access to the list of components
+won't be available. Finally, the `sort` functionality will onlyaccepts callbacks
 that require to return entities rather than components:
 
 ```cpp

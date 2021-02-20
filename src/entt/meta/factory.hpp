@@ -11,6 +11,7 @@
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
 #include "meta.hpp"
+#include "node.hpp"
 #include "policy.hpp"
 #include "utility.hpp"
 
@@ -507,7 +508,7 @@ public:
 
         internal::meta_func_node **it = &type->func;
         for(; *it && (*it)->id != id; it = &(*it)->next);
-        for(; *it && (*it)->id == id && (*it)->size < node.size; it = &(*it)->next);
+        for(; *it && (*it)->id == id && (*it)->arity < node.arity; it = &(*it)->next);
 
         node.id = id;
         node.next = *it;

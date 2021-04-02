@@ -157,42 +157,61 @@ private:
 
 /*! @brief Opaque wrapper for values of any type. */
 class meta_any {
-    enum class operation { DEREF, CDEREF, SEQ, CSEQ, ASSOC, CASSOC };
+    enum class operation { DTOR, REF, CREF, DEREF, CDEREF, SEQ, CSEQ, ASSOC, CASSOC };
 
     using vtable_type = void(const operation, const any &, void *);
 
     template<typename Type>
     static void basic_vtable(const operation op, [[maybe_unused]] const any &from, [[maybe_unused]] void *to) {
-        switch(op) {
-        case operation::DEREF:
-        case operation::CDEREF:
-            if constexpr(is_meta_pointer_like_v<Type>) {
-                using element_type = std::remove_const_t<typename std::pointer_traits<Type>::element_type>;
+        if constexpr(!std::is_void_v<Type>) {
+            using base_type = std::remove_const_t<std::remove_reference_t<Type>>;
 
-                if constexpr(std::is_function_v<element_type>) {
-                    *static_cast<meta_any *>(to) = any_cast<const Type>(from);
-                } else if constexpr(!std::is_same_v<element_type, void>) {
-                    if constexpr(std::is_reference_v<decltype(adl_meta_pointer_like<Type>::dereference(std::declval<const Type &>()))>) {
-                        auto &&obj = adl_meta_pointer_like<Type>::dereference(any_cast<const Type &>(from));
-                        *static_cast<meta_any *>(to) = (op == operation::DEREF ? meta_any{std::reference_wrapper{obj}} : meta_any{std::cref(obj)});
-                    } else {
-                        *static_cast<meta_any *>(to) = adl_meta_pointer_like<Type>::dereference(any_cast<const Type &>(from));
+            switch(op) {
+            case operation::DTOR:
+                if constexpr(!std::is_lvalue_reference_v<Type>) {
+                    if(auto *curr = static_cast<internal::meta_type_node *>(to); curr->dtor) {
+                        curr->dtor(const_cast<any &>(from).data());
                     }
                 }
-            }
             break;
-        case operation::SEQ:
-        case operation::CSEQ:
-            if constexpr(has_meta_sequence_container_traits_v<Type>) {
-                *static_cast<meta_sequence_container *>(to) = { std::in_place_type<Type>, (op == operation::SEQ ? as_ref(const_cast<any &>(from)) : as_ref(from)) };
+            case operation::REF:
+            case operation::CREF:
+                *static_cast<meta_any *>(to) = (op == operation::REF ? meta_any{std::ref(any_cast<Type &>(const_cast<any &>(from)))} : meta_any{std::cref(any_cast<const base_type &>(from))});
+                break;
+            case operation::DEREF:
+            case operation::CDEREF:
+                if constexpr(is_meta_pointer_like_v<base_type>) {
+                    // for some reason vs2017 doesn't compile when using alias declarations with pointer_traits to get the element type
+                    using element_type = std::remove_const_t<typename std::pointer_traits<std::remove_const_t<std::remove_reference_t<Type>>>::element_type>;
+
+                    if constexpr(std::is_function_v<element_type>) {
+                        *static_cast<meta_any *>(to) = any_cast<base_type>(from);
+                    } else if constexpr(!std::is_same_v<element_type, void>) {
+                        // for some reason vs2017 doesn't compile when using alias declarations with adl_meta_pointer_like
+                        using adl_meta_pointer_like_type = adl_meta_pointer_like<std::remove_const_t<std::remove_reference_t<Type>>>;
+
+                        if constexpr(std::is_lvalue_reference_v<decltype(adl_meta_pointer_like_type::dereference(std::declval<const base_type &>()))>) {
+                            auto &&obj = adl_meta_pointer_like_type::dereference(any_cast<const base_type &>(from));
+                            *static_cast<meta_any *>(to) = (op == operation::DEREF ? meta_any{std::ref(obj)} : meta_any{std::cref(obj)});
+                        } else {
+                            *static_cast<meta_any *>(to) = adl_meta_pointer_like_type::dereference(any_cast<const base_type &>(from));
+                        }
+                    }
+                }
+                break;
+            case operation::SEQ:
+            case operation::CSEQ:
+                if constexpr(is_complete_v<meta_sequence_container_traits<base_type>>) {
+                    *static_cast<meta_sequence_container *>(to) = { std::in_place_type<base_type>, (op == operation::SEQ ? const_cast<any &>(from).as_ref() : from.as_ref()) };
+                }
+                break;
+            case operation::ASSOC:
+            case operation::CASSOC:
+                if constexpr(is_complete_v<meta_associative_container_traits<base_type>>) {
+                    *static_cast<meta_associative_container *>(to) = { std::in_place_type<base_type>, (op == operation::ASSOC ? const_cast<any &>(from).as_ref() : from.as_ref()) };
+                }
+                break;
             }
-            break;
-        case operation::ASSOC:
-        case operation::CASSOC:
-            if constexpr(has_meta_associative_container_traits_v<Type>) {
-                *static_cast<meta_associative_container *>(to) = { std::in_place_type<Type>, (op == operation::ASSOC ? as_ref(const_cast<any &>(from)) : as_ref(from)) };
-            }
-            break;
         }
     }
 
@@ -200,8 +219,8 @@ public:
     /*! @brief Default constructor. */
     meta_any() ENTT_NOEXCEPT
         : storage{},
-          vtable{},
-          node{}
+          node{},
+          vtable{&basic_vtable<void>}
     {}
 
     /**
@@ -213,8 +232,8 @@ public:
     template<typename Type, typename... Args>
     explicit meta_any(std::in_place_type_t<Type>, Args &&... args)
         : storage(std::in_place_type<Type>, std::forward<Args>(args)...),
-          vtable{&basic_vtable<std::remove_const_t<std::remove_reference_t<Type>>>},
-          node{internal::meta_info<std::remove_const_t<std::remove_reference_t<Type>>>::resolve()}
+          node{internal::meta_info<Type>::resolve()},
+          vtable{&basic_vtable<Type>}
     {}
 
     /**
@@ -255,8 +274,8 @@ public:
 
     /*! @brief Frees the internal storage, whatever it means. */
     ~meta_any() {
-        if(node && node->dtor) {
-            node->dtor(storage.data());
+        if(vtable) {
+            vtable(operation::DTOR, storage, node);
         }
     }
 
@@ -398,7 +417,7 @@ public:
     template<typename Type>
     [[nodiscard]] meta_any allow_cast() const {
         if(try_cast<std::remove_reference_t<Type>>() != nullptr) {
-            return as_ref(*this);
+            return as_ref();
         } else if(node) {
             if(const auto * const conv = internal::meta_visit<&internal::meta_type_node::conv>([info = type_id<Type>()](const auto *curr) { return curr->type()->info == info; }, node); conv) {
                 return conv->conv(storage.data());
@@ -483,16 +502,16 @@ public:
      * wrapped element is dereferenceable, an invalid meta any otherwise.
      */
     [[nodiscard]] meta_any operator*() ENTT_NOEXCEPT {
-        meta_any any{};
-        vtable(operation::DEREF, storage, &any);
-        return any;
+        meta_any ret{};
+        vtable(operation::DEREF, storage, &ret);
+        return ret;
     }
 
     /*! @copydoc operator* */
     [[nodiscard]] meta_any operator*() const ENTT_NOEXCEPT {
-        meta_any any{};
-        vtable(operation::CDEREF, storage, &any);
-        return any;
+        meta_any ret{};
+        vtable(operation::CDEREF, storage, &ret);
+        return ret;
     }
 
     /**
@@ -526,28 +545,25 @@ public:
 
     /**
      * @brief Aliasing constructor.
-     * @param other A reference to an object that isn't necessarily initialized.
      * @return A meta any that shares a reference to an unmanaged object.
      */
-    [[nodiscard]] friend meta_any as_ref(meta_any &other) ENTT_NOEXCEPT {
-        meta_any ref = as_ref(std::as_const(other));
-        ref.storage = as_ref(other.storage);
+    [[nodiscard]] meta_any as_ref() ENTT_NOEXCEPT {
+        meta_any ref{};
+        vtable(operation::REF, storage, &ref);
         return ref;
     }
 
     /*! @copydoc as_ref */
-    [[nodiscard]] friend meta_any as_ref(const meta_any &other) ENTT_NOEXCEPT {
+    [[nodiscard]] meta_any as_ref() const ENTT_NOEXCEPT {
         meta_any ref{};
-        ref.node = other.node;
-        ref.storage = as_ref(other.storage);
-        ref.vtable = other.vtable;
+        vtable(operation::CREF, storage, &ref);
         return ref;
     }
 
 private:
     any storage;
-    vtable_type *vtable;
     internal::meta_type_node *node;
+    vtable_type *vtable;
 };
 
 
@@ -573,6 +589,25 @@ struct meta_handle {
     /*! @brief Default constructor. */
     meta_handle() = default;
 
+
+    /*! @brief Default copy constructor, deleted on purpose. */
+    meta_handle(const meta_handle &) = delete;
+
+    /*! @brief Default move constructor. */
+    meta_handle(meta_handle &&) = default;
+
+    /**
+     * @brief Default copy assignment operator, deleted on purpose.
+     * @return This meta handle.
+     */
+    meta_handle & operator=(const meta_handle &) = delete;
+
+    /**
+     * @brief Default move assignment operator.
+     * @return This meta handle.
+     */
+    meta_handle & operator=(meta_handle &&) = default;
+
     /**
      * @brief Creates a handle that points to an unmanaged object.
      * @tparam Type Type of object to use to initialize the handle.
@@ -583,9 +618,9 @@ struct meta_handle {
         : meta_handle{}
     {
         if constexpr(std::is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, meta_any>) {
-            any = as_ref(value);
+            any = value.as_ref();
         } else {
-            any = std::reference_wrapper{value};
+            any.emplace<Type &>(value);
         }
     }
 
@@ -605,10 +640,7 @@ struct meta_handle {
         return &any;
     }
 
-    /**
-     * @brief Access operator for accessing the contained opaque object.
-     * @return A meta any that shares a reference to an unmanaged object.
-     */
+    /*! @copydoc operator-> */
     [[nodiscard]] const meta_any * operator->() const {
         return &any;
     }
@@ -632,19 +664,19 @@ struct meta_prop {
     {}
 
     /**
-     * @brief Returns the stored key.
+     * @brief Returns the stored key as a const reference.
      * @return A meta any containing the key stored with the property.
      */
     [[nodiscard]] meta_any key() const {
-        return node->key();
+        return node->id->as_ref();
     }
 
     /**
-     * @brief Returns the stored value.
+     * @brief Returns the stored value by copy.
      * @return A meta any containing the value stored with the property.
      */
     [[nodiscard]] meta_any value() const {
-        return node->value();
+        return *node->value;
     }
 
     /**
@@ -736,7 +768,7 @@ struct meta_ctor {
      * @return The property associated with the given key, if any.
      */
     [[nodiscard]] meta_prop prop(meta_any key) const {
-        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return curr->key() == key; }, node);
+        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return *curr->id == key; }, node);
     }
 
     /**
@@ -832,7 +864,7 @@ struct meta_data {
      * @return The property associated with the given key, if any.
      */
     [[nodiscard]] meta_prop prop(meta_any key) const {
-        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return curr->key() == key; }, node);
+        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return *curr->id == key; }, node);
     }
 
     /**
@@ -951,7 +983,7 @@ struct meta_func {
      * @return The property associated with the given key, if any.
      */
     [[nodiscard]] meta_prop prop(meta_any key) const {
-        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return curr->key() == key; }, node);
+        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return *curr->id == key; }, node);
     }
 
     /**
@@ -1325,9 +1357,9 @@ public:
      * @return A meta any containing the new instance, if any.
      */
     [[nodiscard]] meta_any construct(meta_any * const args, const size_type sz) const {
-        meta_any any{};
-        internal::meta_visit<&node_type::ctor>([args, sz, &any](const auto *curr) { return (curr->arity == sz) && (any = curr->invoke(args)); }, node);
-        return any;
+        meta_any ret{};
+        internal::meta_visit<&node_type::ctor>([args, sz, &ret](const auto *curr) { return (curr->arity == sz) && (ret = curr->invoke(args)); }, node);
+        return ret;
     }
 
     /**
@@ -1459,7 +1491,7 @@ public:
      * @return The property associated with the given key, if any.
      */
     [[nodiscard]] meta_prop prop(meta_any key) const {
-        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return curr->key() == key; }, node);
+        return internal::meta_visit<&node_type::prop>([&key](const auto *curr) { return *curr->id == key; }, node);
     }
 
     /**
@@ -1623,11 +1655,7 @@ class meta_sequence_container::meta_iterator {
             ++any_cast<It &>(const_cast<any &>(from));
             break;
         case operation::DEREF:
-            if constexpr(std::is_lvalue_reference_v<typename std::iterator_traits<It>::reference>) {
-                *static_cast<meta_any *>(to) = std::reference_wrapper{*any_cast<const It &>(from)};
-            } else {
-                *static_cast<meta_any *>(to) = *any_cast<const It &>(from);
-            }
+            static_cast<meta_any *>(to)->emplace<typename std::iterator_traits<It>::reference>(*any_cast<const It &>(from));
             break;
         }
     }
@@ -1773,18 +1801,10 @@ struct meta_sequence_container::meta_sequence_container_proxy {
 
     [[nodiscard]] static meta_any get(any &container, size_type pos) {
         if(auto * const cont = any_cast<Type>(&container); cont) {
-            if constexpr(std::is_lvalue_reference_v<typename Type::reference>) {
-                return std::reference_wrapper{traits_type::get(*cont, pos)};
-            } else {
-                return traits_type::get(*cont, pos);
-            }
+            return meta_any{std::in_place_type<typename Type::reference>, traits_type::get(*cont, pos)};
         }
 
-        if constexpr(std::is_lvalue_reference_v<typename Type::const_reference>) {
-            return std::reference_wrapper{traits_type::cget(any_cast<const Type &>(container), pos)};
-        } else {
-            return traits_type::cget(any_cast<const Type &>(container), pos);
-        }
+        return meta_any{std::in_place_type<typename Type::const_reference>, traits_type::cget(any_cast<const Type &>(container), pos)};
     }
 };
 
@@ -1903,7 +1923,7 @@ class meta_associative_container::meta_iterator {
             if constexpr(KeyOnly) {
                 static_cast<std::pair<meta_any, meta_any> *>(to)->first = std::cref(*any_cast<const It &>(from));
             } else {
-                *static_cast<std::pair<meta_any, meta_any> *>(to) = std::make_pair<meta_any, meta_any>(std::cref(any_cast<const It &>(from)->first), std::reference_wrapper{any_cast<const It &>(from)->second});
+                *static_cast<std::pair<meta_any, meta_any> *>(to) = std::make_pair<meta_any, meta_any>(std::cref(any_cast<const It &>(from)->first), std::ref(any_cast<const It &>(from)->second));
             }
             break;
         }

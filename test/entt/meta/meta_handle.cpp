@@ -5,18 +5,26 @@
 #include <entt/meta/resolve.hpp>
 
 struct clazz_t {
+    clazz_t(): value{} {}
     void incr() { ++value; }
     void decr() { --value; }
     int value;
 };
 
 struct MetaHandle: ::testing::Test {
-    static void SetUpTestCase() {
+    void SetUp() override {
         using namespace entt::literals;
 
         entt::meta<clazz_t>()
+            .type("clazz"_hs)
             .func<&clazz_t::incr>("incr"_hs)
             .func<&clazz_t::decr>("decr"_hs);
+    }
+
+    void TearDown() override {
+        for(auto type: entt::resolve()) {
+            type.reset();
+        }
     }
 };
 

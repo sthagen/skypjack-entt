@@ -14,6 +14,8 @@
   * [Conflicts](#conflicts)
 * [Monostate](#monostate)
 * [Any as in any type](#any-as-in-any-type)
+  * [Small buffer optimization](#small-buffer-optimization)
+  * [Alignment requirement](#alignment-requirement)
 * [Type support](#type-support)
   * [Type info](#type-info)
     * [Almost unique identifiers](#almost-unique-identifiers)
@@ -289,7 +291,7 @@ object:
 
 ```cpp
 // aliasing constructor
-entt::any ref = as_ref(other);
+entt::any ref = other.as_ref();
 ```
 
 In this case, it doesn't matter if the original container actually holds an
@@ -311,6 +313,48 @@ functions in all respects similar to their most famous counterparts.<br/>
 The only difference is that, in the case of `EnTT`, these won't raise exceptions
 but will only trigger an assert in debug mode, otherwise resulting in undefined
 behavior in case of misuse in release mode.
+
+## Small buffer optimization
+
+The `any` class uses a technique called _small buffer optimization_ to reduce
+the number of allocations where possible.<br/>
+The default reserved size for an instance of `any` is `sizeof(double[2])`.
+However, this is also configurable if needed. In fact, `any` is defined as an
+alias for `basic_any<Len>`, where `Len` is the size above.<br/>
+Users can easily set a custom size or define their own aliases:
+
+```cpp
+using my_any = entt::basic_any<sizeof(double[4])>;
+```
+
+This feature, in addition to allowing the choice of a size that best suits the
+needs of an application, also offers the possibility of forcing dynamic creation
+of objects during construction.<br/>
+In other terms, if the size is 0, `any` avoids the use of any optimization and
+always dynamically allocates objects (except for aliasing cases).
+
+Note that the size of the internal storage as well as the alignment requirements
+are directly part of the type and therefore contribute to define different types
+that won't be able to interoperate with each other.
+
+## Alignment requirement
+
+The alignment requirement is optional and by default the most stringent (the
+largest) for any object whose size is at most equal to the one provided.<br/>
+The `basic_any` class template inspects the alignment requirements in each case,
+even when not provided and may decide not to use the small buffer optimization
+in order to meet them.
+
+The alignment requirement is provided as an optional second parameter following
+the desired size for the internal storage:
+
+```cpp
+using my_any = entt::basic_any<sizeof(double[4]), alignof(double[4])>;
+```
+
+Note that the alignment requirements as well as the size of the internal storage
+are directly part of the type and therefore contribute to define different types
+that won't be able to interoperate with each other.
 
 # Type support
 

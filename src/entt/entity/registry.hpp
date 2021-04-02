@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <functional>
 #include <iterator>
 #include <memory>
 #include <tuple>
@@ -59,7 +58,7 @@ class basic_registry {
 
     template<typename... Exclude, typename... Get, typename... Owned>
     struct group_handler<exclude_t<Exclude...>, get_t<Get...>, Owned...> {
-        static_assert(std::conjunction_v<std::is_same<Owned, std::decay_t<Owned>>..., std::is_same<Get, std::decay_t<Get>>..., std::is_same<Exclude, std::decay_t<Exclude>>...>, "One or more component types are invalid");
+        static_assert(std::conjunction_v<std::is_same<Owned, std::remove_const_t<Owned>>..., std::is_same<Get, std::remove_const_t<Get>>..., std::is_same<Exclude, std::remove_const_t<Exclude>>...>, "One or more component types are invalid");
         std::conditional_t<sizeof...(Owned) == 0, basic_sparse_set<Entity>, std::size_t> current{};
 
         template<typename Component>
@@ -105,7 +104,8 @@ class basic_registry {
     };
 
     template<typename Component>
-    [[nodiscard]] storage_type<Component> * assure() {
+    [[nodiscard]] storage_type<Component> * assure() const {
+        static_assert(std::is_same_v<Component, std::decay_t<Component>>, "Non-decayed types not allowed");
         const auto index = type_seq<Component>::value();
 
         if(!(index < pools.size())) {
@@ -114,14 +114,15 @@ class basic_registry {
 
         if(auto &&pdata = pools[index]; !pdata.pool) {
             pdata.pool.reset(new storage_type<Component>());
-            pdata.poly = std::ref(*static_cast<storage_type<Component> *>(pdata.pool.get()));
+            pdata.poly.template emplace<storage_type<Component> &>(*static_cast<storage_type<Component> *>(pdata.pool.get()));
         }
 
         return static_cast<storage_type<Component> *>(pools[index].pool.get());
     }
 
     template<typename Component>
-    [[nodiscard]] const storage_type<Component> * assure() const {
+    [[nodiscard]] const storage_type<Component> * pool_if_exists() const {
+        static_assert(std::is_same_v<Component, std::decay_t<Component>>, "Non-decayed types not allowed");
         const auto index = type_seq<Component>::value();
         return (!(index < pools.size()) || !pools[index].pool) ? nullptr : static_cast<const storage_type<Component> *>(pools[index].pool.get());
     }
@@ -217,7 +218,7 @@ public:
      */
     template<typename Component>
     [[nodiscard]] size_type size() const {
-        const auto *cpool = assure<Component>();
+        const auto *cpool = pool_if_exists<Component>();
         return cpool ? cpool->size() : size_type{};
     }
 
@@ -280,7 +281,7 @@ public:
      */
     template<typename Component>
     [[nodiscard]] size_type capacity() const {
-        const auto *cpool = assure<Component>();
+        const auto *cpool = pool_if_exists<Component>();
         return cpool ? cpool->capacity() : size_type{};
     }
 
@@ -319,7 +320,7 @@ public:
         if constexpr(sizeof...(Component) == 0) {
             return !alive();
         } else {
-            return [](auto *... cpool) { return ((!cpool || cpool->empty()) && ...); }(assure<Component>()...);
+            return [](const auto *... cpool) { return ((!cpool || cpool->empty()) && ...); }(pool_if_exists<Component>()...);
         }
     }
 
@@ -603,7 +604,7 @@ public:
         auto *cpool = assure<Component>();
 
         return cpool->contains(entity)
-            ? cpool->patch(*this, entity, [&args...](auto &curr) { curr = Component{std::forward<Args>(args)...}; })
+            ? cpool->patch(*this, entity, [&args...](auto &... curr) { ((curr = Component{std::forward<Args>(args)...}), ...); })
             : cpool->emplace(*this, entity, std::forward<Args>(args)...);
     }
 
@@ -656,7 +657,7 @@ public:
      */
     template<typename Component, typename... Args>
     decltype(auto) replace(const entity_type entity, Args &&... args) {
-        return assure<Component>()->patch(*this, entity, [&args...](auto &curr) { curr = Component{std::forward<Args>(args)...}; });
+        return assure<Component>()->patch(*this, entity, [&args...](auto &... curr) { ((curr = Component{std::forward<Args>(args)...}), ...); });
     }
 
     /**
@@ -673,7 +674,7 @@ public:
     void remove(const entity_type entity) {
         ENTT_ASSERT(valid(entity));
         static_assert(sizeof...(Component) > 0, "Provide one or more component types");
-        (assure<Component>()->remove(*this, entity), ...);
+        (assure<Component>()->remove(entity, this), ...);
     }
 
     /**
@@ -690,7 +691,7 @@ public:
     void remove(It first, It last) {
         ENTT_ASSERT(std::all_of(first, last, [this](const auto entity) { return valid(entity); }));
         static_assert(sizeof...(Component) > 0, "Provide one or more component types");
-        (assure<Component>()->remove(*this, first, last), ...);
+        (assure<Component>()->remove(first, last, this), ...);
     }
 
     /**
@@ -716,7 +717,7 @@ public:
         ENTT_ASSERT(valid(entity));
 
         return ([this, entity](auto *cpool) {
-            return cpool->contains(entity) ? (cpool->remove(*this, entity), true) : false;
+            return cpool->contains(entity) ? (cpool->remove(entity, this), true) : false;
         }(assure<Component>()) + ... + size_type{});
     }
 
@@ -740,7 +741,7 @@ public:
 
         for(auto pos = pools.size(); pos; --pos) {
             if(auto &pdata = pools[pos-1]; pdata.pool && pdata.pool->contains(entity)) {
-                pdata.poly->remove(*this, std::begin(wrap), std::end(wrap));
+                pdata.pool->remove(std::begin(wrap), std::end(wrap), this);
             }
         }
     }
@@ -758,7 +759,7 @@ public:
     template<typename... Component>
     [[nodiscard]] bool all_of(const entity_type entity) const {
         ENTT_ASSERT(valid(entity));
-        return [entity](auto *... cpool) { return ((cpool && cpool->contains(entity)) && ...); }(assure<Component>()...);
+        return [entity](const auto *... cpool) { return ((cpool && cpool->contains(entity)) && ...); }(pool_if_exists<Component>()...);
     }
 
     /**
@@ -775,7 +776,7 @@ public:
     template<typename... Component>
     [[nodiscard]] bool any_of(const entity_type entity) const {
         ENTT_ASSERT(valid(entity));
-        return (all_of<Component>(entity) || ...);
+        return [entity](const auto *... cpool) { return !((!cpool || !cpool->contains(entity)) && ...); }(pool_if_exists<Component>()...);
     }
 
     /**
@@ -794,9 +795,11 @@ public:
         ENTT_ASSERT(valid(entity));
 
         if constexpr(sizeof...(Component) == 1) {
-            return (assure<Component>()->get(entity), ...);
+            const auto *cpool = pool_if_exists<std::remove_const_t<Component>...>();
+            ENTT_ASSERT(cpool);
+            return cpool->get(entity);
         } else {
-            return std::forward_as_tuple(assure<Component>()->get(entity)...);
+            return std::forward_as_tuple(get<Component>(entity)...);
         }
     }
 
@@ -806,9 +809,9 @@ public:
         ENTT_ASSERT(valid(entity));
 
         if constexpr(sizeof...(Component) == 1) {
-            return (assure<Component>()->get(entity), ...);
+            return (const_cast<Component &>(assure<std::remove_const_t<Component>>()->get(entity)), ...);
         } else {
-            return std::forward_as_tuple(assure<Component>()->get(entity)...);
+            return std::forward_as_tuple(get<Component>(entity)...);
         }
     }
 
@@ -859,7 +862,7 @@ public:
         ENTT_ASSERT(valid(entity));
 
         if constexpr(sizeof...(Component) == 1) {
-            auto *cpool = assure<Component...>();
+            const auto *cpool = pool_if_exists<std::remove_const_t<Component>...>();
             return (cpool && cpool->contains(entity)) ? &cpool->get(entity) : nullptr;
         } else {
             return std::make_tuple(try_get<Component>(entity)...);
@@ -872,8 +875,7 @@ public:
         ENTT_ASSERT(valid(entity));
 
         if constexpr(sizeof...(Component) == 1) {
-            auto *cpool = assure<Component...>();
-            return cpool->contains(entity) ? &cpool->get(entity) : nullptr;
+            return (const_cast<Component *>(std::as_const(*this).template try_get<Component>(entity)), ...);
         } else {
             return std::make_tuple(try_get<Component>(entity)...);
         }
@@ -886,11 +888,16 @@ public:
     template<typename... Component>
     void clear() {
         if constexpr(sizeof...(Component) == 0) {
-            // useless this-> used to suppress a warning with clang
-            each([this](const auto entity) { this->destroy(entity); });
+            for(auto pos = pools.size(); pos; --pos) {
+                if(auto &pdata = pools[pos-1]; pdata.pool) {
+                    pdata.pool->clear(this);
+                }
+            }
+
+            each([this](const auto entity) { release_entity(entity, version(entity) + 1u); });
         } else {
             ([this](auto *cpool) {
-                cpool->remove(*this, cpool->basic_sparse_set<entity_type>::begin(), cpool->basic_sparse_set<entity_type>::end());
+                cpool->remove(cpool->basic_sparse_set<entity_type>::begin(), cpool->basic_sparse_set<entity_type>::end(), this);
             }(assure<Component>()), ...);
         }
     }
@@ -920,8 +927,8 @@ public:
             }
         } else {
             for(auto pos = entities.size(); pos; --pos) {
-                if(const auto entt = entities[pos - 1]; (to_integral(entt) & traits_type::entity_mask) == (pos - 1)) {
-                    func(entt);
+                if(const auto entity = entities[pos - 1]; (to_integral(entity) & traits_type::entity_mask) == (pos - 1)) {
+                    func(entity);
                 }
             }
         }
@@ -1070,15 +1077,15 @@ public:
     template<typename... Component, typename... Exclude>
     [[nodiscard]] basic_view<Entity, exclude_t<Exclude...>, Component...> view(exclude_t<Exclude...> = {}) const {
         static_assert(sizeof...(Component) > 0, "Exclusion-only views are not supported");
-        using view_type = basic_view<Entity, exclude_t<Exclude...>, Component...>;
-        return [](auto *... cpools) { return (cpools && ...) ? view_type{*cpools...} : view_type{}; }(assure<std::decay_t<Component>>()..., assure<Exclude>()...);
+        static_assert((std::is_const_v<Component> && ...), "Invalid non-const type");
+        return { *assure<std::remove_const_t<Component>>()..., *assure<Exclude>()... };
     }
 
     /*! @copydoc view */
     template<typename... Component, typename... Exclude>
     [[nodiscard]] basic_view<Entity, exclude_t<Exclude...>, Component...> view(exclude_t<Exclude...> = {}) {
         static_assert(sizeof...(Component) > 0, "Exclusion-only views are not supported");
-        return { *assure<std::decay_t<Component>>()..., *assure<Exclude>()... };
+        return { *assure<std::remove_const_t<Component>>()..., *assure<Exclude>()... };
     }
 
     /**
@@ -1159,16 +1166,16 @@ public:
         static_assert(sizeof...(Owned) + sizeof...(Get) > 0, "Exclusion-only groups are not supported");
         static_assert(sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude) > 1, "Single component groups are not allowed");
 
-        using handler_type = group_handler<exclude_t<Exclude...>, get_t<std::decay_t<Get>...>, std::decay_t<Owned>...>;
+        using handler_type = group_handler<exclude_t<Exclude...>, get_t<std::remove_const_t<Get>...>, std::remove_const_t<Owned>...>;
 
-        const auto cpools = std::make_tuple(assure<std::decay_t<Owned>>()..., assure<std::decay_t<Get>>()...);
+        const auto cpools = std::make_tuple(assure<std::remove_const_t<Owned>>()..., assure<std::remove_const_t<Get>>()...);
         constexpr auto size = sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude);
         handler_type *handler = nullptr;
 
         if(auto it = std::find_if(groups.cbegin(), groups.cend(), [size](const auto &gdata) {
             return gdata.size == size
-                && (gdata.owned(type_hash<std::decay_t<Owned>>::value()) && ...)
-                && (gdata.get(type_hash<std::decay_t<Get>>::value()) && ...)
+                && (gdata.owned(type_hash<std::remove_const_t<Owned>>::value()) && ...)
+                && (gdata.get(type_hash<std::remove_const_t<Get>>::value()) && ...)
                 && (gdata.exclude(type_hash<Exclude>::value()) && ...);
         }); it != groups.cend())
         {
@@ -1179,8 +1186,8 @@ public:
             group_data candidate = {
                 size,
                 { new handler_type{}, [](void *instance) { delete static_cast<handler_type *>(instance); } },
-                []([[maybe_unused]] const id_type ctype) ENTT_NOEXCEPT { return ((ctype == type_hash<std::decay_t<Owned>>::value()) || ...); },
-                []([[maybe_unused]] const id_type ctype) ENTT_NOEXCEPT { return ((ctype == type_hash<std::decay_t<Get>>::value()) || ...); },
+                []([[maybe_unused]] const id_type ctype) ENTT_NOEXCEPT { return ((ctype == type_hash<std::remove_const_t<Owned>>::value()) || ...); },
+                []([[maybe_unused]] const id_type ctype) ENTT_NOEXCEPT { return ((ctype == type_hash<std::remove_const_t<Get>>::value()) || ...); },
                 []([[maybe_unused]] const id_type ctype) ENTT_NOEXCEPT { return ((ctype == type_hash<Exclude>::value()) || ...); },
             };
 
@@ -1193,17 +1200,17 @@ public:
                 groups.push_back(std::move(candidate));
             } else {
                 ENTT_ASSERT(std::all_of(groups.cbegin(), groups.cend(), [size](const auto &gdata) {
-                    const auto overlapping = (0u + ... + gdata.owned(type_hash<std::decay_t<Owned>>::value()));
-                    const auto sz = overlapping + (0u + ... + gdata.get(type_hash<std::decay_t<Get>>::value())) + (0u + ... + gdata.exclude(type_hash<Exclude>::value()));
+                    const auto overlapping = (0u + ... + gdata.owned(type_hash<std::remove_const_t<Owned>>::value()));
+                    const auto sz = overlapping + (0u + ... + gdata.get(type_hash<std::remove_const_t<Get>>::value())) + (0u + ... + gdata.exclude(type_hash<Exclude>::value()));
                     return !overlapping || ((sz == size) || (sz == gdata.size));
                 }));
 
                 const auto next = std::find_if_not(groups.cbegin(), groups.cend(), [size](const auto &gdata) {
-                    return !(0u + ... + gdata.owned(type_hash<std::decay_t<Owned>>::value())) || (size > gdata.size);
+                    return !(0u + ... + gdata.owned(type_hash<std::remove_const_t<Owned>>::value())) || (size > gdata.size);
                 });
 
                 const auto prev = std::find_if(std::make_reverse_iterator(next), groups.crend(), [](const auto &gdata) {
-                    return (0u + ... + gdata.owned(type_hash<std::decay_t<Owned>>::value()));
+                    return (0u + ... + gdata.owned(type_hash<std::remove_const_t<Owned>>::value()));
                 });
 
                 maybe_valid_if = (next == groups.cend() ? maybe_valid_if : next->group.get());
@@ -1211,12 +1218,12 @@ public:
                 groups.insert(next, std::move(candidate));
             }
 
-            (on_construct<std::decay_t<Owned>>().before(maybe_valid_if).template connect<&handler_type::template maybe_valid_if<std::decay_t<Owned>>>(*handler), ...);
-            (on_construct<std::decay_t<Get>>().before(maybe_valid_if).template connect<&handler_type::template maybe_valid_if<std::decay_t<Get>>>(*handler), ...);
+            (on_construct<std::remove_const_t<Owned>>().before(maybe_valid_if).template connect<&handler_type::template maybe_valid_if<std::remove_const_t<Owned>>>(*handler), ...);
+            (on_construct<std::remove_const_t<Get>>().before(maybe_valid_if).template connect<&handler_type::template maybe_valid_if<std::remove_const_t<Get>>>(*handler), ...);
             (on_destroy<Exclude>().before(maybe_valid_if).template connect<&handler_type::template maybe_valid_if<Exclude>>(*handler), ...);
 
-            (on_destroy<std::decay_t<Owned>>().before(discard_if).template connect<&handler_type::discard_if>(*handler), ...);
-            (on_destroy<std::decay_t<Get>>().before(discard_if).template connect<&handler_type::discard_if>(*handler), ...);
+            (on_destroy<std::remove_const_t<Owned>>().before(discard_if).template connect<&handler_type::discard_if>(*handler), ...);
+            (on_destroy<std::remove_const_t<Get>>().before(discard_if).template connect<&handler_type::discard_if>(*handler), ...);
             (on_construct<Exclude>().before(discard_if).template connect<&handler_type::discard_if>(*handler), ...);
 
             if constexpr(sizeof...(Owned) == 0) {
@@ -1226,12 +1233,12 @@ public:
             } else {
                 // we cannot iterate backwards because we want to leave behind valid entities in case of owned types
                 for(auto *first = std::get<0>(cpools)->data(), *last = first + std::get<0>(cpools)->size(); first != last; ++first) {
-                    handler->template maybe_valid_if<type_list_element_t<0, type_list<std::decay_t<Owned>...>>>(*this, *first);
+                    handler->template maybe_valid_if<type_list_element_t<0, type_list<std::remove_const_t<Owned>...>>>(*this, *first);
                 }
             }
         }
 
-        return { handler->current, *std::get<storage_type<std::decay_t<Owned>> *>(cpools)..., *std::get<storage_type<std::decay_t<Get>> *>(cpools)... };
+        return { handler->current, *std::get<storage_type<std::remove_const_t<Owned>> *>(cpools)..., *std::get<storage_type<std::remove_const_t<Get>> *>(cpools)... };
     }
 
     /**
@@ -1250,15 +1257,15 @@ public:
 
         if(auto it = std::find_if(groups.cbegin(), groups.cend(), [](const auto &gdata) {
             return gdata.size == (sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude))
-                && (gdata.owned(type_hash<std::decay_t<Owned>>::value()) && ...)
-                && (gdata.get(type_hash<std::decay_t<Get>>::value()) && ...)
+                && (gdata.owned(type_hash<std::remove_const_t<Owned>>::value()) && ...)
+                && (gdata.get(type_hash<std::remove_const_t<Get>>::value()) && ...)
                 && (gdata.exclude(type_hash<Exclude>::value()) && ...);
             }); it == groups.cend())
         {
             return {};
         } else {
-            using handler_type = group_handler<exclude_t<Exclude...>, get_t<std::decay_t<Get>...>, std::decay_t<Owned>...>;
-            return { static_cast<handler_type *>(it->group.get())->current, *assure<std::decay_t<Owned>>()... , *assure<std::decay_t<Get>>()... };
+            using handler_type = group_handler<exclude_t<Exclude...>, get_t<std::remove_const_t<Get>...>, std::remove_const_t<Owned>...>;
+            return { static_cast<handler_type *>(it->group.get())->current, *pool_if_exists<std::remove_const_t<Owned>>()... , *pool_if_exists<std::remove_const_t<Get>>()... };
         }
     }
 
@@ -1298,7 +1305,7 @@ public:
      */
     template<typename... Component>
     [[nodiscard]] bool sortable() const {
-        return std::none_of(groups.cbegin(), groups.cend(), [](auto &&gdata) { return (gdata.owned(type_hash<std::decay_t<Component>>::value()) || ...); });
+        return std::none_of(groups.cbegin(), groups.cend(), [](auto &&gdata) { return (gdata.owned(type_hash<std::remove_const_t<Component>>::value()) || ...); });
     }
 
     /**
@@ -1312,7 +1319,7 @@ public:
     [[nodiscard]] bool sortable(const basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> &) ENTT_NOEXCEPT {
         constexpr auto size = sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude);
         return std::find_if(groups.cbegin(), groups.cend(), [size](const auto &gdata) {
-            return (0u + ... + gdata.owned(type_hash<std::decay_t<Owned>>::value())) && (size < gdata.size);
+            return (0u + ... + gdata.owned(type_hash<std::remove_const_t<Owned>>::value())) && (size < gdata.size);
         }) == groups.cend();
     }
 
@@ -1479,7 +1486,7 @@ public:
     template<typename Type, typename... Args>
     Type & set(Args &&... args) {
         unset<Type>();
-        vars.push_back(any{std::in_place_type<Type>, std::forward<Args>(args)...});
+        vars.emplace_back(std::in_place_type<Type>, std::forward<Args>(args)...);
         return any_cast<Type &>(vars.back());
     }
 
@@ -1516,9 +1523,9 @@ public:
      * registry, a null pointer otherwise.
      */
     template<typename Type>
-    [[nodiscard]] const Type * try_ctx() const {
+    [[nodiscard]] Type * try_ctx() const {
         auto it = std::find_if(vars.cbegin(), vars.cend(), [type = type_id<Type>()](auto &&var) { return var.type() == type; });
-        return it == vars.cend() ? nullptr : any_cast<const Type>(&*it);
+        return it == vars.cend() ? nullptr : any_cast<Type>(&*it);
     }
 
     /*! @copydoc try_ctx */
@@ -1539,16 +1546,18 @@ public:
      * @return A valid reference to the object in the context of the registry.
      */
     template<typename Type>
-    [[nodiscard]] const Type & ctx() const {
+    [[nodiscard]] Type & ctx() const {
         auto it = std::find_if(vars.cbegin(), vars.cend(), [type = type_id<Type>()](auto &&var) { return var.type() == type; });
-        return (ENTT_ASSERT(it != vars.cend()), any_cast<const Type &>(*it));
+        ENTT_ASSERT(it != vars.cend());
+        return any_cast<Type &>(*it);
     }
 
     /*! @copydoc ctx */
     template<typename Type>
     [[nodiscard]] Type & ctx() {
         auto it = std::find_if(vars.begin(), vars.end(), [type = type_id<Type>()](auto &&var) { return var.type() == type; });
-        return (ENTT_ASSERT(it != vars.end()), any_cast<Type &>(*it));
+        ENTT_ASSERT(it != vars.end());
+        return any_cast<Type &>(*it);
     }
 
     /**
@@ -1580,8 +1589,8 @@ public:
     }
 
 private:
-    std::vector<any> vars{};
-    std::vector<pool_data> pools{};
+    std::vector<basic_any<0u>> vars{};
+    mutable std::vector<pool_data> pools{};
     std::vector<group_data> groups{};
     std::vector<entity_type> entities{};
     entity_type available{null};

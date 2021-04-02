@@ -52,22 +52,35 @@ struct unmanageable_t {
 };
 
 struct MetaAny: ::testing::Test {
-    static void SetUpTestCase() {
+    void SetUp() override {
         using namespace entt::literals;
 
-        entt::meta<double>().conv<int>();
-        entt::meta<empty_t>().dtor<&empty_t::destroy>();
-        entt::meta<fat_t>().base<empty_t>().dtor<&fat_t::destroy>();
+        entt::meta<double>()
+            .type("double"_hs)
+            .conv<int>();
+
+        entt::meta<empty_t>()
+            .type("empty"_hs)
+            .dtor<&empty_t::destroy>();
+
+        entt::meta<fat_t>()
+            .type("fat"_hs)
+            .base<empty_t>()
+            .dtor<&fat_t::destroy>();
 
         entt::meta<clazz_t>()
             .type("clazz"_hs)
             .data<&clazz_t::value>("value"_hs)
             .func<&clazz_t::member>("member"_hs)
             .func<&clazz_t::func>("func"_hs);
+
+        empty_t::counter = 0;
     }
 
-    void SetUp() override {
-        empty_t::counter = 0;
+    void TearDown() override {
+        for(auto type: entt::resolve()) {
+            type.reset();
+        }
     }
 };
 
@@ -104,6 +117,14 @@ TEST_F(MetaAny, Empty) {
     ASSERT_EQ(any.data(), nullptr);
     ASSERT_EQ(any, entt::meta_any{});
     ASSERT_NE(entt::meta_any{'c'}, any);
+
+    ASSERT_FALSE(any.as_ref());
+    ASSERT_FALSE(any.as_sequence_container());
+    ASSERT_FALSE(any.as_associative_container());
+
+    ASSERT_FALSE(std::as_const(any).as_ref());
+    ASSERT_FALSE(std::as_const(any).as_sequence_container());
+    ASSERT_FALSE(std::as_const(any).as_associative_container());
 }
 
 TEST_F(MetaAny, SBOInPlaceTypeConstruction) {
@@ -143,7 +164,7 @@ TEST_F(MetaAny, SBOAsConstRefConstruction) {
 
     ASSERT_TRUE(any);
     ASSERT_FALSE(any.try_cast<std::size_t>());
-    ASSERT_DEATH(any.cast<int &>() = 3, ".*");
+    ASSERT_DEATH(any.cast<int &>() = 3, "");
     ASSERT_EQ(any.cast<const int &>(), 3);
     ASSERT_EQ(any.cast<int>(), 3);
     ASSERT_EQ(any.data(), nullptr);
@@ -254,7 +275,7 @@ TEST_F(MetaAny, NoSBOAsConstRefConstruction) {
 
     ASSERT_TRUE(any);
     ASSERT_FALSE(any.try_cast<std::size_t>());
-    ASSERT_DEATH(any.cast<fat_t &>() = {}, ".*");
+    ASSERT_DEATH(any.cast<fat_t &>() = {}, "");
     ASSERT_EQ(any.cast<const fat_t &>(), instance);
     ASSERT_EQ(any.cast<fat_t>(), instance);
     ASSERT_EQ(any.data(), nullptr);
@@ -576,8 +597,8 @@ TEST_F(MetaAny, NoSBOWithVoidSwap) {
 
 TEST_F(MetaAny, AsRef) {
     entt::meta_any any{42};
-    auto ref = as_ref(any);
-    auto cref = as_ref(std::as_const(any));
+    auto ref = any.as_ref();
+    auto cref = std::as_const(any).as_ref();
 
     ASSERT_EQ(any.try_cast<int>(), any.data());
     ASSERT_EQ(ref.try_cast<int>(), any.data());
@@ -599,7 +620,7 @@ TEST_F(MetaAny, AsRef) {
     ASSERT_EQ(any.cast<const int &>(), 42);
     ASSERT_EQ(ref.cast<int &>(), 42);
     ASSERT_EQ(ref.cast<const int &>(), 42);
-    ASSERT_DEATH(cref.cast<int &>() = 3, ".*");
+    ASSERT_DEATH(cref.cast<int &>() = 3, "");
     ASSERT_EQ(cref.cast<const int &>(), 42);
 
     any.cast<int &>() = 3;
@@ -613,16 +634,16 @@ TEST_F(MetaAny, AsRef) {
     ASSERT_EQ(ref.try_cast<int>(), nullptr);
     ASSERT_EQ(cref.try_cast<int>(), any.data());
 
-    ref = as_ref(ref);
-    cref = as_ref(std::as_const(cref));
+    ref = ref.as_ref();
+    cref = std::as_const(cref).as_ref();
 
     ASSERT_EQ(ref.try_cast<int>(), nullptr);
     ASSERT_EQ(cref.try_cast<int>(), nullptr);
     ASSERT_EQ(ref.try_cast<const int>(), any.data());
     ASSERT_EQ(cref.try_cast<const int>(), any.data());
 
-    ASSERT_DEATH(ref.cast<int &>() = 3, ".*");
-    ASSERT_DEATH(cref.cast<int &>() = 3, ".*");
+    ASSERT_DEATH(ref.cast<int &>() = 3, "");
+    ASSERT_DEATH(cref.cast<int &>() = 3, "");
 
     ASSERT_EQ(ref.cast<const int &>(), 3);
     ASSERT_EQ(cref.cast<const int &>(), 3);
@@ -638,6 +659,14 @@ TEST_F(MetaAny, AsRef) {
     ASSERT_EQ(cref.cast<const int &>(), 42);
     ASSERT_NE(ref.try_cast<int>(), any.data());
     ASSERT_NE(cref.try_cast<int>(), any.data());
+
+    any.emplace<void>();
+    ref = any.as_ref();
+    cref = std::as_const(any).as_ref();
+
+    ASSERT_TRUE(any);
+    ASSERT_FALSE(ref);
+    ASSERT_FALSE(cref);
 }
 
 TEST_F(MetaAny, Comparable) {
@@ -746,7 +775,7 @@ TEST_F(MetaAny, ConstConvert) {
 TEST_F(MetaAny, UnmanageableType) {
     unmanageable_t instance;
     entt::meta_any any{std::ref(instance)};
-    entt::meta_any other = as_ref(any);
+    entt::meta_any other = any.as_ref();
 
     std::swap(any, other);
 
@@ -774,7 +803,7 @@ TEST_F(MetaAny, Invoke) {
     ASSERT_TRUE(any.invoke("func"_hs));
     ASSERT_TRUE(any.invoke("member"_hs, 42));
     ASSERT_FALSE(std::as_const(any).invoke("member"_hs, 42));
-    ASSERT_FALSE(as_ref(std::as_const(any)).invoke("member"_hs, 42));
+    ASSERT_FALSE(std::as_const(any).as_ref().invoke("member"_hs, 42));
     ASSERT_FALSE(any.invoke("non_existent"_hs, 42));
 
     ASSERT_EQ(clazz_t::c, 'd');
@@ -793,7 +822,7 @@ TEST_F(MetaAny, SetGet) {
 
     ASSERT_TRUE(value);
     ASSERT_EQ(value, any.get("value"_hs));
-    ASSERT_EQ(value, as_ref(std::as_const(any)).get("value"_hs));
+    ASSERT_EQ(value, std::as_const(any).as_ref().get("value"_hs));
     ASSERT_NE(value.try_cast<int>(), nullptr);
     ASSERT_EQ(value.cast<int>(), 42);
     ASSERT_EQ(instance.value, 42);

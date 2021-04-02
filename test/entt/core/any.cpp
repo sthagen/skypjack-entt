@@ -5,8 +5,12 @@
 #include <entt/core/any.hpp>
 
 struct fat {
+    fat(double v1, double v2, double v3, double v4)
+        : value{v1, v2, v3, v4}
+    {}
+
     double value[4];
-    inline static int counter = 0;
+    inline static int counter{0};
 
     ~fat() { ++counter; }
 
@@ -34,6 +38,8 @@ struct not_copyable {
     double payload[Sz];
 };
 
+struct alignas(64u) over_aligned {};
+
 TEST(Any, SBO) {
     entt::any any{'c'};
 
@@ -44,7 +50,7 @@ TEST(Any, SBO) {
 }
 
 TEST(Any, NoSBO) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{instance};
 
     ASSERT_TRUE(any);
@@ -70,7 +76,7 @@ TEST(Any, SBOInPlaceTypeConstruction) {
     ASSERT_EQ(entt::any_cast<double>(&any), nullptr);
     ASSERT_EQ(entt::any_cast<int>(any), 42);
 
-    auto other = as_ref(any);
+    auto other = any.as_ref();
 
     ASSERT_TRUE(other);
     ASSERT_EQ(other.type(), entt::type_id<int>());
@@ -97,7 +103,7 @@ TEST(Any, SBOAsRefConstruction) {
     ASSERT_EQ(any.data(), &value);
     ASSERT_EQ(std::as_const(any).data(), &value);
 
-    auto other = as_ref(any);
+    auto other = any.as_ref();
 
     ASSERT_TRUE(other);
     ASSERT_EQ(other.type(), entt::type_id<int>());
@@ -124,7 +130,7 @@ TEST(Any, SBOAsConstRefConstruction) {
     ASSERT_EQ(any.data(), nullptr);
     ASSERT_EQ(std::as_const(any).data(), &value);
 
-    auto other = as_ref(any);
+    auto other = any.as_ref();
 
     ASSERT_TRUE(other);
     ASSERT_EQ(other.type(), entt::type_id<int>());
@@ -195,7 +201,7 @@ TEST(Any, SBODirectAssignment) {
 }
 
 TEST(Any, NoSBOInPlaceTypeConstruction) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{std::in_place_type<fat>, instance};
 
     ASSERT_TRUE(any);
@@ -203,16 +209,16 @@ TEST(Any, NoSBOInPlaceTypeConstruction) {
     ASSERT_EQ(entt::any_cast<double>(&any), nullptr);
     ASSERT_EQ(entt::any_cast<fat>(any), instance);
 
-    auto other = as_ref(any);
+    auto other = any.as_ref();
 
     ASSERT_TRUE(other);
     ASSERT_EQ(other.type(), entt::type_id<fat>());
-    ASSERT_EQ(entt::any_cast<fat>(other), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(other), (fat{.1, .2, .3, .4}));
     ASSERT_EQ(other.data(), any.data());
 }
 
 TEST(Any, NoSBOAsRefConstruction) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{std::ref(instance)};
 
     ASSERT_TRUE(any);
@@ -230,16 +236,16 @@ TEST(Any, NoSBOAsRefConstruction) {
     ASSERT_EQ(any.data(), &instance);
     ASSERT_EQ(std::as_const(any).data(), &instance);
 
-    auto other = as_ref(any);
+    auto other = any.as_ref();
 
     ASSERT_TRUE(other);
     ASSERT_EQ(other.type(), entt::type_id<fat>());
-    ASSERT_EQ(entt::any_cast<fat>(other), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(other), (fat{.1, .2, .3, .4}));
     ASSERT_EQ(other.data(), any.data());
 }
 
 TEST(Any, NoSBOAsConstRefConstruction) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{std::cref(instance)};
 
     ASSERT_TRUE(any);
@@ -257,16 +263,16 @@ TEST(Any, NoSBOAsConstRefConstruction) {
     ASSERT_EQ(any.data(), nullptr);
     ASSERT_EQ(std::as_const(any).data(), &instance);
 
-    auto other = as_ref(any);
+    auto other = any.as_ref();
 
     ASSERT_TRUE(other);
     ASSERT_EQ(other.type(), entt::type_id<fat>());
-    ASSERT_EQ(entt::any_cast<fat>(other), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(other), (fat{.1, .2, .3, .4}));
     ASSERT_EQ(other.data(), any.data());
 }
 
 TEST(Any, NoSBOCopyConstruction) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{instance};
     entt::any other{any};
 
@@ -279,7 +285,7 @@ TEST(Any, NoSBOCopyConstruction) {
 }
 
 TEST(Any, NoSBOCopyAssignment) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{instance};
     entt::any other{3};
 
@@ -294,7 +300,7 @@ TEST(Any, NoSBOCopyAssignment) {
 }
 
 TEST(Any, NoSBOMoveConstruction) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{instance};
     entt::any other{std::move(any)};
 
@@ -306,7 +312,7 @@ TEST(Any, NoSBOMoveConstruction) {
 }
 
 TEST(Any, NoSBOMoveAssignment) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{instance};
     entt::any other{3};
 
@@ -320,7 +326,7 @@ TEST(Any, NoSBOMoveAssignment) {
 }
 
 TEST(Any, NoSBODirectAssignment) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{};
     any = instance;
 
@@ -401,7 +407,7 @@ TEST(Any, SBOMoveInvalidate) {
 }
 
 TEST(Any, NoSBOMoveInvalidate) {
-    fat instance{{.1, .2, .3, .4}};
+    fat instance{.1, .2, .3, .4};
     entt::any any{instance};
     entt::any other{std::move(any)};
     entt::any valid = std::move(other);
@@ -432,7 +438,7 @@ TEST(Any, SBODestruction) {
 
 TEST(Any, NoSBODestruction) {
     {
-        entt::any any{fat{}};
+        entt::any any{fat{1., 2., 3., 4.}};
         fat::counter = 0;
     }
 
@@ -489,13 +495,13 @@ TEST(Any, SBOSwap) {
 }
 
 TEST(Any, NoSBOSwap) {
-    entt::any lhs{fat{{.1, .2, .3, .4}}};
-    entt::any rhs{fat{{.4, .3, .2, .1}}};
+    entt::any lhs{fat{.1, .2, .3, .4}};
+    entt::any rhs{fat{.4, .3, .2, .1}};
 
     std::swap(lhs, rhs);
 
-    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{{.4, .3, .2, .1}}));
-    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{.4, .3, .2, .1}));
+    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{.1, .2, .3, .4}));
 }
 
 TEST(Any, VoidSwap) {
@@ -509,7 +515,7 @@ TEST(Any, VoidSwap) {
 }
 
 TEST(Any, SBOWithNoSBOSwap) {
-    entt::any lhs{fat{{.1, .2, .3, .4}}};
+    entt::any lhs{fat{.1, .2, .3, .4}};
     entt::any rhs{'c'};
 
     std::swap(lhs, rhs);
@@ -519,7 +525,7 @@ TEST(Any, SBOWithNoSBOSwap) {
     ASSERT_EQ(entt::any_cast<fat>(&lhs), nullptr);
     ASSERT_EQ(entt::any_cast<char>(&rhs), nullptr);
     ASSERT_EQ(entt::any_cast<char>(lhs), 'c');
-    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{.1, .2, .3, .4}));
 }
 
 TEST(Any, SBOWithRefSwap) {
@@ -600,7 +606,7 @@ TEST(Any, SBOWithVoidSwap) {
 TEST(Any, NoSBOWithRefSwap) {
     int value = 3;
     entt::any lhs{std::ref(value)};
-    entt::any rhs{fat{{.1, .2, .3, .4}}};
+    entt::any rhs{fat{.1, .2, .3, .4}};
 
     std::swap(lhs, rhs);
 
@@ -608,7 +614,7 @@ TEST(Any, NoSBOWithRefSwap) {
     ASSERT_EQ(rhs.type(), entt::type_id<int>());
     ASSERT_EQ(entt::any_cast<int>(&lhs), nullptr);
     ASSERT_EQ(entt::any_cast<fat>(&rhs), nullptr);
-    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{.1, .2, .3, .4}));
     ASSERT_EQ(entt::any_cast<int>(rhs), 3);
     ASSERT_EQ(rhs.data(), &value);
 }
@@ -616,7 +622,7 @@ TEST(Any, NoSBOWithRefSwap) {
 TEST(Any, NoSBOWithConstRefSwap) {
     int value = 3;
     entt::any lhs{std::cref(value)};
-    entt::any rhs{fat{{.1, .2, .3, .4}}};
+    entt::any rhs{fat{.1, .2, .3, .4}};
 
     std::swap(lhs, rhs);
 
@@ -624,14 +630,14 @@ TEST(Any, NoSBOWithConstRefSwap) {
     ASSERT_EQ(rhs.type(), entt::type_id<int>());
     ASSERT_EQ(entt::any_cast<int>(&lhs), nullptr);
     ASSERT_EQ(entt::any_cast<fat>(&rhs), nullptr);
-    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{.1, .2, .3, .4}));
     ASSERT_EQ(entt::any_cast<int>(rhs), 3);
     ASSERT_EQ(rhs.data(), nullptr);
     ASSERT_EQ(std::as_const(rhs).data(), &value);
 }
 
 TEST(Any, NoSBOWithEmptySwap) {
-    entt::any lhs{fat{{.1, .2, .3, .4}}};
+    entt::any lhs{fat{.1, .2, .3, .4}};
     entt::any rhs{};
 
     std::swap(lhs, rhs);
@@ -640,7 +646,7 @@ TEST(Any, NoSBOWithEmptySwap) {
     ASSERT_EQ(rhs.type(), entt::type_id<fat>());
     ASSERT_EQ(entt::any_cast<fat>(&lhs), nullptr);
     ASSERT_EQ(entt::any_cast<double>(&rhs), nullptr);
-    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{.1, .2, .3, .4}));
 
     std::swap(lhs, rhs);
 
@@ -648,11 +654,11 @@ TEST(Any, NoSBOWithEmptySwap) {
     ASSERT_EQ(lhs.type(), entt::type_id<fat>());
     ASSERT_EQ(entt::any_cast<double>(&lhs), nullptr);
     ASSERT_EQ(entt::any_cast<fat>(&rhs), nullptr);
-    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{.1, .2, .3, .4}));
 }
 
 TEST(Any, NoSBOWithVoidSwap) {
-    entt::any lhs{fat{{.1, .2, .3, .4}}};
+    entt::any lhs{fat{.1, .2, .3, .4}};
     entt::any rhs{std::in_place_type<void>};
 
     std::swap(lhs, rhs);
@@ -661,7 +667,7 @@ TEST(Any, NoSBOWithVoidSwap) {
     ASSERT_EQ(rhs.type(), entt::type_id<fat>());
     ASSERT_EQ(entt::any_cast<fat>(&lhs), nullptr);
     ASSERT_EQ(entt::any_cast<double>(&rhs), nullptr);
-    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(rhs), (fat{.1, .2, .3, .4}));
 
     std::swap(lhs, rhs);
 
@@ -669,13 +675,13 @@ TEST(Any, NoSBOWithVoidSwap) {
     ASSERT_EQ(lhs.type(), entt::type_id<fat>());
     ASSERT_EQ(entt::any_cast<double>(&lhs), nullptr);
     ASSERT_EQ(entt::any_cast<fat>(&rhs), nullptr);
-    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{{.1, .2, .3, .4}}));
+    ASSERT_EQ(entt::any_cast<fat>(lhs), (fat{.1, .2, .3, .4}));
 }
 
 TEST(Any, AsRef) {
     entt::any any{42};
-    auto ref = as_ref(any);
-    auto cref = as_ref(std::as_const(any));
+    auto ref = any.as_ref();
+    auto cref = std::as_const(any).as_ref();
 
     ASSERT_EQ(entt::any_cast<int>(&any), any.data());
     ASSERT_EQ(entt::any_cast<int>(&ref), any.data());
@@ -711,8 +717,8 @@ TEST(Any, AsRef) {
     ASSERT_EQ(entt::any_cast<int>(&ref), nullptr);
     ASSERT_EQ(entt::any_cast<int>(&cref), any.data());
 
-    ref = as_ref(ref);
-    cref = as_ref(std::as_const(cref));
+    ref = ref.as_ref();
+    cref = std::as_const(cref).as_ref();
 
     ASSERT_EQ(entt::any_cast<int>(&ref), nullptr);
     ASSERT_EQ(entt::any_cast<int>(&cref), nullptr);
@@ -753,7 +759,7 @@ TEST(Any, Comparable) {
     int value = 42;
 
     test('c', 'a');
-    test(fat{{.1, .2, .3, .4}}, fat{{.0, .1, .2, .3}});
+    test(fat{.1, .2, .3, .4}, fat{.0, .1, .2, .3});
     test(std::ref(value), 3);
     test(3, std::cref(value));
 }
@@ -800,8 +806,11 @@ TEST(Any, AnyCast) {
     ASSERT_EQ(*entt::any_cast<int>(&any), 42);
     ASSERT_EQ(*entt::any_cast<int>(&cany), 42);
     ASSERT_EQ(entt::any_cast<int &>(any), 42);
+    ASSERT_DEATH(entt::any_cast<double &>(any), "");
     ASSERT_EQ(entt::any_cast<const int &>(cany), 42);
-    ASSERT_EQ(entt::any_cast<int>(42), 42);
+    ASSERT_DEATH(entt::any_cast<const double &>(cany), "");
+    ASSERT_EQ(entt::any_cast<int>(entt::any{42}), 42);
+    ASSERT_DEATH(entt::any_cast<double>(entt::any{42}), "");
 }
 
 TEST(Any, NotCopyableType) {
@@ -869,4 +878,42 @@ TEST(Any, CopyMoveReference) {
 
     test(std::ref(value));
     test(std::cref(value));
+}
+
+TEST(Any, SBOVsZeroedSBOSize) {
+    entt::any sbo{42};
+    const auto *broken = sbo.data();
+    entt::any other = std::move(sbo);
+
+    ASSERT_NE(broken, other.data());
+
+    entt::basic_any<0u> dyn{42};
+    const auto *valid = dyn.data();
+    entt::basic_any<0u> same = std::move(dyn);
+
+    ASSERT_EQ(valid, same.data());
+}
+
+TEST(Any, Alignment) {
+    static constexpr auto alignment = alignof(over_aligned);
+
+    auto test = [](auto *target, auto cb) {
+        const auto *data = target[0].data();
+
+        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[0u].data()) % alignment) == 0u);
+        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[1u].data()) % alignment) == 0u);
+
+        std::swap(target[0], target[1]);
+
+        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[0u].data()) % alignment) == 0u);
+        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[1u].data()) % alignment) == 0u);
+
+        cb(data, target[1].data());
+    };
+
+    entt::basic_any<alignment> nosbo[2] = { over_aligned{}, over_aligned{} };
+    test(nosbo, [](auto *pre, auto *post) { ASSERT_EQ(pre, post); });
+
+    entt::basic_any<alignment, alignment> sbo[2] = { over_aligned{}, over_aligned{} };
+    test(sbo, [](auto *pre, auto *post) { ASSERT_NE(pre, post); });
 }

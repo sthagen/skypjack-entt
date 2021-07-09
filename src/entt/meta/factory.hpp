@@ -110,12 +110,12 @@ private:
 
         static internal::meta_prop_node node{
             nullptr,
-            property,
-            property + 1u
+            property[0u],
+            property[1u]
         };
 
         entt::meta_any instance{std::forward<Key>(key)};
-        ENTT_ASSERT(!internal::find_if_not(&instance, *curr, &node));
+        ENTT_ASSERT(!internal::find_if_not(&instance, *curr, &node), "Duplicate key");
         property[0u] = std::move(instance);
         property[1u] = std::move(value);
 
@@ -191,7 +191,7 @@ struct meta_factory<Type> {
     auto type(const id_type id = type_hash<Type>::value()) {
         auto * const node = internal::meta_info<Type>::resolve();
 
-        ENTT_ASSERT(!internal::find_if_not(id, *internal::meta_context::global(), node));
+        ENTT_ASSERT(!internal::find_if_not(id, *internal::meta_context::global(), node), "Duplicate identifier");
         node->id = id;
 
         if(!internal::find_if(node, *internal::meta_context::global())) {
@@ -235,6 +235,63 @@ struct meta_factory<Type> {
     /**
      * @brief Assigns a meta conversion function to a meta type.
      *
+     * Conversion functions can be either free functions or member
+     * functions.<br/>
+     * In case of free functions, they must accept a const reference to an
+     * instance of the parent type as an argument. In case of member functions,
+     * they should have no arguments at all.
+     *
+     * @tparam Candidate The actual function to use for the conversion.
+     * @return A meta factory for the parent type.
+     */
+    template<auto Candidate>
+    std::enable_if_t<std::is_member_function_pointer_v<decltype(Candidate)>, meta_factory<Type>> conv() ENTT_NOEXCEPT {
+        using conv_type = std::invoke_result_t<decltype(Candidate), Type &>;
+        auto * const type = internal::meta_info<Type>::resolve();
+
+        static internal::meta_conv_node node{
+            type,
+            nullptr,
+            &internal::meta_info<conv_type>::resolve,
+            [](const void *instance) -> meta_any {
+                return (static_cast<const Type *>(instance)->*Candidate)();
+            }
+        };
+
+        if(!internal::find_if(&node, type->conv)) {
+            node.next = type->conv;
+            type->conv = &node;
+        }
+
+        return meta_factory<Type>{};
+    }
+
+    /*! @copydoc conv */
+    template<auto Candidate>
+    std::enable_if_t<!std::is_member_function_pointer_v<decltype(Candidate)>, meta_factory<Type>> conv() ENTT_NOEXCEPT {
+        using conv_type = std::invoke_result_t<decltype(Candidate), Type &>;
+        auto * const type = internal::meta_info<Type>::resolve();
+
+        static internal::meta_conv_node node{
+            type,
+            nullptr,
+            &internal::meta_info<conv_type>::resolve,
+            [](const void *instance) -> meta_any {
+                return Candidate(*static_cast<const Type *>(instance));
+            }
+        };
+
+        if(!internal::find_if(&node, type->conv)) {
+            node.next = type->conv;
+            type->conv = &node;
+        }
+
+        return meta_factory<Type>{};
+    }
+
+    /**
+     * @brief Assigns a meta conversion function to a meta type.
+     *
      * The given type must be such that an instance of the reflected type can be
      * converted to it.
      *
@@ -264,40 +321,6 @@ struct meta_factory<Type> {
     }
 
     /**
-     * @brief Assigns a meta conversion function to a meta type.
-     *
-     * Conversion functions can be either free functions or member
-     * functions.<br/>
-     * In case of free functions, they must accept a const reference to an
-     * instance of the parent type as an argument. In case of member functions,
-     * they should have no arguments at all.
-     *
-     * @tparam Candidate The actual function to use for the conversion.
-     * @return A meta factory for the parent type.
-     */
-    template<auto Candidate>
-    auto conv() ENTT_NOEXCEPT {
-        using conv_type = std::invoke_result_t<decltype(Candidate), Type &>;
-        auto * const type = internal::meta_info<Type>::resolve();
-
-        static internal::meta_conv_node node{
-            type,
-            nullptr,
-            &internal::meta_info<conv_type>::resolve,
-            [](const void *instance) -> meta_any {
-                return std::invoke(Candidate, *static_cast<const Type *>(instance));
-            }
-        };
-
-        if(!internal::find_if(&node, type->conv)) {
-            node.next = type->conv;
-            type->conv = &node;
-        }
-
-        return meta_factory<Type>{};
-    }
-
-    /**
      * @brief Assigns a meta constructor to a meta type.
      *
      * Both member functions and free function can be assigned to meta types in
@@ -313,7 +336,7 @@ struct meta_factory<Type> {
     template<auto Candidate, typename Policy = as_is_t>
     auto ctor() ENTT_NOEXCEPT {
         using descriptor = meta_function_helper_t<Type, decltype(Candidate)>;
-        static_assert(std::is_same_v<std::remove_cv_t<std::remove_reference_t<typename descriptor::return_type>>, Type>, "The function doesn't return an object of the required type");
+        static_assert(std::is_same_v<std::decay_t<typename descriptor::return_type>, Type>, "The function doesn't return an object of the required type");
         auto * const type = internal::meta_info<Type>::resolve();
 
         static internal::meta_ctor_node node{
@@ -395,7 +418,7 @@ struct meta_factory<Type> {
         auto * const type = internal::meta_info<Type>::resolve();
 
         type->dtor = [](void *instance) {
-            std::invoke(Func, *static_cast<Type *>(instance));
+            Func(*static_cast<Type *>(instance));
         };
 
         return meta_factory<Type>{};
@@ -434,7 +457,7 @@ struct meta_factory<Type> {
                 &meta_getter<Type, Data, Policy>
             };
 
-            ENTT_ASSERT(!internal::find_if_not(id, type->data, &node));
+            ENTT_ASSERT(!internal::find_if_not(id, type->data, &node), "Duplicate identifier");
             node.id = id;
 
             if(!internal::find_if(&node, type->data)) {
@@ -483,7 +506,7 @@ struct meta_factory<Type> {
             &meta_getter<Type, Getter, Policy>
         };
 
-        ENTT_ASSERT(!internal::find_if_not(id, type->data, &node));
+        ENTT_ASSERT(!internal::find_if_not(id, type->data, &node), "Duplicate identifier");
         node.id = id;
 
         if(!internal::find_if(&node, type->data)) {
@@ -539,7 +562,7 @@ struct meta_factory<Type> {
         internal::meta_func_node **it = &type->func;
         for(; *it && (*it)->id != id; it = &(*it)->next);
         for(; *it && (*it)->id == id && (*it)->arity < node.arity; it = &(*it)->next);
-        
+
         node.id = id;
         node.next = *it;
         *it = &node;

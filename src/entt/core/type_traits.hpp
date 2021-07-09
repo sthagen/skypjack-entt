@@ -442,7 +442,11 @@ template<typename Type>
 template<typename Type>
 [[nodiscard]] constexpr auto is_equality_comparable(choice_t<1>)
 -> decltype(std::declval<typename Type::value_type>(), std::declval<Type>() == std::declval<Type>()) {
-    return is_equality_comparable<typename Type::value_type>(choice<2>);
+    if constexpr(std::is_same_v<typename Type::value_type, Type>) {
+        return is_equality_comparable<Type>(choice<0>);
+    } else {
+        return is_equality_comparable<typename Type::value_type>(choice<2>);
+    }
 }
 
 
@@ -560,47 +564,6 @@ struct is_complete<Type, std::void_t<decltype(sizeof(Type))>>: std::true_type {}
 */
 template<typename Type>
 inline constexpr auto is_complete_v = is_complete<Type>::value;
-
-
-/**
- * @brief Provides the member constant `value` to true if a given type is
- * hashable, false otherwise.
- * @tparam Type Potentially hashable type.
- */
-template <typename Type, typename = void>
-struct is_std_hashable: std::false_type {};
-
-
-/*! @copydoc is_std_hashable */
-template <typename Type>
-struct is_std_hashable<Type, std::enable_if_t<std::is_convertible_v<decltype(std::declval<std::hash<Type>>()(std::declval<Type>())), std::size_t>>>
-    : std::true_type
-{};
-
-
-/**
- * @brief Helper variable template.
- * @tparam Type Potentially hashable type.
- */
-template <typename Type>
-inline constexpr auto is_std_hashable_v = is_std_hashable<Type>::value;
-
-
-/**
- * @brief Provides the member constant `value` to true if a given type is empty
- * and the empty type optimization is enabled, false otherwise.
- * @tparam Type Potential empty type.
- */
-template<typename Type, typename = void>
-struct is_empty: ENTT_IS_EMPTY(Type) {};
-
-
-/**
- * @brief Helper variable template.
- * @tparam Type Potential empty type.
- */
-template<typename Type>
-inline constexpr auto is_empty_v = is_empty<Type>::value;
 
 
 /**

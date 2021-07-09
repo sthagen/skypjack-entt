@@ -11,6 +11,11 @@ struct not_comparable {
     bool operator==(const not_comparable &) const = delete;
 };
 
+struct nlohmann_json_like {
+    using value_type = nlohmann_json_like;
+    bool operator==(const nlohmann_json_like &) const { return true; }
+};
+
 TEST(TypeTraits, SizeOf) {
     static_assert(entt::size_of_v<void> == 0u);
     static_assert(entt::size_of_v<char> == sizeof(char));
@@ -102,6 +107,7 @@ TEST(TypeTraits, IsEqualityComparable) {
     static_assert(!entt::is_equality_comparable_v<std::unordered_map<int, not_comparable>>);
     static_assert(!entt::is_equality_comparable_v<std::unordered_map<int, std::unordered_map<int, not_comparable>>>);
 
+    static_assert(entt::is_equality_comparable_v<nlohmann_json_like>);
     static_assert(!entt::is_equality_comparable_v<void>);
 }
 
@@ -117,11 +123,6 @@ TEST(TypeTraits, IsApplicable) {
 TEST(TypeTraits, IsComplete) {
     static_assert(entt::is_complete_v<int>);
     static_assert(!entt::is_complete_v<void>);
-}
-
-TEST(TypeTraits, IsStdHashable) {
-    static_assert(entt::is_std_hashable_v<int>);
-    static_assert(!entt::is_std_hashable_v<not_comparable>);
 }
 
 TEST(TypeTraits, ConstnessAs) {

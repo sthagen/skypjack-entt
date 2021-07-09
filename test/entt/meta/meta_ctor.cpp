@@ -153,9 +153,9 @@ TEST_F(MetaCtor, CastAndConvert) {
 
 TEST_F(MetaCtor, ConstNonConstRefArgs) {
     int ivalue = 42;
-    char cvalue = 'c';
+    const char cvalue = 'c';
 
-    auto any = entt::resolve<clazz_t>().ctor<int, char>().invoke(std::ref(ivalue), std::cref(cvalue));
+    auto any = entt::resolve<clazz_t>().ctor<int, char>().invoke(entt::forward_as_meta(ivalue), entt::forward_as_meta(cvalue));
 
     ASSERT_TRUE(any);
     ASSERT_EQ(any.cast<clazz_t>().i, 42);
@@ -187,8 +187,8 @@ TEST_F(MetaCtor, FuncConstNonConstRefArgs) {
     int ivalue = 42;
     auto ctor = entt::resolve<clazz_t>().ctor<int>();
 
-    auto any = ctor.invoke(std::ref(ivalue));
-    auto other = ctor.invoke(std::cref(ivalue));
+    auto any = ctor.invoke(entt::forward_as_meta(ivalue));
+    auto other = ctor.invoke(entt::make_meta<const int &>(ivalue));
 
     ASSERT_TRUE(any);
     ASSERT_TRUE(other);
@@ -215,7 +215,7 @@ TEST_F(MetaCtor, ExternalMemberFunction) {
 
     ASSERT_FALSE(registry.all_of<clazz_t>(entity));
 
-    const auto any = ctor.invoke(std::ref(registry), entity, 3, 'c');
+    const auto any = ctor.invoke(entt::forward_as_meta(registry), entity, 3, 'c');
 
     ASSERT_TRUE(any);
     ASSERT_TRUE(registry.all_of<clazz_t>(entity));

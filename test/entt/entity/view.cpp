@@ -1,11 +1,19 @@
+#include <algorithm>
 #include <tuple>
 #include <utility>
 #include <type_traits>
 #include <gtest/gtest.h>
+#include <entt/entity/component.hpp>
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
 struct empty_type {};
+struct stable_type { int value; };
+
+template<>
+struct entt::component_traits<stable_type>: basic_component_traits {
+    using in_place_delete = std::true_type;
+};
 
 TEST(SingleComponentView, Functionalities) {
     entt::registry registry;
@@ -43,14 +51,14 @@ TEST(SingleComponentView, Functionalities) {
         ASSERT_TRUE(cview.get<const char>(entity) == '1' || std::get<const char &>(cview.get(entity)) == '2');
     }
 
-    ASSERT_EQ(*(view.data() + 0), e1);
-    ASSERT_EQ(*(view.data() + 1), e0);
+    ASSERT_EQ(view.data()[0u], e1);
+    ASSERT_EQ(view.data()[1u], e0);
 
-    ASSERT_EQ(*(view.raw() + 0), '2');
-    ASSERT_EQ(*(cview.raw() + 1), '1');
+    ASSERT_EQ(view.raw()[0u][0u], '2');
+    ASSERT_EQ(cview.raw()[0u][1u], '1');
 
-    registry.remove<char>(e0);
-    registry.remove<char>(e1);
+    registry.erase<char>(e0);
+    registry.erase<char>(e1);
 
     ASSERT_EQ(view.begin(), view.end());
     ASSERT_EQ(view.rbegin(), view.rend());
@@ -72,19 +80,17 @@ TEST(SingleComponentView, RawData) {
 
     ASSERT_EQ(view.size(), 0u);
     ASSERT_EQ(cview.size(), 0u);
-    ASSERT_EQ(view.raw(), nullptr);
-    ASSERT_EQ(cview.raw(), nullptr);
-    ASSERT_EQ(view.data(), nullptr);
-    ASSERT_EQ(cview.data(), nullptr);
+    ASSERT_EQ(view.raw(), cview.raw());
+    ASSERT_EQ(view.data(), cview.data());
 
     registry.emplace<int>(entity, 42);
 
     ASSERT_NE(view.size(), 0u);
     ASSERT_NE(cview.size(), 0u);
-    ASSERT_EQ(*view.raw(), 42);
-    ASSERT_EQ(*cview.raw(), 42);
-    ASSERT_EQ(*view.data(), entity);
-    ASSERT_EQ(*cview.data(), entity);
+    ASSERT_EQ(view.raw()[0u][0u], 42);
+    ASSERT_EQ(cview.raw()[0u][0u], 42);
+    ASSERT_EQ(view.data()[0u], entity);
+    ASSERT_EQ(cview.data()[0u], entity);
 
     registry.destroy(entity);
 
@@ -176,10 +182,14 @@ TEST(SingleComponentView, Each) {
     registry.emplace<int>(registry.create(), 1);
 
     auto view = registry.view<int>();
+    auto iterable = view.each();
+
     auto cview = std::as_const(registry).view<const int>();
+    auto citerable = cview.each();
+
     std::size_t cnt = 0;
 
-    for(auto first = cview.each().rbegin(), last = cview.each().rend(); first != last; ++first) {
+    for(auto first = citerable.rbegin(), last = citerable.rend(); first != last; ++first) {
         static_assert(std::is_same_v<decltype(*first), std::tuple<entt::entity, const int &>>);
         ASSERT_EQ(std::get<1>(*first), cnt++);
     }
@@ -192,7 +202,8 @@ TEST(SingleComponentView, Each) {
     cview.each([&cnt](const int &) { --cnt; });
     cview.each([&cnt](auto, const int &) { --cnt; });
 
-    for(auto [entt, iv]: view.each()) {
+    // do not use iterable, make sure an iterable view works when created from a temporary
+    for(auto [entt, iv]: registry.view<int>().each()) {
         static_assert(std::is_same_v<decltype(entt), entt::entity>);
         static_assert(std::is_same_v<decltype(iv), int &>);
         ASSERT_EQ(iv, --cnt);
@@ -200,11 +211,11 @@ TEST(SingleComponentView, Each) {
 
     ASSERT_EQ(cnt, std::size_t{0});
 
-    auto it = view.each().begin();
-    auto rit = view.each().rbegin();
+    auto it = iterable.begin();
+    auto rit = iterable.rbegin();
 
-    ASSERT_EQ((it++, ++it), view.each().end());
-    ASSERT_EQ((rit++, ++rit), view.each().rend());
+    ASSERT_EQ((it++, ++it), iterable.end());
+    ASSERT_EQ((rit++, ++rit), iterable.rend());
 }
 
 TEST(SingleComponentView, ConstNonConstAndAllInBetween) {
@@ -220,15 +231,15 @@ TEST(SingleComponentView, ConstNonConstAndAllInBetween) {
     ASSERT_EQ(view.size(), 1u);
     ASSERT_EQ(cview.size(), 1u);
 
-    static_assert(std::is_same_v<typename decltype(view)::raw_type, int>);
-    static_assert(std::is_same_v<typename decltype(cview)::raw_type, const int>);
+    static_assert(std::is_same_v<decltype(view.raw()), int **>);
+    static_assert(std::is_same_v<decltype(cview.raw()), const int * const *>);
 
     static_assert(std::is_same_v<decltype(view.get<int>({})), int &>);
     static_assert(std::is_same_v<decltype(view.get({})), std::tuple<int &>>);
-    static_assert(std::is_same_v<decltype(view.raw()), int *>);
+    static_assert(std::is_same_v<decltype(view.raw()), int **>);
     static_assert(std::is_same_v<decltype(cview.get<const int>({})), const int &>);
     static_assert(std::is_same_v<decltype(cview.get({})), std::tuple<const int &>>);
-    static_assert(std::is_same_v<decltype(cview.raw()), const int *>);
+    static_assert(std::is_same_v<decltype(cview.raw()), const int * const *>);
 
     view.each([](auto &&i) {
         static_assert(std::is_same_v<decltype(i), int &>);
@@ -262,9 +273,6 @@ TEST(SingleComponentView, ConstNonConstAndAllInBetweenWithEmptyType) {
     ASSERT_EQ(view.size(), 1u);
     ASSERT_EQ(cview.size(), 1u);
 
-    static_assert(std::is_same_v<typename decltype(view)::raw_type, empty_type>);
-    static_assert(std::is_same_v<typename decltype(cview)::raw_type, const empty_type>);
-
     static_assert(std::is_same_v<decltype(view.get({})), std::tuple<>>);
     static_assert(std::is_same_v<decltype(cview.get({})), std::tuple<>>);
 
@@ -293,7 +301,7 @@ TEST(SingleComponentView, Find) {
     const auto e3 = registry.create();
     registry.emplace<int>(e3);
 
-    registry.remove<int>(e1);
+    registry.erase<int>(e1);
 
     ASSERT_NE(view.find(e0), view.end());
     ASSERT_EQ(view.find(e1), view.end());
@@ -377,10 +385,70 @@ TEST(SingleComponentView, FrontBack) {
 
 TEST(SingleComponentView, DeductionGuide) {
     entt::registry registry;
-    typename entt::storage_traits<entt::entity, int>::storage_type storage;
+    typename entt::storage_traits<entt::entity, int>::storage_type istorage;
+    typename entt::storage_traits<entt::entity, stable_type>::storage_type sstorage;
 
-    static_assert(std::is_same_v<decltype(entt::basic_view{storage}), entt::basic_view<entt::entity, entt::exclude_t<>, int>>);
-    static_assert(std::is_same_v<decltype(entt::basic_view{std::as_const(storage)}), entt::basic_view<entt::entity, entt::exclude_t<>, const int>>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, int>, decltype(entt::basic_view{istorage})>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, const int>, decltype(entt::basic_view{std::as_const(istorage)})>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, stable_type>, decltype(entt::basic_view{sstorage})>);
+
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::packed_storage_policy, entt::entity, entt::exclude_t<>, int>, decltype(entt::basic_view{istorage})>);
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::packed_storage_policy, entt::entity, entt::exclude_t<>, const int>, decltype(entt::basic_view{std::as_const(istorage)})>);
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::stable_storage_policy, entt::entity, entt::exclude_t<>, stable_type>, decltype(entt::basic_view{sstorage})>);
+}
+
+TEST(SingleComponentView, IterableViewAlgorithmCompatibility) {
+    entt::registry registry;
+    const auto entity = registry.create();
+
+    registry.emplace<int>(entity);
+
+    const auto view = registry.view<int>();
+    const auto iterable = view.each();
+    const auto it = std::find_if(iterable.begin(), iterable.end(), [entity](auto args) { return std::get<0>(args) == entity; });
+
+    ASSERT_EQ(std::get<0>(*it), entity);
+}
+
+TEST(SingleComponentView, StableType) {
+    entt::registry registry;
+    auto view = registry.view<stable_type>();
+
+    const auto entity = registry.create();
+    const auto other = registry.create();
+
+    registry.emplace<stable_type>(entity);
+    registry.emplace<stable_type>(other);
+    registry.destroy(entity);
+
+    ASSERT_EQ(view.size_hint(), 2u);
+    ASSERT_FALSE(view.contains(entity));
+    ASSERT_TRUE(view.contains(other));
+
+    ASSERT_EQ(view.front(), other);
+    ASSERT_EQ(view.back(), other);
+
+    ASSERT_EQ(*view.begin(), other);
+    ASSERT_EQ(++view.begin(), view.end());
+
+    view.each([other](const auto entt, stable_type) {
+        ASSERT_EQ(other, entt);
+    });
+
+    view.each([check = true](stable_type) mutable {
+        ASSERT_TRUE(check);
+        check = false;
+    });
+
+    for(auto [entt, st]: view.each()) {
+        static_assert(std::is_same_v<decltype(entt), entt::entity>);
+        static_assert(std::is_same_v<decltype(st), stable_type &>);
+        ASSERT_EQ(other, entt);
+    }
+
+    registry.compact();
+
+    ASSERT_EQ(view.size_hint(), 1u);
 }
 
 TEST(MultiComponentView, Functionalities) {
@@ -583,10 +651,14 @@ TEST(MultiComponentView, Each) {
     registry.emplace<char>(e1);
 
     auto view = registry.view<int, char>();
+    auto iterable = view.each();
+
     auto cview = std::as_const(registry).view<const int, const char>();
+    auto citerable = cview.each();
+
     std::size_t cnt = 0;
 
-    for(auto first = cview.each().rbegin(), last = cview.each().rend(); first != last; ++first) {
+    for(auto first = citerable.rbegin(), last = citerable.rend(); first != last; ++first) {
         static_assert(std::is_same_v<decltype(*first), std::tuple<entt::entity, const int &, const char &>>);
         ASSERT_EQ(std::get<1>(*first), cnt++);
     }
@@ -599,7 +671,8 @@ TEST(MultiComponentView, Each) {
     cview.each([&cnt](const int &, const char &) { --cnt; });
     cview.each([&cnt](auto, const int &, const char &) { --cnt; });
 
-    for(auto [entt, iv, cv]: view.each()) {
+    // do not use iterable, make sure an iterable view works when created from a temporary
+    for(auto [entt, iv, cv]: registry.view<int, char>().each()) {
         static_assert(std::is_same_v<decltype(entt), entt::entity>);
         static_assert(std::is_same_v<decltype(iv), int &>);
         static_assert(std::is_same_v<decltype(cv), char &>);
@@ -608,11 +681,11 @@ TEST(MultiComponentView, Each) {
 
     ASSERT_EQ(cnt, std::size_t{0});
 
-    auto it = view.each().begin();
-    auto rit = view.each().rbegin();
+    auto it = iterable.begin();
+    auto rit = iterable.rbegin();
 
-    ASSERT_EQ((it++, ++it), view.each().end());
-    ASSERT_EQ((rit++, ++rit), view.each().rend());
+    ASSERT_EQ((it++, ++it), iterable.end());
+    ASSERT_EQ((rit++, ++rit), iterable.rend());
 }
 
 TEST(MultiComponentView, EachWithSuggestedType) {
@@ -739,7 +812,7 @@ TEST(MultiComponentView, Find) {
     registry.emplace<int>(e3);
     registry.emplace<char>(e3);
 
-    registry.remove<int>(e1);
+    registry.erase<int>(e1);
 
     ASSERT_NE(view.find(e0), view.end());
     ASSERT_EQ(view.find(e1), view.end());
@@ -795,8 +868,8 @@ TEST(MultiComponentView, ExcludedComponents) {
 
     registry.emplace<char>(e0);
     registry.emplace<char>(e2);
-    registry.remove<char>(e1);
-    registry.remove<char>(e3);
+    registry.erase<char>(e1);
+    registry.erase<char>(e3);
 
     for(const auto entity: view) {
         ASSERT_TRUE(entity == e1 || entity == e3);
@@ -918,11 +991,81 @@ TEST(MultiComponentView, DeductionGuide) {
     entt::registry registry;
     typename entt::storage_traits<entt::entity, int>::storage_type istorage;
     typename entt::storage_traits<entt::entity, double>::storage_type dstorage;
+    typename entt::storage_traits<entt::entity, stable_type>::storage_type sstorage;
 
-    static_assert(std::is_same_v<decltype(entt::basic_view{istorage, dstorage}), entt::basic_view<entt::entity, entt::exclude_t<>, int, double>>);
-    static_assert(std::is_same_v<decltype(entt::basic_view{std::as_const(istorage), dstorage}), entt::basic_view<entt::entity, entt::exclude_t<>, const int, double>>);
-    static_assert(std::is_same_v<decltype(entt::basic_view{istorage, std::as_const(dstorage)}), entt::basic_view<entt::entity, entt::exclude_t<>, int, const double>>);
-    static_assert(std::is_same_v<decltype(entt::basic_view{std::as_const(istorage), std::as_const(dstorage)}), entt::basic_view<entt::entity, entt::exclude_t<>, const int, const double>>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, int, double>, decltype(entt::basic_view{istorage, dstorage})>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, const int, double>, decltype(entt::basic_view{std::as_const(istorage), dstorage})>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, int, const double>, decltype(entt::basic_view{istorage, std::as_const(dstorage)})>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, const int, const double>, decltype(entt::basic_view{std::as_const(istorage), std::as_const(dstorage)})>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<>, int, stable_type>, decltype(entt::basic_view{istorage, sstorage})>);
+
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::packed_storage_policy, entt::entity, entt::exclude_t<>, int, double>, decltype(entt::basic_view{istorage, dstorage})>);
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::packed_storage_policy, entt::entity, entt::exclude_t<>, const int, double>, decltype(entt::basic_view{std::as_const(istorage), dstorage})>);
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::packed_storage_policy, entt::entity, entt::exclude_t<>, int, const double>, decltype(entt::basic_view{istorage, std::as_const(dstorage)})>);
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::packed_storage_policy, entt::entity, entt::exclude_t<>, const int, const double>, decltype(entt::basic_view{std::as_const(istorage), std::as_const(dstorage)})>);
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::stable_storage_policy, entt::entity, entt::exclude_t<>, int, stable_type>, decltype(entt::basic_view{istorage, sstorage})>);
+}
+
+TEST(MultiComponentView, IterableViewAlgorithmCompatibility) {
+    entt::registry registry;
+    const auto entity = registry.create();
+
+    registry.emplace<int>(entity);
+    registry.emplace<char>(entity);
+
+    const auto view = registry.view<int, char>();
+    const auto iterable = view.each();
+    const auto it = std::find_if(iterable.begin(), iterable.end(), [entity](auto args) { return std::get<0>(args) == entity; });
+
+    ASSERT_EQ(std::get<0>(*it), entity);
+}
+
+TEST(MultiComponentView, StableType) {
+    entt::registry registry;
+    auto view = registry.view<int, stable_type>();
+
+    const auto entity = registry.create();
+    const auto other = registry.create();
+
+    registry.emplace<int>(entity);
+    registry.emplace<int>(other);
+    registry.emplace<stable_type>(entity);
+    registry.emplace<stable_type>(other);
+    registry.destroy(entity);
+
+    ASSERT_EQ(view.size_hint(), 1u);
+
+    view.use<stable_type>();
+
+    ASSERT_EQ(view.size_hint(), 2u);
+    ASSERT_FALSE(view.contains(entity));
+    ASSERT_TRUE(view.contains(other));
+
+    ASSERT_EQ(view.front(), other);
+    ASSERT_EQ(view.back(), other);
+
+    ASSERT_EQ(*view.begin(), other);
+    ASSERT_EQ(++view.begin(), view.end());
+
+    view.each([other](const auto entt, int, stable_type) {
+        ASSERT_EQ(other, entt);
+    });
+
+    view.each([check = true](int, stable_type) mutable {
+        ASSERT_TRUE(check);
+        check = false;
+    });
+
+    for(auto [entt, iv, st]: view.each()) {
+        static_assert(std::is_same_v<decltype(entt), entt::entity>);
+        static_assert(std::is_same_v<decltype(iv), int &>);
+        static_assert(std::is_same_v<decltype(st), stable_type &>);
+        ASSERT_EQ(other, entt);
+    }
+
+    registry.compact();
+
+    ASSERT_EQ(view.size_hint(), 1u);
 }
 
 TEST(View, Pipe) {
@@ -937,14 +1080,19 @@ TEST(View, Pipe) {
 
     registry.emplace<int>(other);
     registry.emplace<char>(other);
+    registry.emplace<stable_type>(other);
 
     const auto view1 = registry.view<int>(entt::exclude<double>);
     const auto view2 = registry.view<const char>(entt::exclude<float>);
     const auto view3 = registry.view<empty_type>();
+    const auto view4 = registry.view<stable_type>();
 
-    static_assert(std::is_same_v<decltype(view1 | view2), entt::basic_view<entt::entity, entt::exclude_t<double, float>, int, const char>>);
-    static_assert(std::is_same_v<decltype(view2 | view1), entt::basic_view<entt::entity, entt::exclude_t<float, double>, const char, int>>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<double, float>, int, const char>, decltype(view1 | view2)>);
+    static_assert(std::is_same_v<entt::basic_view<entt::entity, entt::exclude_t<float, double>, const char, int>, decltype(view2 | view1)>);
     static_assert(std::is_same_v<decltype((view1 | view2) | view3), decltype(view1 | (view2 | view3))>);
+
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::packed_storage_policy, entt::entity, entt::exclude_t<double, float>, int, const char>, decltype(view1 | view2)>);
+    static_assert(std::is_base_of_v<entt::basic_view_impl<entt::stable_storage_policy, entt::entity, entt::exclude_t<double, float>, int, stable_type, const char>, decltype(view1 | view4 | view2)>);
 
     ASSERT_FALSE((view1 | view2).contains(entity));
     ASSERT_TRUE((view1 | view2).contains(other));
@@ -954,4 +1102,7 @@ TEST(View, Pipe) {
 
     ASSERT_FALSE((view1 | view2 | view3).contains(entity));
     ASSERT_FALSE((view1 | view2 | view3).contains(other));
+
+    ASSERT_FALSE((view1 | view4 | view2).contains(entity));
+    ASSERT_TRUE((view1 | view4 | view2).contains(other));
 }

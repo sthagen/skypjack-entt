@@ -74,8 +74,8 @@ TEST_F(MetaDtor, AsRefConstruction) {
     ASSERT_EQ(clazz_t::counter, 0);
 
     clazz_t instance{};
-    entt::meta_any any{std::ref(instance)};
-    entt::meta_any cany{std::cref(instance)};
+    auto any = entt::forward_as_meta(instance);
+    auto cany = entt::make_meta<const clazz_t &>(instance);
     auto cref = cany.as_ref();
     auto ref = any.as_ref();
 

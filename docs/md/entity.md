@@ -29,7 +29,8 @@
     * [Aliased properties](#aliased-properties)
   * [In-place delete](#in-place-delete)
     * [Pointer stability](#pointer-stability)
-    * [Hierarchies](#hierarchies)
+    * [Hierarchies and the like](#hierarchies-and-the-like)
+  * [Making the most of range-destroy](#making-the-most-of-range-destroy)
   * [Meet the runtime](#meet-the-runtime)
   * [Snapshot: complete vs continuous](#snapshot-complete-vs-continuous)
     * [Snapshot loader](#snapshot-loader)
@@ -207,10 +208,22 @@ auto view = registry.view<a_component, another_component>();
 registry.destroy(view.begin(), view.end());
 ```
 
-When an entity is destroyed, the registry can freely reuse it internally with a
-slightly different identifier. In particular, the version of an entity is
-increased after destruction (unless the overload that forces a version is used
-instead of the default one).<br/>
+In addition to offering an overload to force the version upon destruction. Note
+that this function removes all components from an entity before releasing its
+identifier. There exists also a _lighter_ alternative that only releases the
+elements without poking in any pool, for use with orphaned entities:
+
+```cpp
+// releases an orphaned identifier
+registry.release(entity);
+```
+
+As with the `destroy` function, also in this case entity ranges are supported
+and it's possible to force the version during release.
+
+In both cases, when an identifier is released, the registry can freely reuse it
+internally. In particular, the version of an entity is increased (unless the
+overload that forces a version is used instead of the default one).<br/>
 Users can probe an identifier to know the information it carries:
 
 ```cpp
@@ -648,7 +661,7 @@ Also in this case, the following expression always returns false:
 registry.valid(entt::tombstone);
 ```
 
-Moreover, users cannot set set the tombstone version when deleting an entity:
+Moreover, users cannot set set the tombstone version when releasing an entity:
 
 ```
 registry.destroy(entity, entt::tombstone);
@@ -1038,7 +1051,7 @@ struct entt::component_traits<Type>: basic_component_traits {
 Because of how C++ works, this specialization will obviously have to be visible
 every time operations are performed on a storage.
 
-### Hierarchies
+### Hierarchies and the like
 
 `EnTT` doesn't attempt in any way to offer built-in methods with hidden or
 unclear costs to facilitate the creation of hierarchies.<br/>
@@ -1083,6 +1096,46 @@ to identify (and discard) all tombstones. However, once considered the benefits,
 from performance to ease of use, and given the many optimizations that make this
 cost negligible, this is configured as one of the most convenient solutions and
 certainly something to take into consideration.
+
+## Making the most of range-destroy
+
+The range-destroy functionality offers an improved path under the hood. To
+understand it, let's try to describe what problem it tries to solve.<br/>
+This function accepts two iterators that point to the beginning and end of a
+range of entities. If the iterators are those returned from a view, this pair
+cannot be passed to the first storage asking to remove all entities and then to
+all other storage. This is because the range may be empty when passed to the
+second pool, as not all of those entities still own all the components iterated
+from the view itself.<br/>
+As a result, only one component is removed and no entities are destroyed.
+
+To avoid this, in many cases the registry doesn't pass the range to all pools.
+Instead, it iterates the range and passes an entity at a time to all pools.<br/>
+It goes without saying that the latter is slightly slower than the former.
+
+On the other side, the `destroy` function also uses `is_iterator_type` under the
+hood to detect _dangerous_ iterators. Whenever possible, it still chooses the
+fastest path.<br/>
+This means that performance will improve if, for example, two iterators returned
+from an `std::vector` are used or, more in general, with all iterators that are
+not part of `EnTT`.
+
+Unfortunately, this risks falling into the error described above in some corner
+cases. In particular, where an iterator is used that is not defined by `EnTT`
+but which uses one of the latter _within_ it.<br/>
+It's quite unlikely to happen even in large software. However, the library
+offers a solution also in this case, so as to allow for custom iterators and
+better performance at the same time.<br/>
+In particular, it's necessary to either expose the member type `iterator_type`
+and declare that an iterator from `EnTT` is used internally or specialize the
+`is_iterator_type` class to drive the choice of the `destroy` function.<br/>
+In both cases, the aim is to not choose the optimized route if it can cause
+problems.
+
+With a good chance, the last note can be ignored and there will never be a need
+to do the above even after writing millions of lines of code.<br/>
+However, it's good to know how to exploit the `destroy` function to get the best
+out of it.
 
 ## Meet the runtime
 
@@ -1169,7 +1222,7 @@ to use in which case mostly depends on the goal and there is not a golden rule
 for that.
 
 The `entities` member function makes the snapshot serialize all entities (both
-those still alive and those destroyed) along with their versions.<br/>
+those still alive and those released) along with their versions.<br/>
 On the other hand, the `component` member function is a function template the
 aim of which is to store aside components. The presence of a template parameter
 list is a consequence of a couple of design choices from the past and in the
@@ -1234,11 +1287,11 @@ The `component` member function restores all and only the components specified
 and assigns them to the right entities. Note that the template parameter list
 must be exactly the same used during the serialization.
 
-The `orphans` member function literally destroys those entities that have no
+The `orphans` member function literally releases those entities that have no
 components attached. It's usually useless if the snapshot is a full dump of the
 source. However, in case all the entities are serialized but only few components
 are saved, it could happen that some of the entities have no components once
-restored. The best the users can do to deal with them is to destroy those
+restored. The best the users can do to deal with them is to release those
 entities and thus update their versions.
 
 ### Continuous loader
@@ -1285,7 +1338,7 @@ In case the component contains entities itself (either as data members of type
 automatically. To do that, it's enough to specify the data members to update as
 shown in the example.
 
-The `orphans` member function literally destroys those entities that have no
+The `orphans` member function literally releases those entities that have no
 components after a restore. It has exactly the same purpose described in the
 previous section and works the same way.
 
@@ -1967,9 +2020,14 @@ and components during iterations, nor to have pointer stability.<br/>
   destroying them or removing their components isn't allowed and can result in
   undefined behavior.
 
+* If a type has stable pointers, it's possible to destroy any entity and any
+  component, even if not currently iterated, without the risk of invalidating
+  any references.
+
 In other terms, iterators are never invalidated. Also, component references
 aren't invalidated when a new element is added while they could be invalidated
-upon deletion, due to the _swap-and-pop_ policy.<br/>
+upon destruction due to the _swap-and-pop_ policy, unless the type leading the
+iteration undergoes in-place deletion.<br/>
 Consider the following example:
 
 ```cpp
@@ -1986,9 +2044,9 @@ Use a common range-for loop and get components directly from the view or move
 the deletion of entities and components at the end of the function to avoid
 dangling pointers.
 
-Conversely, iterators are invalidated and the behavior is undefined if an entity
-is modified or destroyed and it's not the one currently returned by the iterator
-nor a newly created one.<br/>
+For all types that don't offer stable pointers, iterators are also invalidated
+and the behavior is undefined if an entity is modified or destroyed and it's not
+the one currently returned by the iterator nor a newly created one.<br/>
 To work around it, possible approaches are:
 
 * Store aside the entities and the components to be removed and perform the

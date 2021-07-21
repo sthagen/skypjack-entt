@@ -190,40 +190,46 @@ class basic_storage_impl: public basic_sparse_set<Entity, typename std::allocato
         }
     }
 
-    void maybe_resize_packed(const std::size_t req) {
-        ENTT_ASSERT(!(req < underlying_type::size()), "Invalid request");
+    void assure_at_least(const std::size_t last) {
+        if(const auto idx = page(last - 1u); !(idx < bucket)) {
+            const size_type sz = idx + 1u;
+            const auto mem = bucket_alloc_traits::allocate(bucket_allocator, sz);
+            std::uninitialized_copy(packed, packed + bucket, mem);
+            size_type pos{};
 
-        if(const auto length = (req + packed_page - 1u) / packed_page; bucket != length) {
-            const auto mem = bucket_alloc_traits::allocate(bucket_allocator, length);
-
-            if(bucket > length) {
-                std::uninitialized_copy(packed, packed + length, mem);
-
-                for(auto pos = length; pos < bucket; ++pos) {
-                    alloc_traits::deallocate(allocator, packed[pos], packed_page);
+            ENTT_TRY {
+                for(pos = bucket; pos < sz; ++pos) {
+                    auto pg = alloc_traits::allocate(allocator, packed_page);
+                    bucket_alloc_traits::construct(bucket_allocator, std::addressof(mem[pos]), pg);
                 }
-            } else {
-                std::uninitialized_copy(packed, packed + bucket, mem);
-
-                size_type pos{};
-
-                ENTT_TRY {
-                    for(pos = bucket; pos < length; ++pos) {
-                        auto pg = alloc_traits::allocate(allocator, packed_page);
-                        bucket_alloc_traits::construct(bucket_allocator, std::addressof(mem[pos]), pg);
-                    }
-                } ENTT_CATCH {
-                    for(auto next = bucket; next < pos; ++next) {
-                        alloc_traits::deallocate(allocator, mem[next], packed_page);
-                    }
-
-                    std::destroy(mem, mem + pos);
-                    bucket_alloc_traits::deallocate(bucket_allocator, mem, length);
-                    ENTT_THROW;
+            } ENTT_CATCH {
+                for(auto next = bucket; next < pos; ++next) {
+                    alloc_traits::deallocate(allocator, mem[next], packed_page);
                 }
+
+                std::destroy(mem, mem + pos);
+                bucket_alloc_traits::deallocate(bucket_allocator, mem, sz);
+                ENTT_THROW;
             }
 
             std::destroy(packed, packed + bucket);
+            bucket_alloc_traits::deallocate(bucket_allocator, packed, bucket);
+
+            packed = mem;
+            bucket = sz;
+        }
+    }
+
+    void release_unused_pages() {
+        if(const auto length = underlying_type::size() / packed_page; length < bucket) {
+            const auto mem = bucket_alloc_traits::allocate(bucket_allocator, length);
+            std::uninitialized_copy(packed, packed + length, mem);
+
+            for(auto pos = length; pos < bucket; ++pos) {
+                alloc_traits::deallocate(allocator, packed[pos], packed_page);
+                bucket_alloc_traits::destroy(bucket_allocator, std::addressof(packed[pos]));
+            }
+
             bucket_alloc_traits::deallocate(bucket_allocator, packed, bucket);
 
             packed = mem;
@@ -232,10 +238,9 @@ class basic_storage_impl: public basic_sparse_set<Entity, typename std::allocato
     }
 
     template<typename... Args>
-    auto & push_back(Args &&... args) {
-        const auto length = underlying_type::size();
-        ENTT_ASSERT(length < (bucket * packed_page), "No more space left");
-        auto *instance = std::addressof(packed[page(length)][offset(length)]);
+    auto & push_at(const std::size_t pos, Args &&... args) {
+        ENTT_ASSERT(pos < (bucket * packed_page), "Out of bounds index");
+        auto *instance = std::addressof(packed[page(pos)][offset(pos)]);
 
         if constexpr(std::is_aggregate_v<value_type>) {
             alloc_traits::construct(allocator, instance, Type{std::forward<Args>(args)...});
@@ -246,8 +251,8 @@ class basic_storage_impl: public basic_sparse_set<Entity, typename std::allocato
         return *instance;
     }
 
-    void pop_back() {
-        alloc_traits::destroy(allocator, std::addressof(packed[underlying_type::size()]));
+    void pop_at(const std::size_t pos) {
+        alloc_traits::destroy(allocator, std::addressof(packed[page(pos)][offset(pos)]));
     }
 
 protected:
@@ -258,27 +263,30 @@ protected:
 
     /*! @copydoc basic_sparse_set::move_and_pop */
     void move_and_pop(const std::size_t from, const std::size_t to) final {
-        auto *instance = std::addressof(packed[page(to)][offset(to)]);
-        auto *other = std::addressof(packed[page(from)][offset(from)]);
-        alloc_traits::construct(allocator, instance, std::move(*other));
-        alloc_traits::destroy(allocator, other);
+        push_at(to, std::move(packed[page(from)][offset(from)]));
+        pop_at(from);
     }
 
     /*! @copydoc basic_sparse_set::swap_and_pop */
-    void swap_and_pop(const std::size_t pos) final {
-        const auto length = underlying_type::size();
+    void swap_and_pop(const Entity entt, void *ud) override {
+        const auto pos = underlying_type::index(entt);
+        const auto last = underlying_type::size() - 1u;
         auto &&elem = packed[page(pos)][offset(pos)];
-        auto &&last = packed[page(length)][offset(length)];
 
         // support for nosy destructors
         [[maybe_unused]] auto unused = std::move(elem);
-        elem = std::move(last);
-        alloc_traits::destroy(allocator, std::addressof(last));
+        elem = std::move(packed[page(last)][offset(last)]);
+        pop_at(last);
+
+        underlying_type::swap_and_pop(entt, ud);
     }
 
     /*! @copydoc basic_sparse_set::in_place_pop */
-    void in_place_pop(const std::size_t pos) final {
-        alloc_traits::destroy(allocator, std::addressof(packed[page(pos)][offset(pos)]));
+    void in_place_pop(const Entity entt, void *ud) override {
+        const auto pos = underlying_type::index(entt);
+        underlying_type::in_place_pop(entt, ud);
+        // support for nosy destructors
+        pop_at(pos);
     }
 
 public:
@@ -361,8 +369,8 @@ public:
     void reserve(const size_type cap) {
         underlying_type::reserve(cap);
 
-        if(cap > (bucket * packed_page)) {
-            maybe_resize_packed(cap);
+        if(cap > underlying_type::size()) {
+            assure_at_least(cap);
         }
     }
 
@@ -378,7 +386,7 @@ public:
     /*! @brief Requests the removal of unused capacity. */
     void shrink_to_fit() {
         underlying_type::shrink_to_fit();
-        maybe_resize_packed(underlying_type::size());
+        release_unused_pages();
     }
 
     /**
@@ -527,13 +535,16 @@ public:
      */
     template<typename... Args>
     value_type & emplace(const entity_type entt, Args &&... args) {
-        maybe_resize_packed(underlying_type::size() + 1u);
-        auto &value = push_back(std::forward<Args>(args)...);
+        const auto pos = underlying_type::slot();
+        assure_at_least(pos + 1u);
+
+        auto &value = push_at(pos, std::forward<Args>(args)...);
 
         ENTT_TRY {
-            underlying_type::emplace(entt);
+            [[maybe_unused]] const auto curr = underlying_type::emplace(entt);
+            ENTT_ASSERT(pos == curr, "Misplaced component");
         } ENTT_CATCH {
-            pop_back();
+            pop_at(pos);
             ENTT_THROW;
         }
 
@@ -543,13 +554,13 @@ public:
     /**
      * @brief Updates the instance assigned to a given entity in-place.
      * @tparam Func Types of the function objects to invoke.
-     * @param entity A valid entity identifier.
+     * @param entt A valid entity identifier.
      * @param func Valid function objects.
      * @return A reference to the updated instance.
      */
     template<typename... Func>
-    decltype(auto) patch(const entity_type entity, Func &&... func) {
-        const auto idx = underlying_type::index(entity);
+    decltype(auto) patch(const entity_type entt, Func &&... func) {
+        const auto idx = underlying_type::index(entt);
         auto &&elem = packed[page(idx)][offset(idx)];
         (std::forward<Func>(func)(elem), ...);
         return elem;
@@ -570,17 +581,17 @@ public:
      */
     template<typename It>
     void insert(It first, It last, const value_type &value = {}) {
-        const auto sz = underlying_type::size() + std::distance(first, last);
-        underlying_type::reserve(sz);
-        maybe_resize_packed(sz);
+        const auto cap = underlying_type::size() + std::distance(first, last);
+        underlying_type::reserve(cap);
+        assure_at_least(cap);
 
         for(; first != last; ++first) {
-            push_back(value);
+            push_at(underlying_type::size(), value);
 
             ENTT_TRY {
-                underlying_type::emplace(*first);
+                underlying_type::emplace_back(*first);
             } ENTT_CATCH {
-                pop_back();
+                pop_at(underlying_type::size());
                 ENTT_THROW;
             }
         }
@@ -600,17 +611,17 @@ public:
      */
     template<typename EIt, typename CIt, typename = std::enable_if_t<std::is_same_v<std::decay_t<typename std::iterator_traits<CIt>::value_type>, value_type>>>
     void insert(EIt first, EIt last, CIt from) {
-        const auto sz = underlying_type::size() + std::distance(first, last);
-        underlying_type::reserve(sz);
-        maybe_resize_packed(sz);
+        const auto cap = underlying_type::size() + std::distance(first, last);
+        underlying_type::reserve(cap);
+        assure_at_least(cap);
 
         for(; first != last; ++first, ++from) {
-            push_back(*from);
+            push_at(underlying_type::size(), *from);
 
             ENTT_TRY {
-                underlying_type::emplace(*first);
+                underlying_type::emplace_back(*first);
             } ENTT_CATCH {
-                pop_back();
+                pop_at(underlying_type::size());
                 ENTT_THROW;
             }
         }
@@ -684,7 +695,7 @@ private:
     typename alloc_traits::allocator_type allocator;
     typename bucket_alloc_traits::allocator_type bucket_allocator;
     bucket_alloc_pointer packed;
-    std::size_t bucket;
+    size_type bucket;
 };
 
 
@@ -748,12 +759,12 @@ public:
     /**
     * @brief Updates the instance assigned to a given entity in-place.
     * @tparam Func Types of the function objects to invoke.
-    * @param entity A valid entity identifier.
+    * @param entt A valid entity identifier.
     * @param func Valid function objects.
     */
     template<typename... Func>
-    void patch([[maybe_unused]] const entity_type entity, Func &&... func) {
-        ENTT_ASSERT(underlying_type::contains(entity), "Storage does not contain entity");
+    void patch([[maybe_unused]] const entity_type entt, Func &&... func) {
+        ENTT_ASSERT(underlying_type::contains(entt), "Storage does not contain entity");
         (std::forward<Func>(func)(), ...);
     }
 
@@ -794,13 +805,13 @@ struct storage_adapter_mixin: Type {
     /**
      * @brief Assigns entities to a storage.
      * @tparam Args Types of arguments to use to construct the object.
-     * @param entity A valid entity identifier.
+     * @param entt A valid entity identifier.
      * @param args Parameters to use to initialize the object.
      * @return A reference to the newly created object.
      */
     template<typename... Args>
-    decltype(auto) emplace(basic_registry<entity_type> &, const entity_type entity, Args &&... args) {
-        return Type::emplace(entity, std::forward<Args>(args)...);
+    decltype(auto) emplace(basic_registry<entity_type> &, const entity_type entt, Args &&... args) {
+        return Type::emplace(entt, std::forward<Args>(args)...);
     }
 
     /**
@@ -821,13 +832,13 @@ struct storage_adapter_mixin: Type {
     /**
      * @brief Patches the given instance for an entity.
      * @tparam Func Types of the function objects to invoke.
-     * @param entity A valid entity identifier.
+     * @param entt A valid entity identifier.
      * @param func Valid function objects.
      * @return A reference to the patched instance.
      */
     template<typename... Func>
-    decltype(auto) patch(basic_registry<entity_type> &, const entity_type entity, Func &&... func) {
-        return Type::patch(entity, std::forward<Func>(func)...);
+    decltype(auto) patch(basic_registry<entity_type> &, const entity_type entt, Func &&... func) {
+        return Type::patch(entt, std::forward<Func>(func)...);
     }
 };
 
@@ -838,11 +849,18 @@ struct storage_adapter_mixin: Type {
  */
 template<typename Type>
 class sigh_storage_mixin final: public Type {
-    /*! @copydoc basic_sparse_set::about_to_pop */
-    void about_to_pop(const typename Type::entity_type entity, void *ud) final {
+    /*! @copydoc basic_sparse_set::swap_and_pop */
+    void swap_and_pop(const typename Type::entity_type entt, void *ud) final {
         ENTT_ASSERT(ud != nullptr, "Invalid pointer to registry");
-        destruction.publish(*static_cast<basic_registry<typename Type::entity_type> *>(ud), entity);
-        Type::about_to_pop(entity, ud);
+        destruction.publish(*static_cast<basic_registry<typename Type::entity_type> *>(ud), entt);
+        Type::swap_and_pop(entt, ud);
+    }
+
+    /*! @copydoc basic_sparse_set::in_place_pop */
+    void in_place_pop(const typename Type::entity_type entt, void *ud) final {
+        ENTT_ASSERT(ud != nullptr, "Invalid pointer to registry");
+        destruction.publish(*static_cast<basic_registry<typename Type::entity_type> *>(ud), entt);
+        Type::in_place_pop(entt, ud);
     }
 
 public:
@@ -923,15 +941,15 @@ public:
      * @brief Assigns entities to a storage.
      * @tparam Args Types of arguments to use to construct the object.
      * @param owner The registry that issued the request.
-     * @param entity A valid entity identifier.
+     * @param entt A valid entity identifier.
      * @param args Parameters to use to initialize the object.
      * @return A reference to the newly created object.
      */
     template<typename... Args>
-    decltype(auto) emplace(basic_registry<entity_type> &owner, const entity_type entity, Args &&... args) {
-        Type::emplace(entity, std::forward<Args>(args)...);
-        construction.publish(owner, entity);
-        return this->get(entity);
+    decltype(auto) emplace(basic_registry<entity_type> &owner, const entity_type entt, Args &&... args) {
+        Type::emplace(entt, std::forward<Args>(args)...);
+        construction.publish(owner, entt);
+        return this->get(entt);
     }
 
     /**
@@ -960,15 +978,15 @@ public:
      * @brief Patches the given instance for an entity.
      * @tparam Func Types of the function objects to invoke.
      * @param owner The registry that issued the request.
-     * @param entity A valid entity identifier.
+     * @param entt A valid entity identifier.
      * @param func Valid function objects.
      * @return A reference to the patched instance.
      */
     template<typename... Func>
-    decltype(auto) patch(basic_registry<entity_type> &owner, const entity_type entity, Func &&... func) {
-        Type::patch(entity, std::forward<Func>(func)...);
-        update.publish(owner, entity);
-        return this->get(entity);
+    decltype(auto) patch(basic_registry<entity_type> &owner, const entity_type entt, Func &&... func) {
+        Type::patch(entt, std::forward<Func>(func)...);
+        update.publish(owner, entt);
+        return this->get(entt);
     }
 
 private:
@@ -1006,17 +1024,17 @@ struct storage_traits {
  * @brief Gets the element assigned to an entity from a storage, if any.
  * @tparam Type Storage type.
  * @param container A valid instance of a storage class.
- * @param entity A valid entity identifier.
+ * @param entt A valid entity identifier.
  * @return A possibly empty tuple containing the requested element.
  */
 template<typename Type>
-[[nodiscard]] auto get_as_tuple([[maybe_unused]] Type &container, [[maybe_unused]] const typename Type::entity_type entity) {
+[[nodiscard]] auto get_as_tuple([[maybe_unused]] Type &container, [[maybe_unused]] const typename Type::entity_type entt) {
     static_assert(std::is_same_v<std::remove_const_t<Type>, typename storage_traits<typename Type::entity_type, typename Type::value_type>::storage_type>, "Invalid storage");
 
     if constexpr(std::is_void_v<decltype(container.get({}))>) {
         return std::make_tuple();
     } else {
-        return std::forward_as_tuple(container.get(entity));
+        return std::forward_as_tuple(container.get(entt));
     }
 }
 

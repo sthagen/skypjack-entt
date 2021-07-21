@@ -42,6 +42,7 @@ class view_iterator final {
     }
 
 public:
+    using iterator_type = It;
     using difference_type = typename std::iterator_traits<It>::difference_type;
     using value_type = typename std::iterator_traits<It>::value_type;
     using pointer = typename std::iterator_traits<It>::pointer;
@@ -116,6 +117,12 @@ private:
 }
 
 
+/**
+ * Internal details not to be documented.
+ * @endcond
+ */
+
+
 /*! @brief Stable storage policy, aimed at pointer stability. */
 struct stable_storage_policy {
     /**
@@ -148,12 +155,6 @@ struct packed_storage_policy {
     * @endcond
     */
 };
-
-
-/**
- * Internal details not to be documented.
- * @endcond
- */
 
 
 /**

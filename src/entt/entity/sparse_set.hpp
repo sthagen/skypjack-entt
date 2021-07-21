@@ -224,50 +224,6 @@ class basic_sparse_set {
         }
     }
 
-    void stable_erase(const Entity entt, void *ud = nullptr) {
-        // last chance to use the entity for derived classes and mixins, if any
-        about_to_pop(entt, ud);
-
-        auto &ref = sparse[page(entt)][offset(entt)];
-        const auto pos = size_type{traits_type::to_entity(ref)};
-        ENTT_ASSERT(packed[pos] == entt, "Invalid entity identifier");
-
-        packed[pos] = std::exchange(free_list, traits_type::construct(static_cast<typename traits_type::entity_type>(pos)));
-        ref = null;
-
-        // strong exception guarantee
-        in_place_pop(pos);
-    }
-
-    void unstable_erase(const Entity entt, void *ud = nullptr) {
-        // last chance to use the entity for derived classes and mixins, if any
-        about_to_pop(entt, ud);
-
-        auto &ref = sparse[page(entt)][offset(entt)];
-        const auto pos = size_type{traits_type::to_entity(ref)};
-        ENTT_ASSERT(packed[pos] == entt, "Invalid entity identifier");
-
-        auto &last = packed[count - 1u];
-
-        packed[pos] = last;
-        sparse[page(last)][offset(last)] = ref;
-        // lazy self-assignment guard
-        ref = null;
-        // unnecessary but it helps to detect nasty bugs
-        ENTT_ASSERT((last = tombstone, true), "");
-
-        --count;
-
-        ENTT_TRY {
-            // strong exception guarantee
-            swap_and_pop(pos);
-        } ENTT_CATCH {
-            last = std::exchange(packed[pos], entt);
-            ref = std::exchange(sparse[page(last)][offset(last)], traits_type::construct(static_cast<typename traits_type::entity_type>(count++)));
-            ENTT_THROW;
-        }
-    }
-
 protected:
     /**
      * @brief Swaps two entities in the internal packed array.
@@ -277,7 +233,7 @@ protected:
     virtual void swap_at([[maybe_unused]] const std::size_t lhs, [[maybe_unused]] const std::size_t rhs) {}
 
     /**
-     * @brief Attempts to move an entity in the internal packed array.
+     * @brief Moves an entity in the internal packed array.
      * @param from A valid position of an entity within storage.
      * @param to A valid position of an entity within storage.
      */
@@ -285,22 +241,37 @@ protected:
 
     /**
      * @brief Attempts to erase an entity from the internal packed array.
-     * @param pos A valid position of an entity within storage.
+     * @param entt A valid entity identifier.
+     * @param ud Optional user data that are forwarded as-is to derived classes.
      */
-    virtual void swap_and_pop([[maybe_unused]] const std::size_t pos) {}
+    virtual void swap_and_pop(const Entity entt, [[maybe_unused]] void *ud) {
+        auto &ref = sparse[page(entt)][offset(entt)];
+        const auto pos = size_type{traits_type::to_entity(ref)};
+        ENTT_ASSERT(packed[pos] == entt, "Invalid entity identifier");
+        auto &last = packed[--count];
+
+        packed[pos] = last;
+        sparse[page(last)][offset(last)] = ref;
+        // lazy self-assignment guard
+        ref = null;
+        // unnecessary but it helps to detect nasty bugs
+        ENTT_ASSERT((last = tombstone, true), "");
+    }
 
     /**
      * @brief Attempts to erase an entity from the internal packed array.
-     * @param pos A valid position of an entity within storage.
-     */
-    virtual void in_place_pop([[maybe_unused]] const std::size_t pos) {}
-
-    /**
-     * @brief Last chance to use an entity that is about to be erased.
-     * @param entity A valid entity identifier.
+     * @param entt A valid entity identifier.
      * @param ud Optional user data that are forwarded as-is to derived classes.
      */
-    virtual void about_to_pop([[maybe_unused]] const Entity entity, [[maybe_unused]] void *ud) {}
+    virtual void in_place_pop(const Entity entt, [[maybe_unused]] void *ud) {
+        auto &ref = sparse[page(entt)][offset(entt)];
+        const auto pos = size_type{traits_type::to_entity(ref)};
+        ENTT_ASSERT(packed[pos] == entt, "Invalid entity identifier");
+
+        packed[pos] = std::exchange(free_list, traits_type::construct(static_cast<typename traits_type::entity_type>(pos)));
+        // lazy self-assignment guard
+        ref = null;
+    }
 
 public:
     /*! @brief Allocator type. */
@@ -387,8 +358,16 @@ public:
      * @brief Returns the deletion policy of a sparse set.
      * @return The deletion policy of the sparse set.
      */
-    deletion_policy policy() const ENTT_NOEXCEPT {
+    [[nodiscard]] deletion_policy policy() const ENTT_NOEXCEPT {
         return mode;
+    }
+
+    /**
+     * @brief Returns the next slot available for insertion.
+     * @return The next slot available for insertion.
+     */
+    [[nodiscard]] size_type slot() const ENTT_NOEXCEPT {
+        return free_list == null ? count : size_type{traits_type::to_entity(free_list)};
     }
 
     /**
@@ -536,6 +515,7 @@ public:
      * @return True if the sparse set contains the entity, false otherwise.
      */
     [[nodiscard]] bool contains(const entity_type entt) const ENTT_NOEXCEPT {
+        ENTT_ASSERT(entt != tombstone && entt != null, "Invalid entity");
         const auto curr = page(entt);
         // testing versions permits to avoid accessing the packed array
         return (curr < bucket && sparse[curr] && sparse[curr][offset(entt)] != null);
@@ -576,6 +556,29 @@ public:
     }
 
     /**
+     * @brief Appends an entity to a sparse set.
+     *
+     * @warning
+     * Attempting to assign an entity that already belongs to the sparse set
+     * results in undefined behavior.
+     *
+     * @param entt A valid entity identifier.
+     * @return The slot used for insertion.
+     */
+    size_type emplace_back(const entity_type entt) {
+        ENTT_ASSERT(!contains(entt), "Set already contains entity");
+
+        if(count == reserved) {
+            const size_type sz = static_cast<size_type>(reserved * growth_factor);
+            resize_packed(sz + !(sz > reserved));
+        }
+
+        assure_page(page(entt))[offset(entt)] = traits_type::construct(static_cast<typename traits_type::entity_type>(count));
+        packed[count] = entt;
+        return count++;
+    }
+
+    /**
      * @brief Assigns an entity to a sparse set.
      *
      * @warning
@@ -583,23 +586,17 @@ public:
      * results in undefined behavior.
      *
      * @param entt A valid entity identifier.
+     * @return The slot used for insertion.
      */
-    void emplace(const entity_type entt) {
-        ENTT_ASSERT(!contains(entt), "Set already contains entity");
-
+    size_type emplace(const entity_type entt) {
         if(free_list == null) {
-            if(count == reserved) {
-                const size_type sz = static_cast<size_type>(reserved * growth_factor);
-                resize_packed(sz + !(sz > reserved));
-            }
-
-            assure_page(page(entt))[offset(entt)] = traits_type::construct(static_cast<typename traits_type::entity_type>(count));
-            packed[count++] = entt;
+            return emplace_back(entt);
         } else {
+            ENTT_ASSERT(!contains(entt), "Set already contains entity");
             const auto pos = size_type{traits_type::to_entity(free_list)};
-            move_and_pop(count, pos);
             sparse[page(entt)][offset(entt)] = traits_type::construct(static_cast<typename traits_type::entity_type>(pos));
             free_list = std::exchange(packed[pos], entt);
+            return pos;
         }
     }
 
@@ -638,7 +635,7 @@ public:
      */
     void erase(const entity_type entt, void *ud = nullptr) {
         ENTT_ASSERT(contains(entt), "Set does not contain entity");
-        (mode == deletion_policy::in_place) ? stable_erase(entt, ud) : unstable_erase(entt, ud);
+        (mode == deletion_policy::in_place) ? in_place_pop(entt, ud) : swap_and_pop(entt, ud);
     }
 
     /**
@@ -665,12 +662,7 @@ public:
      * @return True if the entity is actually removed, false otherwise.
      */
     bool remove(const entity_type entt, void *ud = nullptr) {
-        if(contains(entt)) {
-            erase(entt, ud);
-            return true;
-        }
-
-        return false;
+        return contains(entt) && (erase(entt, ud), true);
     }
 
     /**
@@ -726,12 +718,18 @@ public:
      * @param rhs A valid entity identifier.
      */
     void swap(const entity_type lhs, const entity_type rhs) {
-        const auto from = index(lhs);
-        const auto to = index(rhs);
+        ENTT_ASSERT(contains(lhs), "Set does not contain entity");
+        ENTT_ASSERT(contains(rhs), "Set does not contain entity");
+
+        auto &entt = sparse[page(lhs)][offset(lhs)];
+        auto &other = sparse[page(rhs)][offset(rhs)];
+
+        const auto from = size_type{traits_type::to_entity(entt)};
+        const auto to = size_type{traits_type::to_entity(other)};
 
         // basic no-leak guarantee (with invalid state) if swapping throws
         swap_at(from, to);
-        std::swap(sparse[page(lhs)][offset(lhs)], sparse[page(rhs)][offset(rhs)]);
+        std::swap(entt, other);
         std::swap(packed[from], packed[to]);
     }
 
@@ -845,7 +843,7 @@ public:
     void clear(void *ud = nullptr) {
         for(auto &&entity: *this) {
             if(entity != tombstone) {
-                stable_erase(entity, ud);
+                in_place_pop(entity, ud);
             }
         }
 

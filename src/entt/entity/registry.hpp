@@ -43,7 +43,7 @@ namespace entt {
  */
 template<typename Entity>
 class basic_registry {
-    using traits_type = entt_traits<Entity>;
+    using entity_traits = entt_traits<Entity>;
     using poly_storage_type = typename poly_storage_traits<Entity>::storage_type;
     using basic_common_type = basic_sparse_set<Entity>;
 
@@ -79,7 +79,7 @@ class basic_registry {
             } else {
                 if(is_valid && !(std::get<0>(cpools)->index(entt) < current)) {
                     const auto pos = current++;
-                    (std::get<storage_type<Owned> *>(cpools)->swap(std::get<storage_type<Owned> *>(cpools)->data()[pos], entt), ...);
+                    (std::get<storage_type<Owned> *>(cpools)->swap_elements(std::get<storage_type<Owned> *>(cpools)->data()[pos], entt), ...);
                 }
             }
         }
@@ -90,7 +90,7 @@ class basic_registry {
             } else {
                 if(const auto cpools = std::make_tuple(owner.assure<Owned>()...); std::get<0>(cpools)->contains(entt) && (std::get<0>(cpools)->index(entt) < current)) {
                     const auto pos = --current;
-                    (std::get<storage_type<Owned> *>(cpools)->swap(std::get<storage_type<Owned> *>(cpools)->data()[pos], entt), ...);
+                    (std::get<storage_type<Owned> *>(cpools)->swap_elements(std::get<storage_type<Owned> *>(cpools)->data()[pos], entt), ...);
                 }
             }
         }
@@ -129,21 +129,21 @@ class basic_registry {
     }
 
     auto generate_identifier(const std::size_t pos) ENTT_NOEXCEPT {
-        ENTT_ASSERT(pos < traits_type::to_integral(null), "No entities available");
-        return traits_type::construct(static_cast<typename traits_type::entity_type>(pos), {});
+        ENTT_ASSERT(pos < entity_traits::to_integral(null), "No entities available");
+        return entity_traits::combine(static_cast<typename entity_traits::entity_type>(pos), {});
     }
 
     auto recycle_identifier() ENTT_NOEXCEPT {
         ENTT_ASSERT(free_list != null, "No entities available");
-        const auto curr = traits_type::to_entity(free_list);
-        free_list = (tombstone | entities[curr]);
-        return (entities[curr] = traits_type::construct(curr, traits_type::to_version(entities[curr])));
+        const auto curr = entity_traits::to_entity(free_list);
+        free_list = entity_traits::combine(entity_traits::to_integral(entities[curr]), tombstone);
+        return (entities[curr] = entity_traits::combine(curr, entity_traits::to_integral(entities[curr])));
     }
 
-    auto release_entity(const Entity entity, const typename traits_type::version_type version) {
-        const typename traits_type::version_type vers = version + (version == traits_type::to_version(tombstone));
-        entities[traits_type::to_entity(entity)] = traits_type::construct(traits_type::to_entity(free_list), vers);
-        free_list = (tombstone | entity);
+    auto release_entity(const Entity entity, const typename entity_traits::version_type version) {
+        const typename entity_traits::version_type vers = version + (version == entity_traits::to_version(tombstone));
+        entities[entity_traits::to_entity(entity)] = entity_traits::construct(entity_traits::to_integral(free_list), vers);
+        free_list = entity_traits::combine(entity_traits::to_integral(entity), tombstone);
         return vers;
     }
 
@@ -151,29 +151,11 @@ public:
     /*! @brief Underlying entity identifier. */
     using entity_type = Entity;
     /*! @brief Underlying version type. */
-    using version_type = typename traits_type::version_type;
+    using version_type = typename entity_traits::version_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Poly storage type. */
     using poly_storage = typename poly_storage_traits<Entity>::storage_type;
-
-    /**
-     * @brief Returns the entity identifier without the version.
-     * @param entity An entity identifier, either valid or not.
-     * @return The entity identifier without the version.
-     */
-    [[nodiscard]] static entity_type entity(const entity_type entity) ENTT_NOEXCEPT {
-        return traits_type::construct(traits_type::to_entity(entity), {});
-    }
-
-    /**
-     * @brief Returns the version stored along with an entity identifier.
-     * @param entity An entity identifier, either valid or not.
-     * @return The version stored along with the given entity identifier.
-     */
-    [[nodiscard]] static version_type version(const entity_type entity) ENTT_NOEXCEPT {
-        return traits_type::to_version(entity);
-    }
 
     /*! @brief Default constructor. */
     basic_registry() = default;
@@ -238,7 +220,7 @@ public:
         auto sz = entities.size();
 
         for(auto curr = free_list; curr != null; --sz) {
-            curr = entities[traits_type::to_entity(curr)];
+            curr = entities[entity_traits::to_entity(curr)];
         }
 
         return sz;
@@ -264,15 +246,6 @@ public:
         } else {
             (assure<Component>()->reserve(cap), ...);
         }
-    }
-
-    /**
-     * @brief Reserves enough space to store `count` pools.
-     * @param count Number of pools to reserve space for.
-     */
-    [[deprecated("No longer supported")]]
-    void reserve_pools(const size_t count) {
-        pools.reserve(count);
     }
 
     /**
@@ -353,48 +326,36 @@ public:
         return free_list;
     }
 
-    /*! @copydoc released */
-    [[deprecated("Use ::released instead")]]
-    [[nodiscard]] entity_type destroyed() const ENTT_NOEXCEPT {
-        return released();
-    }
-
     /**
-     * @brief Checks if an entity identifier refers to a valid entity.
-     * @param entity An entity identifier, either valid or not.
+     * @brief Checks if an identifier refers to a valid entity.
+     * @param entity An identifier, either valid or not.
      * @return True if the identifier is valid, false otherwise.
      */
     [[nodiscard]] bool valid(const entity_type entity) const {
-        const auto pos = size_type(traits_type::to_entity(entity));
+        const auto pos = size_type(entity_traits::to_entity(entity));
         return (pos < entities.size() && entities[pos] == entity);
     }
 
     /**
-     * @brief Returns the actual version for an entity identifier.
-     *
-     * @warning
-     * Attempting to use an entity that doesn't belong to the registry results
-     * in undefined behavior. An entity belongs to the registry even if it has
-     * been previously destroyed and/or recycled.
-     *
-     * @param entity A valid entity identifier.
-     * @return Actual version for the given entity identifier.
+     * @brief Returns the actual version for an identifier.
+     * @param entity A valid identifier.
+     * @return The version for the given identifier if valid, the tombstone
+     * version otherwise.
      */
     [[nodiscard]] version_type current(const entity_type entity) const {
-        const auto pos = size_type(traits_type::to_entity(entity));
-        ENTT_ASSERT(pos < entities.size(), "Entity does not exist");
-        return version(entities[pos]);
+        const auto pos = size_type(entity_traits::to_entity(entity));
+        return entity_traits::to_version(pos < entities.size() ? entities[pos] : tombstone);
     }
 
     /**
      * @brief Creates a new entity and returns it.
      *
-     * There are two kinds of possible entity identifiers:
+     * There are two kinds of possible identifiers:
      *
      * * Newly created ones in case no entities have been previously destroyed.
      * * Recycled ones with updated versions.
      *
-     * @return A valid entity identifier.
+     * @return A valid identifier.
      */
     [[nodiscard]] entity_type create() {
         return (free_list == null) ? entities.emplace_back(generate_identifier(entities.size())) : recycle_identifier();
@@ -408,15 +369,15 @@ public:
      * If the requested entity isn't in use, the suggested identifier is created
      * and returned. Otherwise, a new identifier is generated.
      *
-     * @param hint Required entity identifier.
-     * @return A valid entity identifier.
+     * @param hint Required identifier.
+     * @return A valid identifier.
      */
     [[nodiscard]] entity_type create(const entity_type hint) {
         const auto length = entities.size();
 
         if(hint == null || hint == tombstone) {
             return create();
-        } else if(const auto req = traits_type::to_entity(hint); !(req < length)) {
+        } else if(const auto req = entity_traits::to_entity(hint); !(req < length)) {
             entities.resize(size_type(req) + 1u, null);
 
             for(auto pos = length; pos < req; ++pos) {
@@ -424,12 +385,12 @@ public:
             }
 
             return (entities[req] = hint);
-        } else if(const auto curr = traits_type::to_entity(entities[req]); req == curr) {
+        } else if(const auto curr = entity_traits::to_entity(entities[req]); req == curr) {
             return create();
         } else {
             auto *it = &free_list;
-            for(; traits_type::to_entity(*it) != req; it = &entities[traits_type::to_entity(*it)]);
-            *it = traits_type::construct(curr, traits_type::to_version(*it));
+            for(; entity_traits::to_entity(*it) != req; it = &entities[entity_traits::to_entity(*it)]);
+            *it = entity_traits::combine(curr, entity_traits::to_integral(*it));
             return (entities[req] = hint);
         }
     }
@@ -482,29 +443,29 @@ public:
     }
 
     /**
-     * @brief Releases an entity identifier.
+     * @brief Releases an identifier.
      *
      * The version is updated and the identifier can be recycled at any time.
      *
      * @warning
      * Attempting to use an invalid entity results in undefined behavior.
      *
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return The version of the recycled entity.
      */
     version_type release(const entity_type entity) {
-        return release(entity, version(entity) + 1u);
+        return release(entity, entity_traits::to_version(entity) + 1u);
     }
 
     /**
-     * @brief Releases an entity identifier.
+     * @brief Releases an identifier.
      *
      * The suggested version or the valid version closest to the suggested one
      * is used instead of the implicitly generated version.
      *
      * @sa release
      *
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param version A desired version upon destruction.
      * @return The version actually assigned to the entity.
      */
@@ -514,7 +475,7 @@ public:
     }
 
     /**
-     * @brief Releases all entity identifiers in a range.
+     * @brief Releases all identifiers in a range.
      *
      * @sa release
      *
@@ -525,7 +486,7 @@ public:
     template<typename It>
     void release(It first, It last) {
         for(; first != last; ++first) {
-            release(*first, version(*first) + 1u);
+            release(*first, entity_traits::to_version(*first) + 1u);
         }
     }
 
@@ -541,11 +502,11 @@ public:
      * @warning
      * Attempting to use an invalid entity results in undefined behavior.
      *
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return The version of the recycled entity.
      */
     version_type destroy(const entity_type entity) {
-        return destroy(entity, version(entity) + 1u);
+        return destroy(entity, entity_traits::to_version(entity) + 1u);
     }
 
     /**
@@ -556,7 +517,7 @@ public:
      *
      * @sa destroy
      *
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param version A desired version upon destruction.
      * @return The version actually assigned to the entity.
      */
@@ -583,7 +544,7 @@ public:
     void destroy(It first, It last) {
         if constexpr(is_iterator_type_v<typename basic_common_type::iterator, It>) {
             for(; first != last; ++first) {
-                destroy(*first, version(*first) + 1u);
+                destroy(*first, entity_traits::to_version(*first) + 1u);
             }
         } else {
             for(auto &&pdata: pools) {
@@ -607,7 +568,7 @@ public:
      *
      * @tparam Component Type of component to create.
      * @tparam Args Types of arguments to use to construct the component.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param args Parameters to use to initialize the component.
      * @return A reference to the newly created component.
      */
@@ -669,7 +630,7 @@ public:
      *
      * @tparam Component Type of component to assign or replace.
      * @tparam Args Types of arguments to use to construct the component.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param args Parameters to use to initialize the component.
      * @return A reference to the newly created component.
      */
@@ -703,7 +664,7 @@ public:
      *
      * @tparam Component Type of component to patch.
      * @tparam Func Types of the function objects to invoke.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param func Valid function objects.
      * @return A reference to the patched component.
      */
@@ -726,7 +687,7 @@ public:
      *
      * @tparam Component Type of component to replace.
      * @tparam Args Types of arguments to use to construct the component.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param args Parameters to use to initialize the component.
      * @return A reference to the component being replaced.
      */
@@ -742,7 +703,7 @@ public:
      * Attempting to use an invalid entity results in undefined behavior.
      *
      * @tparam Component Types of components to remove.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return The number of components actually removed.
      */
     template<typename... Component>
@@ -786,7 +747,7 @@ public:
      * entity that doesn't own it results in undefined behavior.
      *
      * @tparam Component Types of components to erase.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      */
     template<typename... Component>
     void erase(const entity_type entity) {
@@ -833,36 +794,6 @@ public:
         }
     }
 
-    /*! @copydoc remove */
-    template<typename... Component>
-    [[deprecated("Use ::remove instead")]]
-    size_type remove_if_exists(const entity_type entity) {
-        return remove<Component...>(entity);
-    }
-
-    /**
-     * @brief Removes all the components from an entity and makes it orphaned.
-     *
-     * @warning
-     * In case there are listeners that observe the destruction of components
-     * and assign other components to the entity in their bodies, the result of
-     * invoking this function may not be as expected. In the worst case, it
-     * could lead to undefined behavior.
-     *
-     * @warning
-     * Attempting to use an invalid entity results in undefined behavior.
-     *
-     * @param entity A valid entity identifier.
-     */
-    [[deprecated("Use ::destroy(entity)/::create(entity) instead")]]
-    void remove_all(const entity_type entity) {
-        ENTT_ASSERT(valid(entity), "Invalid entity");
-
-        for(auto &&pdata: pools) {
-            pdata.pool && pdata.pool->remove(entity, this);
-        }
-    }
-
     /**
      * @brief Checks if an entity has all the given components.
      *
@@ -870,7 +801,7 @@ public:
      * Attempting to use an invalid entity results in undefined behavior.
      *
      * @tparam Component Components for which to perform the check.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return True if the entity has all the components, false otherwise.
      */
     template<typename... Component>
@@ -886,7 +817,7 @@ public:
      * Attempting to use an invalid entity results in undefined behavior.
      *
      * @tparam Component Components for which to perform the check.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return True if the entity has at least one of the given components,
      * false otherwise.
      */
@@ -904,7 +835,7 @@ public:
      * that doesn't own it results in undefined behavior.
      *
      * @tparam Component Types of components to get.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return References to the components owned by the entity.
      */
     template<typename... Component>
@@ -950,7 +881,7 @@ public:
      *
      * @tparam Component Type of component to get.
      * @tparam Args Types of arguments to use to construct the component.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param args Parameters to use to initialize the component.
      * @return Reference to the component owned by the entity.
      */
@@ -971,7 +902,7 @@ public:
      * The registry retains ownership of the pointed-to components.
      *
      * @tparam Component Types of components to get.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return Pointers to the components owned by the entity.
      */
     template<typename... Component>
@@ -1009,7 +940,7 @@ public:
                 pdata.pool && (pdata.pool->clear(this), true);
             }
 
-            each([this](const auto entity) { release_entity(entity, version(entity) + 1u); });
+            each([this](const auto entity) { release_entity(entity, entity_traits::to_version(entity) + 1u); });
         } else {
             (assure<Component>()->clear(this), ...);
         }
@@ -1040,7 +971,7 @@ public:
             }
         } else {
             for(auto pos = entities.size(); pos; --pos) {
-                if(const auto entity = entities[pos - 1]; traits_type::to_entity(entity) == (pos - 1)) {
+                if(const auto entity = entities[pos - 1]; entity_traits::to_entity(entity) == (pos - 1)) {
                     func(entity);
                 }
             }
@@ -1049,7 +980,7 @@ public:
 
     /**
      * @brief Checks if an entity has components assigned.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @return True if the entity has no components assigned, false otherwise.
      */
     [[nodiscard]] bool orphan(const entity_type entity) const {
@@ -1188,14 +1119,14 @@ public:
      * @return A newly created view.
      */
     template<typename... Component, typename... Exclude>
-    [[nodiscard]] basic_view<Entity, exclude_t<Exclude...>, std::add_const_t<Component>...> view(exclude_t<Exclude...> = {}) const {
+    [[nodiscard]] basic_view<Entity, get_t<std::add_const_t<Component>...>, exclude_t<Exclude...>> view(exclude_t<Exclude...> = {}) const {
         static_assert(sizeof...(Component) > 0, "Exclusion-only views are not supported");
         return { *assure<std::remove_const_t<Component>>()..., *assure<Exclude>()... };
     }
 
     /*! @copydoc view */
     template<typename... Component, typename... Exclude>
-    [[nodiscard]] basic_view<Entity, exclude_t<Exclude...>, Component...> view(exclude_t<Exclude...> = {}) {
+    [[nodiscard]] basic_view<Entity, get_t<Component...>, exclude_t<Exclude...>> view(exclude_t<Exclude...> = {}) {
         static_assert(sizeof...(Component) > 0, "Exclusion-only views are not supported");
         return { *assure<std::remove_const_t<Component>>()..., *assure<Exclude>()... };
     }
@@ -1274,7 +1205,7 @@ public:
      * @return A newly created group.
      */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> group(get_t<Get...>, exclude_t<Exclude...> = {}) {
+    [[nodiscard]] basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> group(get_t<Get...>, exclude_t<Exclude...> = {}) {
         static_assert(sizeof...(Owned) + sizeof...(Get) > 0, "Exclusion-only groups are not supported");
         static_assert(sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude) > 1, "Single component groups are not allowed");
 
@@ -1364,7 +1295,7 @@ public:
      * @return A newly created group.
      */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<std::add_const_t<Get>...>, std::add_const_t<Owned>...> group_if_exists(get_t<Get...>, exclude_t<Exclude...> = {}) const {
+    [[nodiscard]] basic_group<Entity, owned_t<std::add_const_t<Owned>...>, get_t<std::add_const_t<Get>...>, exclude_t<Exclude...>> group_if_exists(get_t<Get...>, exclude_t<Exclude...> = {}) const {
         if(auto it = std::find_if(groups.cbegin(), groups.cend(), [](const auto &gdata) {
             return gdata.size == (sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude))
                 && (gdata.owned(type_hash<std::remove_const_t<Owned>>::value()) && ...)
@@ -1389,7 +1320,7 @@ public:
      * @return A newly created group.
      */
     template<typename... Owned, typename... Exclude>
-    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<>, Owned...> group(exclude_t<Exclude...> = {}) {
+    [[nodiscard]] basic_group<Entity, owned_t<Owned...>, get_t<>, exclude_t<Exclude...>> group(exclude_t<Exclude...> = {}) {
         return group<Owned...>(get_t<>{}, exclude<Exclude...>);
     }
 
@@ -1403,7 +1334,7 @@ public:
      * @return A newly created group.
      */
     template<typename... Owned, typename... Exclude>
-    [[nodiscard]] basic_group<Entity, exclude_t<Exclude...>, get_t<>, std::add_const_t<Owned>...> group_if_exists(exclude_t<Exclude...> = {}) const {
+    [[nodiscard]] basic_group<Entity, owned_t<std::add_const_t<Owned>...>, get_t<>, exclude_t<Exclude...>> group_if_exists(exclude_t<Exclude...> = {}) const {
         return group_if_exists<std::add_const_t<Owned>...>(get_t<>{}, exclude<Exclude...>);
     }
 
@@ -1426,7 +1357,7 @@ public:
      * @return True if the group can be sorted, false otherwise.
      */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] bool sortable(const basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> &) ENTT_NOEXCEPT {
+    [[nodiscard]] bool sortable(const basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> &) ENTT_NOEXCEPT {
         constexpr auto size = sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude);
         return std::find_if(groups.cbegin(), groups.cend(), [size](const auto &gdata) {
             return (0u + ... + gdata.owned(type_hash<std::remove_const_t<Owned>>::value())) && (size < gdata.size);
@@ -1481,7 +1412,19 @@ public:
     template<typename Component, typename Compare, typename Sort = std_sort, typename... Args>
     void sort(Compare compare, Sort algo = Sort{}, Args &&... args) {
         ENTT_ASSERT(sortable<Component>(), "Cannot sort owned storage");
-        assure<Component>()->sort(std::move(compare), std::move(algo), std::forward<Args>(args)...);
+        auto *cpool = assure<Component>();
+
+        if constexpr(ignore_as_empty_v<Component>) {
+            cpool->sort(std::move(compare), std::move(algo), std::forward<Args>(args)...);
+        } else {
+            if constexpr(std::is_invocable_v<Compare, decltype(cpool->get({})), decltype(cpool->get({}))>) {
+                cpool->sort([cpool, compare = std::move(compare)](const auto lhs, const auto rhs) {
+                    return compare(std::as_const(cpool->get(lhs)), std::as_const(cpool->get(rhs)));
+                }, std::move(algo), std::forward<Args>(args)...);
+            } else {
+                cpool->sort(std::move(compare), std::move(algo), std::forward<Args>(args)...);
+            }
+        }
     }
 
     /**
@@ -1541,7 +1484,7 @@ public:
      * given entity during the visit is returned or not to the caller.
      *
      * @tparam Func Type of the function object to invoke.
-     * @param entity A valid entity identifier.
+     * @param entity A valid identifier.
      * @param func A valid function object.
      */
     template<typename Func>

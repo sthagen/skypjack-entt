@@ -27,15 +27,13 @@ struct MetaDtor: ::testing::Test {
 
         entt::meta<clazz_t>()
             .type("clazz"_hs)
-            .dtor<&clazz_t::destroy_decr>();
+            .dtor<clazz_t::destroy_decr>();
 
         clazz_t::counter = 0;
     }
 
     void TearDown() override {
-        for(auto type: entt::resolve()) {
-            type.reset();
-        }
+        entt::meta_reset();
     }
 };
 
@@ -102,11 +100,11 @@ TEST_F(MetaDtor, AsRefConstruction) {
 TEST_F(MetaDtor, ReRegistration) {
     SetUp();
 
-    auto *node = entt::internal::meta_info<clazz_t>::resolve();
+    auto *node = entt::internal::meta_node<clazz_t>::resolve();
 
     ASSERT_NE(node->dtor, nullptr);
 
-    entt::meta<clazz_t>().dtor<&clazz_t::destroy_incr>();
+    entt::meta<clazz_t>().dtor<clazz_t::destroy_incr>();
     entt::resolve<clazz_t>().construct().reset();
 
     ASSERT_EQ(clazz_t::counter, 2);

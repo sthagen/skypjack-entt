@@ -27,6 +27,8 @@
     * [Integral constant](#integral-constant)
     * [Tag](#tag)
     * [Type list and value list](#type-list-and-value-list)
+* [Compressed pair](#compressed-pair)
+* [Enum as bitmask](#enum-as-bitmask)
 * [Utilities](#utilities)
 <!--
 @endcond TURN_OFF_DOXYGEN
@@ -643,6 +645,86 @@ needs become apparent.<br/>
 Many of these functionalities also exist in their version dedicated to value
 lists. We therefore have `value_list_element[_v]` as well as
 `value_list_cat[_t]`and so on.
+
+# Compressed pair
+
+Primarily designed for internal use and far from being feature complete, the
+`compressed_pair` class does exactly what it promises: it tries to reduce the
+size of a pair by exploiting _Empty Base Class Optimization_ (or _EBCO_).<br/>
+This class **is not** a drop-in replacement for `std::pair`. However, it offers
+enough functionalities to be a good alternative for when reducing memory usage
+is more important than having some cool and probably useless feature.
+
+Although the API is very close to that of `std::pair` (apart from the fact that
+the template parameters are inferred from the constructor and therefore there is
+no` entt::make_compressed_pair`), the major difference is that `first` and
+`second` are functions for implementation needs:
+
+```cpp
+entt::compressed_pair pair{0, 3.};
+pair.first() = 42;
+```
+
+There isn't much to describe then. It's recommended to rely on documentation and
+intuition. At the end of the day, it's just a pair and nothing more.
+
+# Enum as bitmask
+
+Sometimes it's useful to be able to use enums as bitmasks. However, enum classes
+aren't really suitable for the purpose out of the box. Main problem is that they
+don't convert implicitly to their underlying type.<br/>
+All that remains is to make a choice between using old-fashioned enums (with all
+their problems that I don't want to discuss here) or writing _ugly_ code.
+
+Fortunately, there is also a third way: adding enough operators in the global
+scope to treat enum classes as bitmask transparently.<br/>
+The ultimate goal is to be able to write code like the following (or maybe
+something more meaningful, but this should give a grasp and remain simple at the
+same time):
+
+```cpp
+enum class my_flag {
+    unknown = 0x01,
+    enabled = 0x02,
+    disabled = 0x04
+};
+
+const my_flag flags = my_flag::enabled;
+const bool is_enabled = !!(flags & my_flag::enabled);
+```
+
+The problem with adding all operators to the global scope is that these will
+come into play even when not required, with the risk of introducing errors that
+are difficult to deal with.<br/>
+However, C++ offers enough tools to get around this problem. In particular, the
+library requires users to register all enum classes for which bitmask support
+should be enabled:
+
+```cpp
+template<>
+struct entt::enum_as_bitmask<my_flag>
+    : std::true_type
+{};
+```
+
+This is handy when dealing with enum classes defined by third party libraries
+and over which the users have no control. However, it's also verbose and can be
+avoided by adding a specific value to the enum class itself:
+
+```cpp
+enum class my_flag {
+    unknown = 0x01,
+    enabled = 0x02,
+    disabled = 0x04,
+    _entt_enum_as_bitmask
+};
+```
+
+In this case, there is no need to specialize the `enum_as_bitmask` traits, since
+`EnTT` will automatically detect the flag and enable the bitmask support.<br/>
+Once the enum class has been registered (in one way or the other) all the most
+common operators will be available, such as `&`, `|` but also `&=` and `|=`.
+Refer to the official documentation for the full list of operators.
 
 # Utilities
 

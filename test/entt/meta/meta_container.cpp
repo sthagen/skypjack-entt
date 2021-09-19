@@ -5,23 +5,21 @@
 #include <entt/meta/meta.hpp>
 #include <entt/meta/resolve.hpp>
 
+struct invalid_type {};
+
 struct MetaContainer: ::testing::Test {
     void SetUp() override {
         using namespace entt::literals;
 
         entt::meta<double>()
-            .type("double"_hs)
-            .conv<int>();
+            .type("double"_hs);
 
         entt::meta<int>()
-            .type("int"_hs)
-            .conv<char>();
+            .type("int"_hs);
     }
 
     void TearDown() override {
-        for(auto type: entt::resolve()) {
-            type.reset();
-        }
+        entt::meta_reset();
     }
 };
 
@@ -133,9 +131,9 @@ TEST_F(MetaContainer, StdVector) {
     auto it = view.begin();
     auto ret = view.insert(it, 0);
 
-    ASSERT_TRUE(ret.second);
-    ASSERT_FALSE(view.insert(ret.first, 'c').second);
-    ASSERT_TRUE(view.insert(++ret.first, 1.).second);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(view.insert(ret, invalid_type{}));
+    ASSERT_TRUE(view.insert(++ret, 1.));
 
     ASSERT_EQ(view.size(), 5u);
     ASSERT_EQ((*view.begin()).cast<int>(), 0);
@@ -144,9 +142,9 @@ TEST_F(MetaContainer, StdVector) {
     it = view.begin();
     ret = view.erase(it);
 
-    ASSERT_TRUE(ret.second);
+    ASSERT_TRUE(ret);
     ASSERT_EQ(view.size(), 4u);
-    ASSERT_EQ((*ret.first).cast<int>(), 1);
+    ASSERT_EQ((*ret).cast<int>(), 1);
 
     ASSERT_TRUE(view.clear());
     ASSERT_EQ(view.size(), 0u);
@@ -175,9 +173,9 @@ TEST_F(MetaContainer, StdArray) {
     auto it = view.begin();
     auto ret = view.insert(it, 0);
 
-    ASSERT_FALSE(ret.second);
-    ASSERT_FALSE(view.insert(it, 'c').second);
-    ASSERT_FALSE(view.insert(++it, 1).second);
+    ASSERT_FALSE(ret);
+    ASSERT_FALSE(view.insert(it, 'c'));
+    ASSERT_FALSE(view.insert(++it, 1.));
 
     ASSERT_EQ(view.size(), 3u);
     ASSERT_EQ((*view.begin()).cast<int>(), 2);
@@ -186,7 +184,7 @@ TEST_F(MetaContainer, StdArray) {
     it = view.begin();
     ret = view.erase(it);
 
-    ASSERT_FALSE(ret.second);
+    ASSERT_FALSE(ret);
     ASSERT_EQ(view.size(), 3u);
     ASSERT_EQ((*it).cast<int>(), 2);
 
@@ -211,8 +209,8 @@ TEST_F(MetaContainer, StdMap) {
 
     ASSERT_EQ((*view.find(3)).second.cast<char>(), 'd');
 
-    ASSERT_FALSE(view.insert('a', 'a'));
-    ASSERT_FALSE(view.insert(1, 1.));
+    ASSERT_FALSE(view.insert(invalid_type{}, 'a'));
+    ASSERT_FALSE(view.insert(1, invalid_type{}));
 
     ASSERT_TRUE(view.insert(0, 'a'));
     ASSERT_TRUE(view.insert(1., static_cast<int>('b')));
@@ -221,17 +219,17 @@ TEST_F(MetaContainer, StdMap) {
     ASSERT_EQ((*view.find(0)).second.cast<char>(), 'a');
     ASSERT_EQ((*view.find(1.)).second.cast<char>(), 'b');
 
-    ASSERT_FALSE(view.erase('c'));
+    ASSERT_FALSE(view.erase(invalid_type{}));
+    ASSERT_FALSE(view.find(invalid_type{}));
     ASSERT_EQ(view.size(), 5u);
-    ASSERT_FALSE(view.find('c'));
 
     ASSERT_TRUE(view.erase(0));
     ASSERT_EQ(view.size(), 4u);
     ASSERT_EQ(view.find(0), view.end());
 
-    (*view.find(1)).second.cast<char &>() = 'f';
+    (*view.find(1.)).second.cast<char &>() = 'f';
 
-    ASSERT_EQ((*view.find(1)).second.cast<char>(), 'f');
+    ASSERT_EQ((*view.find(1.f)).second.cast<char>(), 'f');
 
     ASSERT_TRUE(view.erase(1.));
     ASSERT_TRUE(view.clear());
@@ -255,26 +253,26 @@ TEST_F(MetaContainer, StdSet) {
 
     ASSERT_EQ((*view.find(3)).first.cast<int>(), 3);
 
-    ASSERT_FALSE(view.insert('0'));
+    ASSERT_FALSE(view.insert(invalid_type{}));
 
-    ASSERT_TRUE(view.insert(0));
+    ASSERT_TRUE(view.insert(.0));
     ASSERT_TRUE(view.insert(1));
 
     ASSERT_EQ(view.size(), 5u);
     ASSERT_EQ((*view.find(0)).first.cast<int>(), 0);
     ASSERT_EQ((*view.find(1.)).first.cast<int>(), 1);
 
-    ASSERT_FALSE(view.erase('c'));
+    ASSERT_FALSE(view.erase(invalid_type{}));
+    ASSERT_FALSE(view.find(invalid_type{}));
     ASSERT_EQ(view.size(), 5u);
-    ASSERT_FALSE(view.find('c'));
 
     ASSERT_TRUE(view.erase(0));
     ASSERT_EQ(view.size(), 4u);
     ASSERT_EQ(view.find(0), view.end());
 
-    ASSERT_EQ((*view.find(1)).first.try_cast<int>(), nullptr);
-    ASSERT_NE((*view.find(1)).first.try_cast<const int>(), nullptr);
-    ASSERT_EQ((*view.find(1)).first.cast<const int &>(), 1);
+    ASSERT_EQ((*view.find(1.f)).first.try_cast<int>(), nullptr);
+    ASSERT_NE((*view.find(1.)).first.try_cast<const int>(), nullptr);
+    ASSERT_EQ((*view.find(true)).first.cast<const int &>(), 1);
 
     ASSERT_TRUE(view.erase(1.));
     ASSERT_TRUE(view.clear());
@@ -307,7 +305,7 @@ TEST_F(MetaContainer, ConstSequenceContainer) {
     auto it = view.begin();
     auto ret = view.insert(it, 0);
 
-    ASSERT_FALSE(ret.second);
+    ASSERT_FALSE(ret);
     ASSERT_EQ(view.size(), 1u);
     ASSERT_EQ((*it).cast<int>(), 42);
     ASSERT_EQ(++it, view.end());
@@ -315,7 +313,7 @@ TEST_F(MetaContainer, ConstSequenceContainer) {
     it = view.begin();
     ret = view.erase(it);
 
-    ASSERT_FALSE(ret.second);
+    ASSERT_FALSE(ret);
     ASSERT_EQ(view.size(), 1u);
 
     ASSERT_FALSE(view.clear());
@@ -479,9 +477,9 @@ TEST_F(MetaContainer, StdVectorBool) {
     auto it = view.begin();
     auto ret = view.insert(it, true);
 
-    ASSERT_TRUE(ret.second);
-    ASSERT_FALSE(view.insert(ret.first, 'c').second);
-    ASSERT_TRUE(view.insert(++ret.first, false).second);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(view.insert(ret, invalid_type{}));
+    ASSERT_TRUE(view.insert(++ret, false));
 
     ASSERT_EQ(view.size(), 5u);
     ASSERT_EQ((*view.begin()).cast<proxy_type>(), true);
@@ -490,9 +488,9 @@ TEST_F(MetaContainer, StdVectorBool) {
     it = view.begin();
     ret = view.erase(it);
 
-    ASSERT_TRUE(ret.second);
+    ASSERT_TRUE(ret);
     ASSERT_EQ(view.size(), 4u);
-    ASSERT_EQ((*ret.first).cast<proxy_type>(), false);
+    ASSERT_EQ((*ret).cast<proxy_type>(), false);
 
     ASSERT_TRUE(view.clear());
     ASSERT_EQ(cview.size(), 0u);

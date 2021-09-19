@@ -41,7 +41,7 @@ struct basic_handle {
     /**
      * @brief Constructs a handle from a given registry and entity.
      * @param ref An instance of the registry class.
-     * @param value An entity identifier.
+     * @param value A valid identifier.
      */
     basic_handle(registry_type &ref, entity_type value) ENTT_NOEXCEPT
         : reg{&ref}, entt{value}
@@ -79,7 +79,7 @@ struct basic_handle {
 
     /**
      * @brief Converts a handle to its underlying entity.
-     * @return An entity identifier.
+     * @return The contained identifier.
      */
     [[nodiscard]] operator entity_type() const ENTT_NOEXCEPT {
         return entity();
@@ -211,23 +211,6 @@ struct basic_handle {
     void erase() const {
         static_assert(sizeof...(Type) == 0 || (type_list_contains_v<type_list<Type...>, Component> && ...), "Invalid type");
         reg->template erase<Component...>(entt);
-    }
-
-    /*! @copydoc remove */
-    template<typename... Component>
-    [[deprecated("Use ::remove instead")]]
-    size_type remove_if_exists() const {
-        return remove<Component...>();
-    }
-
-    /**
-     * @brief Removes all the components from a handle and makes it orphaned.
-     * @sa basic_registry::remove_all
-     */
-    [[deprecated("No longer supported")]]
-    void remove_all() const {
-        static_assert(sizeof...(Type) == 0, "Invalid operation");
-        reg->remove_all(entt);
     }
 
     /**

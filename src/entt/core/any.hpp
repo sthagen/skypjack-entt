@@ -3,7 +3,6 @@
 
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -48,7 +47,7 @@ class basic_any {
 
     template<typename Type>
     [[nodiscard]] static bool compare(const void *lhs, const void *rhs) {
-        if constexpr(!std::is_function_v<Type> && is_equality_comparable_v<Type>) {
+        if constexpr(!std::is_function_v<Type> && !std::is_array_v<Type> && is_equality_comparable_v<Type>) {
             return *static_cast<const Type *>(lhs) == *static_cast<const Type *>(rhs);
         } else {
             return lhs == rhs;
@@ -164,19 +163,6 @@ public:
     }
 
     /**
-     * @brief Constructs a wrapper that holds an unmanaged object.
-     * @tparam Type Type of object to use to initialize the wrapper.
-     * @param value An instance of an object to use to initialize the wrapper.
-     */
-    template<typename Type>
-    basic_any(std::reference_wrapper<Type> value) ENTT_NOEXCEPT
-        : basic_any{}
-    {
-        // invokes deprecated assignment operator (and avoids issues with vs2017)
-        *this = value;
-    }
-
-    /**
      * @brief Constructs a wrapper from a given value.
      * @tparam Type Type of object to use to initialize the wrapper.
      * @param value An instance of an object to use to initialize the wrapper.
@@ -239,19 +225,6 @@ public:
         std::exchange(vtable, other.vtable)(operation::DTOR, *this, nullptr);
         other.vtable(operation::MOVE, other, this);
         mode = other.mode;
-        return *this;
-    }
-
-    /**
-     * @brief Value assignment operator.
-     * @tparam Type Type of object to use to initialize the wrapper.
-     * @param value An instance of an object to use to initialize the wrapper.
-     * @return This any object.
-     */
-    template<typename Type>
-    [[deprecated("Use std::in_place_type<T &>, entt::make_any<T &>, emplace<Type &> or forward_as_any instead")]]
-    basic_any & operator=(std::reference_wrapper<Type> value) ENTT_NOEXCEPT {
-        emplace<Type &>(value.get());
         return *this;
     }
 
@@ -399,10 +372,17 @@ Type any_cast(basic_any<Len, Align> &data) ENTT_NOEXCEPT {
 /*! @copydoc any_cast */
 template<typename Type, std::size_t Len, std::size_t Align>
 Type any_cast(basic_any<Len, Align> &&data) ENTT_NOEXCEPT {
-    // forces const on non-reference types to make them work also with wrappers for const references
-    auto * const instance = any_cast<std::remove_reference_t<const Type>>(&data);
-    ENTT_ASSERT(instance, "Invalid instance");
-    return static_cast<Type>(std::move(*instance));
+    if constexpr(std::is_copy_constructible_v<std::decay_t<Type>>) {
+        if(auto * const instance = any_cast<std::remove_reference_t<Type>>(&data); instance) {
+            return static_cast<Type>(std::move(*instance));
+        } else {
+            return any_cast<Type>(data);
+        }
+    } else {
+        auto * const instance = any_cast<std::remove_reference_t<Type>>(&data);
+        ENTT_ASSERT(instance, "Invalid instance");
+        return static_cast<Type>(std::move(*instance));
+    }
 }
 
 

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <type_traits>
 #include <gtest/gtest.h>
 #include <entt/core/hashed_string.hpp>
 #include <entt/meta/factory.hpp>
@@ -10,6 +11,7 @@ struct clazz_t {
 
     void member(int i) { value = i; }
     static void func() { c = 'd'; }
+    operator int() const { return value; }
 
     static inline char c = 'c';
     int value;
@@ -44,6 +46,11 @@ struct fat_t: empty_t {
     double value[4];
 };
 
+enum class enum_class: unsigned short int {
+    foo = 0u,
+    bar = 42u
+};
+
 struct not_comparable_t {
     bool operator==(const not_comparable_t &) const = delete;
 };
@@ -61,32 +68,30 @@ struct MetaAny: ::testing::Test {
         using namespace entt::literals;
 
         entt::meta<double>()
-            .type("double"_hs)
-            .conv<int>();
+            .type("double"_hs);
 
         entt::meta<empty_t>()
             .type("empty"_hs)
-            .dtor<&empty_t::destroy>();
+            .dtor<empty_t::destroy>();
 
         entt::meta<fat_t>()
             .type("fat"_hs)
             .base<empty_t>()
-            .dtor<&fat_t::destroy>();
+            .dtor<fat_t::destroy>();
 
         entt::meta<clazz_t>()
             .type("clazz"_hs)
             .data<&clazz_t::value>("value"_hs)
             .func<&clazz_t::member>("member"_hs)
-            .func<&clazz_t::func>("func"_hs);
+            .func<clazz_t::func>("func"_hs)
+            .conv<int>();
 
         empty_t::destroy_counter = 0;
         empty_t::destructor_counter = 0;
     }
 
     void TearDown() override {
-        for(auto type: entt::resolve()) {
-            type.reset();
-        }
+        entt::meta_reset();
     }
 };
 
@@ -799,6 +804,7 @@ TEST_F(MetaAny, TryCast) {
     ASSERT_EQ(any.try_cast<fat_t>(), any.data());
     ASSERT_EQ(std::as_const(any).try_cast<empty_t>(), any.try_cast<empty_t>());
     ASSERT_EQ(std::as_const(any).try_cast<fat_t>(), any.data());
+    ASSERT_EQ(std::as_const(any).try_cast<int>(), nullptr);
 }
 
 TEST_F(MetaAny, Cast) {
@@ -818,36 +824,138 @@ TEST_F(MetaAny, Cast) {
     ASSERT_EQ(any.cast<fat_t>().value[0u], 3.);
 }
 
+TEST_F(MetaAny, AllowCast) {
+    entt::meta_any clazz{clazz_t{}};
+    entt::meta_any fat{fat_t{}};
+    entt::meta_any arithmetic{42};
+    auto as_cref = entt::forward_as_meta(arithmetic.cast<const int &>());
+
+    ASSERT_TRUE(clazz);
+    ASSERT_TRUE(fat);
+    ASSERT_TRUE(arithmetic);
+    ASSERT_TRUE(as_cref);
+
+    ASSERT_TRUE(clazz.allow_cast<clazz_t>());
+    ASSERT_TRUE(clazz.allow_cast<clazz_t &>());
+    ASSERT_TRUE(clazz.allow_cast<const clazz_t &>());
+    ASSERT_EQ(clazz.type(), entt::resolve<clazz_t>());
+
+    ASSERT_TRUE(clazz.allow_cast<const int &>());
+    ASSERT_EQ(clazz.type(), entt::resolve<int>());
+    ASSERT_TRUE(clazz.allow_cast<int>());
+    ASSERT_TRUE(clazz.allow_cast<int &>());
+    ASSERT_TRUE(clazz.allow_cast<const int &>());
+
+    ASSERT_TRUE(fat.allow_cast<fat_t>());
+    ASSERT_TRUE(fat.allow_cast<fat_t &>());
+    ASSERT_TRUE(fat.allow_cast<const empty_t &>());
+    ASSERT_EQ(fat.type(), entt::resolve<fat_t>());
+    ASSERT_FALSE(fat.allow_cast<int>());
+
+    ASSERT_TRUE(std::as_const(fat).allow_cast<fat_t>());
+    ASSERT_FALSE(std::as_const(fat).allow_cast<fat_t &>());
+    ASSERT_TRUE(std::as_const(fat).allow_cast<const empty_t &>());
+    ASSERT_EQ(fat.type(), entt::resolve<fat_t>());
+    ASSERT_FALSE(fat.allow_cast<int>());
+
+    ASSERT_TRUE(arithmetic.allow_cast<int>());
+    ASSERT_TRUE(arithmetic.allow_cast<int &>());
+    ASSERT_TRUE(arithmetic.allow_cast<const int &>());
+    ASSERT_EQ(arithmetic.type(), entt::resolve<int>());
+    ASSERT_FALSE(arithmetic.allow_cast<fat_t>());
+
+    ASSERT_TRUE(arithmetic.allow_cast<double &>());
+    ASSERT_EQ(arithmetic.type(), entt::resolve<double>());
+    ASSERT_EQ(arithmetic.cast<double &>(), 42.);
+
+    ASSERT_TRUE(arithmetic.allow_cast<const float &>());
+    ASSERT_EQ(arithmetic.type(), entt::resolve<float>());
+    ASSERT_EQ(arithmetic.cast<float &>(), 42.f);
+
+    ASSERT_TRUE(as_cref.allow_cast<int>());
+    ASSERT_FALSE(as_cref.allow_cast<int &>());
+    ASSERT_TRUE(as_cref.allow_cast<const int &>());
+    ASSERT_EQ(as_cref.type(), entt::resolve<int>());
+    ASSERT_FALSE(as_cref.allow_cast<fat_t>());
+
+    ASSERT_TRUE(as_cref.allow_cast<double &>());
+    ASSERT_EQ(as_cref.type(), entt::resolve<double>());
+}
+
 TEST_F(MetaAny, Convert) {
-    entt::meta_any any{42.};
+    entt::meta_any any{clazz_t{}};
+    any.cast<clazz_t &>().value = 42;
+    auto as_int = std::as_const(any).allow_cast<int>();
 
     ASSERT_TRUE(any);
-    ASSERT_EQ(any.type(), entt::resolve<double>());
-    ASSERT_TRUE(any.allow_cast<double>());
-    ASSERT_FALSE(any.allow_cast<char>());
-    ASSERT_EQ(any.type(), entt::resolve<double>());
-    ASSERT_EQ(any.cast<double>(), 42.);
+    ASSERT_EQ(any.type(), entt::resolve<clazz_t>());
+    ASSERT_TRUE(any.allow_cast<clazz_t>());
+    ASSERT_EQ(any.type(), entt::resolve<clazz_t>());
     ASSERT_TRUE(any.allow_cast<int>());
     ASSERT_EQ(any.type(), entt::resolve<int>());
     ASSERT_EQ(any.cast<int>(), 42);
+
+    ASSERT_TRUE(as_int);
+    ASSERT_EQ(as_int.type(), entt::resolve<int>());
+    ASSERT_EQ(as_int.cast<int>(), 42);
+
+    ASSERT_TRUE(as_int.allow_cast<char>());
+    ASSERT_EQ(as_int.type(), entt::resolve<char>());
+    ASSERT_EQ(as_int.cast<char>(), char{42});
 }
 
-TEST_F(MetaAny, ConstConvert) {
-    const entt::meta_any any{42.};
+TEST_F(MetaAny, ArithmeticConversion) {
+    entt::meta_any any{'c'};
 
-    ASSERT_TRUE(any);
-    ASSERT_EQ(any.type(), entt::resolve<double>());
+    ASSERT_EQ(any.type(), entt::resolve<char>());
+    ASSERT_EQ(any.cast<char>(), 'c');
+
     ASSERT_TRUE(any.allow_cast<double>());
-    ASSERT_FALSE(any.allow_cast<char>());
     ASSERT_EQ(any.type(), entt::resolve<double>());
-    ASSERT_EQ(any.cast<double>(), 42.);
+    ASSERT_EQ(any.cast<double>(), static_cast<double>('c'));
 
-    auto other = any.allow_cast<int>();
+    any = 3.1;
 
+    ASSERT_TRUE(any.allow_cast(entt::resolve<int>()));
+    ASSERT_EQ(any.type(), entt::resolve<int>());
+    ASSERT_EQ(any.cast<int>(), 3);
+
+    ASSERT_TRUE(any.allow_cast<float>());
+    ASSERT_EQ(any.type(), entt::resolve<float>());
+    ASSERT_EQ(any.cast<float>(), 3.f);
+
+    any = static_cast<float>('c');
+
+    ASSERT_TRUE(any.allow_cast<char>());
+    ASSERT_EQ(any.type(), entt::resolve<char>());
+    ASSERT_EQ(any.cast<char>(), 'c');
+}
+
+TEST_F(MetaAny, EnumConversion) {
+    entt::meta_any any{enum_class::foo};
+
+    ASSERT_EQ(any.type(), entt::resolve<enum_class>());
+    ASSERT_EQ(any.cast<enum_class>(), enum_class::foo);
+
+    ASSERT_TRUE(any.allow_cast<double>());
     ASSERT_EQ(any.type(), entt::resolve<double>());
-    ASSERT_EQ(any.cast<double>(), 42.);
-    ASSERT_EQ(other.type(), entt::resolve<int>());
-    ASSERT_EQ(other.cast<int>(), 42);
+    ASSERT_EQ(any.cast<double>(), 0.);
+
+    any = enum_class::bar;
+
+    ASSERT_TRUE(any.allow_cast(entt::resolve<int>()));
+    ASSERT_EQ(any.type(), entt::resolve<int>());
+    ASSERT_EQ(any.cast<int>(), 42);
+
+    ASSERT_TRUE(any.allow_cast<enum_class>());
+    ASSERT_EQ(any.type(), entt::resolve<enum_class>());
+    ASSERT_EQ(any.cast<enum_class>(), enum_class::bar);
+
+    any = 0;
+
+    ASSERT_TRUE(any.allow_cast(entt::resolve<enum_class>()));
+    ASSERT_EQ(any.type(), entt::resolve<enum_class>());
+    ASSERT_EQ(any.cast<enum_class>(), enum_class::foo);
 }
 
 TEST_F(MetaAny, UnmanageableType) {

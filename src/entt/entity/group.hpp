@@ -23,7 +23,7 @@ namespace entt {
  * Primary template isn't defined on purpose. All the specializations give a
  * compile-time error, but for a few reasonable cases.
  */
-template<typename...>
+template<typename, typename, typename, typename>
 class basic_group;
 
 
@@ -60,18 +60,18 @@ class basic_group;
  * In any other case, attempting to use a group results in undefined behavior.
  *
  * @tparam Entity A valid entity type (see entt_traits for more details).
- * @tparam Exclude Types of components used to filter the group.
  * @tparam Get Type of components observed by the group.
+ * @tparam Exclude Types of components used to filter the group.
  */
-template<typename Entity, typename... Exclude, typename... Get>
-class basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>> final {
+template<typename Entity, typename... Get, typename... Exclude>
+class basic_group<Entity, owned_t<>, get_t<Get...>, exclude_t<Exclude...>> final {
     /*! @brief A registry is allowed to create groups. */
     friend class basic_registry<Entity>;
 
-    using basic_common_type = basic_sparse_set<Entity>;
-
     template<typename Component>
     using storage_type = constness_as_t<typename storage_traits<Entity, std::remove_const_t<Component>>::storage_type, Component>;
+
+    using basic_common_type = std::common_type_t<typename storage_type<Get>::base_type...>;
 
     class iterable final {
         template<typename It>
@@ -99,7 +99,7 @@ class basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>> final {
 
             [[nodiscard]] reference operator*() const ENTT_NOEXCEPT {
                 const auto entt = *it;
-                return std::tuple_cat(std::make_tuple(entt), get_as_tuple(*std::get<storage_type<Get> *>(pools), entt)...);
+                return std::tuple_cat(std::make_tuple(entt), std::get<storage_type<Get> *>(pools)->get_as_tuple(entt)...);
             }
 
             [[nodiscard]] bool operator==(const iterable_iterator &other) const ENTT_NOEXCEPT {
@@ -286,7 +286,7 @@ public:
 
     /**
      * @brief Finds an entity.
-     * @param entt A valid entity identifier.
+     * @param entt A valid identifier.
      * @return An iterator to the given entity if it's found, past the end
      * iterator otherwise.
      */
@@ -314,7 +314,7 @@ public:
 
     /**
      * @brief Checks if a group contains an entity.
-     * @param entt A valid entity identifier.
+     * @param entt A valid identifier.
      * @return True if the group contains the given entity, false otherwise.
      */
     [[nodiscard]] bool contains(const entity_type entt) const {
@@ -333,7 +333,7 @@ public:
      * results in undefined behavior.
      *
      * @tparam Component Types of components to get.
-     * @param entt A valid entity identifier.
+     * @param entt A valid identifier.
      * @return The components assigned to the entity.
      */
     template<typename... Component>
@@ -341,11 +341,11 @@ public:
         ENTT_ASSERT(contains(entt), "Group does not contain entity");
 
         if constexpr(sizeof...(Component) == 0) {
-            return std::tuple_cat(get_as_tuple(*std::get<storage_type<Get> *>(pools), entt)...);
+            return std::tuple_cat(std::get<storage_type<Get> *>(pools)->get_as_tuple(entt)...);
         } else if constexpr(sizeof...(Component) == 1) {
             return (std::get<storage_type<Component> *>(pools)->get(entt), ...);
         } else {
-            return std::tuple_cat(get_as_tuple(*std::get<storage_type<Component> *>(pools), entt)...);
+            return std::tuple_cat(std::get<storage_type<Component> *>(pools)->get_as_tuple(entt)...);
         }
     }
 
@@ -524,19 +524,19 @@ private:
  * In any other case, attempting to use a group results in undefined behavior.
  *
  * @tparam Entity A valid entity type (see entt_traits for more details).
- * @tparam Exclude Types of components used to filter the group.
- * @tparam Get Types of components observed by the group.
  * @tparam Owned Types of components owned by the group.
+ * @tparam Get Types of components observed by the group.
+ * @tparam Exclude Types of components used to filter the group.
  */
-template<typename Entity, typename... Exclude, typename... Get, typename... Owned>
-class basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> final {
+template<typename Entity, typename... Owned, typename... Get, typename... Exclude>
+class basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> final {
     /*! @brief A registry is allowed to create groups. */
     friend class basic_registry<Entity>;
 
-    using basic_common_type = basic_sparse_set<Entity>;
-
     template<typename Component>
     using storage_type = constness_as_t<typename storage_traits<Entity, std::remove_const_t<Component>>::storage_type, Component>;
+
+    using basic_common_type = std::common_type_t<typename storage_type<Owned>::base_type..., typename storage_type<Get>::base_type...>;
 
     class iterable final {
         template<typename, typename>
@@ -570,7 +570,7 @@ class basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> final 
                 return std::tuple_cat(
                     std::make_tuple(*it),
                     std::forward_as_tuple(*std::get<OIt>(owned)...),
-                    get_as_tuple(*std::get<storage_type<Get> *>(get), *it)...
+                    std::get<storage_type<Get> *>(get)->get_as_tuple(*it)...
                 );
             }
 
@@ -591,11 +591,11 @@ class basic_group<Entity, exclude_t<Exclude...>, get_t<Get...>, Owned...> final 
     public:
         using iterator = iterable_iterator<
             typename basic_common_type::iterator,
-            type_list_cat_t<std::conditional_t<std::is_void_v<decltype(std::declval<storage_type<Owned>>().get({}))>, type_list<>, type_list<decltype(std::declval<storage_type<Owned>>().end())>>...>
+            type_list_cat_t<std::conditional_t<ignore_as_empty_v<std::remove_const_t<Owned>>, type_list<>, type_list<decltype(std::declval<storage_type<Owned>>().end())>>...>
         >;
         using reverse_iterator = iterable_iterator<
             typename basic_common_type::reverse_iterator,
-            type_list_cat_t<std::conditional_t<std::is_void_v<decltype(std::declval<storage_type<Owned>>().get({}))>, type_list<>, type_list<decltype(std::declval<storage_type<Owned>>().rbegin())>>...>
+            type_list_cat_t<std::conditional_t<ignore_as_empty_v<std::remove_const_t<Owned>>, type_list<>, type_list<decltype(std::declval<storage_type<Owned>>().rbegin())>>...>
         >;
 
         iterable(std::tuple<storage_type<Owned> *..., storage_type<Get> *...> cpools, const std::size_t * const extent)
@@ -781,7 +781,7 @@ public:
 
     /**
      * @brief Finds an entity.
-     * @param entt A valid entity identifier.
+     * @param entt A valid identifier.
      * @return An iterator to the given entity if it's found, past the end
      * iterator otherwise.
      */
@@ -809,7 +809,7 @@ public:
 
     /**
      * @brief Checks if a group contains an entity.
-     * @param entt A valid entity identifier.
+     * @param entt A valid identifier.
      * @return True if the group contains the given entity, false otherwise.
      */
     [[nodiscard]] bool contains(const entity_type entt) const {
@@ -828,7 +828,7 @@ public:
      * results in undefined behavior.
      *
      * @tparam Component Types of components to get.
-     * @param entt A valid entity identifier.
+     * @param entt A valid identifier.
      * @return The components assigned to the entity.
      */
     template<typename... Component>
@@ -836,11 +836,11 @@ public:
         ENTT_ASSERT(contains(entt), "Group does not contain entity");
 
         if constexpr(sizeof...(Component) == 0) {
-            return std::tuple_cat(get_as_tuple(*std::get<storage_type<Owned> *>(pools), entt)..., get_as_tuple(*std::get<storage_type<Get> *>(pools), entt)...);
+            return std::tuple_cat(std::get<storage_type<Owned> *>(pools)->get_as_tuple(entt)..., std::get<storage_type<Get> *>(pools)->get_as_tuple(entt)...);
         } else if constexpr(sizeof...(Component) == 1) {
             return (std::get<storage_type<Component> *>(pools)->get(entt), ...);
         } else {
-            return std::tuple_cat(get_as_tuple(*std::get<storage_type<Component> *>(pools), entt)...);
+            return std::tuple_cat(std::get<storage_type<Component> *>(pools)->get_as_tuple(entt)...);
         }
     }
 
@@ -952,7 +952,7 @@ public:
             for(auto next = *length; next; --next) {
                 const auto pos = next - 1;
                 [[maybe_unused]] const auto entt = head->data()[pos];
-                (other->swap(other->data()[pos], entt), ...);
+                (other->swap_elements(other->data()[pos], entt), ...);
             }
         }(std::get<storage_type<Owned> *>(pools)...);
     }

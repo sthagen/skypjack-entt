@@ -22,13 +22,11 @@ struct MetaConv: ::testing::Test {
         entt::meta<clazz_t>()
             .type("clazz"_hs)
             .conv<int>()
-            .conv<&conv_to_double>();
+            .conv<conv_to_double>();
     }
 
     void TearDown() override {
-        for(auto type: entt::resolve()) {
-            type.reset();
-        }
+        entt::meta_reset();
     }
 };
 
@@ -51,7 +49,7 @@ TEST_F(MetaConv, Functionalities) {
 TEST_F(MetaConv, ReRegistration) {
     SetUp();
 
-    auto *node = entt::internal::meta_info<clazz_t>::resolve();
+    auto *node = entt::internal::meta_node<clazz_t>::resolve();
 
     ASSERT_NE(node->conv, nullptr);
     ASSERT_NE(node->conv->next, nullptr);

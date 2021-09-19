@@ -32,12 +32,12 @@ namespace entt {
  */
 template<typename Entity>
 class basic_snapshot {
-    using traits_type = entt_traits<Entity>;
+    using entity_traits = entt_traits<Entity>;
 
     template<typename Component, typename Archive, typename It>
     void get(Archive &archive, std::size_t sz, It first, It last) const {
         const auto view = reg->template view<std::add_const_t<Component>>();
-        archive(typename traits_type::entity_type(sz));
+        archive(typename entity_traits::entity_type(sz));
 
         while(first != last) {
             const auto entt = *(first++);
@@ -55,7 +55,7 @@ class basic_snapshot {
 
         while(begin != last) {
             const auto entt = *(begin++);
-            ((reg->template all_of<Component>(entt) ? ++size[Index] : size[Index]), ...);
+            ((reg->template all_of<Component>(entt) ? ++size[Index] : 0u), ...);
         }
 
         (get<Component>(archive, size[Index], first, last), ...);
@@ -93,13 +93,12 @@ public:
     const basic_snapshot & entities(Archive &archive) const {
         const auto sz = reg->size();
 
-        archive(typename traits_type::entity_type(sz));
+        archive(typename entity_traits::entity_type(sz + 1u));
+        archive(reg->released());
 
         for(auto first = reg->data(), last = first + sz; first != last; ++first) {
             archive(*first);
         }
-
-        archive(reg->released());
 
         return *this;
     }
@@ -164,16 +163,16 @@ private:
  */
 template<typename Entity>
 class basic_snapshot_loader {
-    using traits_type = entt_traits<Entity>;
+    using entity_traits = entt_traits<Entity>;
 
     template<typename Type, typename Archive>
     void assign(Archive &archive) const {
-        typename traits_type::entity_type length{};
+        typename entity_traits::entity_type length{};
         archive(length);
 
         entity_type entt{};
 
-        if constexpr(std::tuple_size_v<decltype(reg->template view<Type>().get({}))> == 0) {
+        if constexpr(ignore_as_empty_v<std::remove_const_t<Type>>) {
             while(length--) {
                 archive(entt);
                 const auto entity = reg->valid(entt) ? entt : reg->create(entt);
@@ -225,19 +224,16 @@ public:
      */
     template<typename Archive>
     const basic_snapshot_loader & entities(Archive &archive) const {
-        typename traits_type::entity_type length{};
+        typename entity_traits::entity_type length{};
 
         archive(length);
         std::vector<entity_type> all(length);
 
-        for(decltype(length) pos{}; pos < length; ++pos) {
+        for(std::size_t pos{}; pos < length; ++pos) {
             archive(all[pos]);
         }
 
-        entity_type destroyed;
-        archive(destroyed);
-
-        reg->assign(all.cbegin(), all.cend(), destroyed);
+        reg->assign(++all.cbegin(), all.cend(), all[0u]);
 
         return *this;
     }
@@ -302,7 +298,7 @@ private:
  */
 template<typename Entity>
 class basic_continuous_loader {
-    using traits_type = entt_traits<Entity>;
+    using entity_traits = entt_traits<Entity>;
 
     void destroy(Entity entt) {
         if(const auto it = remloc.find(entt); it == remloc.cend()) {
@@ -387,12 +383,12 @@ class basic_continuous_loader {
 
     template<typename Other, typename Archive, typename... Type, typename... Member>
     void assign(Archive &archive, [[maybe_unused]] Member Type:: *... member) {
-        typename traits_type::entity_type length{};
+        typename entity_traits::entity_type length{};
         archive(length);
 
         entity_type entt{};
 
-        if constexpr(std::tuple_size_v<decltype(reg->template view<Other>().get({}))> == 0) {
+        if constexpr(ignore_as_empty_v<std::remove_const_t<Other>>) {
             while(length--) {
                 archive(entt);
                 restore(entt);
@@ -440,23 +436,22 @@ public:
      */
     template<typename Archive>
     basic_continuous_loader & entities(Archive &archive) {
-        typename traits_type::entity_type length{};
+        typename entity_traits::entity_type length{};
         entity_type entt{};
 
         archive(length);
+        // discards the head of the list of destroyed entities
+        archive(entt);
 
-        for(decltype(length) pos{}; pos < length; ++pos) {
+        for(std::size_t pos{}, last = length - 1u; pos < last; ++pos) {
             archive(entt);
 
-            if(const auto entity = traits_type::to_entity(entt); entity == pos) {
+            if(const auto entity = entity_traits::to_entity(entt); entity == pos) {
                 restore(entt);
             } else {
                 destroy(entt);
             }
         }
-
-        // discards the head of the list of destroyed entities
-        archive(entt);
 
         return *this;
     }
@@ -537,7 +532,7 @@ public:
 
     /**
      * @brief Tests if a loader knows about a given entity.
-     * @param entt An entity identifier.
+     * @param entt A valid identifier.
      * @return True if `entity` is managed by the loader, false otherwise.
      */
     [[nodiscard]] bool contains(entity_type entt) const ENTT_NOEXCEPT {
@@ -546,7 +541,7 @@ public:
 
     /**
      * @brief Returns the identifier to which an entity refers.
-     * @param entt An entity identifier.
+     * @param entt A valid identifier.
      * @return The local identifier if any, the null entity otherwise.
      */
     [[nodiscard]] entity_type map(entity_type entt) const ENTT_NOEXCEPT {

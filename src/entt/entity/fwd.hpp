@@ -4,6 +4,7 @@
 
 #include <memory>
 #include "../core/fwd.hpp"
+#include "utility.hpp"
 
 
 namespace entt {
@@ -13,23 +14,23 @@ template<typename Entity, typename = std::allocator<Entity>>
 class basic_sparse_set;
 
 
-template<typename, typename Type, typename = std::allocator<Type>>
-struct basic_storage;
+template<typename, typename Type, typename = std::allocator<Type>, typename = void>
+class basic_storage;
 
 
 template<typename>
 class basic_registry;
 
 
-template<typename...>
-struct basic_view;
+template<typename, typename, typename, typename = void>
+class basic_view;
 
 
 template<typename>
 class basic_runtime_view;
 
 
-template<typename...>
+template<typename, typename, typename, typename>
 class basic_group;
 
 
@@ -123,10 +124,11 @@ using continuous_loader = basic_continuous_loader<entity>;
 
 /**
  * @brief Alias declaration for the most common use case.
- * @tparam Args Other template parameters.
+ * @tparam Get Types of components iterated by the view.
+ * @tparam Exclude Types of components used to filter the view.
  */
-template<typename... Args>
-using view = basic_view<entity, Args...>;
+template<typename Get, typename Exclude = exclude_t<>>
+using view = basic_view<entity, Get, Exclude>;
 
 
 /*! @brief Alias declaration for the most common use case. */

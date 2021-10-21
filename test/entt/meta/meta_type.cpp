@@ -21,11 +21,21 @@ Type get(Type &prop) {
     return prop;
 }
 
-struct base_t { base_t(): value{'c'} {}; char value; };
-struct derived_t: base_t { derived_t(): base_t{} {} };
+struct base_t {
+    base_t()
+        : value{'c'} {};
+
+    char value;
+};
+
+struct derived_t: base_t {
+    derived_t()
+        : base_t{} {}
+};
 
 struct abstract_t {
     virtual ~abstract_t() = default;
+
     virtual void func(int) {}
 };
 
@@ -42,12 +52,14 @@ struct clazz_t {
     clazz_t() = default;
 
     clazz_t(const base_t &, int v)
-        : value{v}
-    {}
+        : value{v} {}
 
     void member() {}
     static void func() {}
-    operator int() const { return value; }
+
+    operator int() const {
+        return value;
+    }
 
     int value;
 };
@@ -121,28 +133,28 @@ struct MetaType: ::testing::Test {
 
         entt::meta<overloaded_func_t>()
             .type("overloaded_func"_hs)
-            .func<&overloaded_func_t::e> ("e"_hs)
+            .func<&overloaded_func_t::e>("e"_hs)
             .func<entt::overload<int(const base_t &, int, int)>(&overloaded_func_t::f)>("f"_hs)
             .func<entt::overload<int(int, int)>(&overloaded_func_t::f)>("f"_hs)
             .func<entt::overload<int(int) const>(&overloaded_func_t::f)>("f"_hs)
-            .func<entt::overload<float(int, float)> (&overloaded_func_t::f)> ("f"_hs)
-            .func<&overloaded_func_t::g> ("g"_hs);
+            .func<entt::overload<float(int, float)>(&overloaded_func_t::f)>("f"_hs)
+            .func<&overloaded_func_t::g>("g"_hs);
 
         entt::meta<property_t>()
             .type("property"_hs)
             .data<property_t::random>("random"_hs)
-                .props(std::make_pair(property_t::random, 0), std::make_pair(property_t::value, 3))
+            .props(std::make_pair(property_t::random, 0), std::make_pair(property_t::value, 3))
             .data<property_t::value>("value"_hs)
-                .props(std::make_pair(property_t::random, true), std::make_pair(property_t::value, 0), property_t::key_only, property_t::list)
+            .props(std::make_pair(property_t::random, true), std::make_pair(property_t::value, 0), property_t::key_only, property_t::list)
             .data<property_t::key_only>("key_only"_hs)
-                .prop(property_t::key_only)
+            .prop(property_t::key_only)
             .data<property_t::list>("list"_hs)
-                .props(std::make_pair(property_t::random, false), std::make_pair(property_t::value, 0), property_t::key_only)
+            .props(std::make_pair(property_t::random, false), std::make_pair(property_t::value, 0), property_t::key_only)
             .data<set<property_t>, get<property_t>>("var"_hs);
 
         entt::meta<clazz_t>()
             .type("clazz"_hs)
-                .prop(property_t::value, 42)
+            .prop(property_t::value, 42)
             .ctor<const base_t &, int>()
             .data<&clazz_t::value>("value"_hs)
             .func<&clazz_t::member>("member"_hs)
@@ -158,9 +170,9 @@ struct MetaType: ::testing::Test {
 TEST_F(MetaType, Resolve) {
     using namespace entt::literals;
 
-    ASSERT_EQ(entt::resolve(entt::type_info{}), entt::meta_type{});
     ASSERT_EQ(entt::resolve<double>(), entt::resolve("double"_hs));
     ASSERT_EQ(entt::resolve<double>(), entt::resolve(entt::type_id<double>()));
+    ASSERT_FALSE(entt::resolve(entt::type_id<void>()));
 
     auto range = entt::resolve();
     // it could be "char"_hs rather than entt::hashed_string::value("char") if it weren't for a bug in VS2017
@@ -271,17 +283,12 @@ TEST_F(MetaType, Base) {
 }
 
 TEST_F(MetaType, Ctor) {
+    derived_t derived;
+    base_t &base = derived;
     auto type = entt::resolve<clazz_t>();
-    int counter{};
 
-    for([[maybe_unused]] auto curr: type.ctor()) {
-        ++counter;
-    }
-
-    ASSERT_EQ(counter, 1);
-    ASSERT_FALSE((type.ctor<>()));
-    ASSERT_TRUE((type.ctor<const base_t &, int>()));
-    ASSERT_TRUE((type.ctor<const derived_t &, double>()));
+    ASSERT_TRUE((type.construct(entt::forward_as_meta(derived), 42)));
+    ASSERT_TRUE((type.construct(entt::forward_as_meta(base), 42)));
 
     // use the implicitly generated default constructor
     auto any = type.construct();
@@ -382,21 +389,6 @@ TEST_F(MetaType, OverloadedFunc) {
     ASSERT_FALSE(ambiguous);
 }
 
-TEST_F(MetaType, SetGet) {
-    using namespace entt::literals;
-
-    auto type = entt::resolve<clazz_t>();
-    clazz_t instance{};
-
-    ASSERT_TRUE(type.set("value"_hs, instance, 42));
-    ASSERT_FALSE(type.set("eulav"_hs, instance, 3));
-    ASSERT_EQ(instance.value, 42);
-
-    ASSERT_FALSE(type.get("eulav"_hs, instance));
-    ASSERT_TRUE(type.get("value"_hs, instance));
-    ASSERT_EQ(type.get("value"_hs, instance).cast<int>(), 42);
-}
-
 TEST_F(MetaType, Construct) {
     auto any = entt::resolve<clazz_t>().construct(base_t{}, 42);
 
@@ -447,7 +439,7 @@ TEST_F(MetaType, Reset) {
     ASSERT_EQ(entt::resolve<clazz_t>().id(), "clazz"_hs);
     ASSERT_TRUE(entt::resolve<clazz_t>().prop(property_t::value));
     ASSERT_TRUE(entt::resolve<clazz_t>().data("value"_hs));
-    ASSERT_TRUE((entt::resolve<clazz_t>().ctor<const base_t &, int>()));
+    ASSERT_TRUE((entt::resolve<clazz_t>().construct(derived_t{}, clazz_t{})));
     // implicitly generated default constructor
     ASSERT_TRUE(entt::resolve<clazz_t>().construct());
 
@@ -457,7 +449,7 @@ TEST_F(MetaType, Reset) {
     ASSERT_NE(entt::resolve<clazz_t>().id(), "clazz"_hs);
     ASSERT_FALSE(entt::resolve<clazz_t>().prop(property_t::value));
     ASSERT_FALSE(entt::resolve<clazz_t>().data("value"_hs));
-    ASSERT_FALSE((entt::resolve<clazz_t>().ctor<const base_t &, int>()));
+    ASSERT_FALSE((entt::resolve<clazz_t>().construct(derived_t{}, clazz_t{})));
     // implicitly generated default constructor is not cleared
     ASSERT_TRUE(entt::resolve<clazz_t>().construct());
 
@@ -617,7 +609,7 @@ TEST_F(MetaType, ResetAndReRegistrationAfterReset) {
     entt::meta<property_t>()
         .type("property"_hs)
         .data<property_t::random>("rand"_hs)
-            .props(std::make_pair(property_t::value, 42), std::make_pair(property_t::random, 3));
+        .props(std::make_pair(property_t::value, 42), std::make_pair(property_t::random, 3));
 
     ASSERT_TRUE(entt::resolve<property_t>().data("rand"_hs).prop(property_t::value));
     ASSERT_TRUE(entt::resolve<property_t>().data("rand"_hs).prop(property_t::random));

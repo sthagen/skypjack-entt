@@ -1,37 +1,44 @@
-#include <memory>
-#include <utility>
-#include <iterator>
 #include <exception>
+#include <iterator>
+#include <memory>
 #include <type_traits>
 #include <unordered_set>
+#include <utility>
 #include <gtest/gtest.h>
 #include <entt/entity/component.hpp>
 #include <entt/entity/storage.hpp>
 #include "throwing_allocator.hpp"
 #include "throwing_component.hpp"
 
-struct empty_type {};
-struct boxed_int { int value; };
-struct stable_type { int value; };
+struct empty_stable_type {};
+
+struct boxed_int {
+    int value;
+};
+
+struct stable_type {
+    int value;
+};
 
 struct non_default_constructible {
     non_default_constructible() = delete;
-    non_default_constructible(int v): value{v} {}
+
+    non_default_constructible(int v)
+        : value{v} {}
+
     int value;
 };
 
 struct update_from_destructor {
     update_from_destructor(entt::storage<update_from_destructor> &ref, entt::entity other)
         : storage{&ref},
-          target{other}
-    {}
+          target{other} {}
 
     update_from_destructor(update_from_destructor &&other) ENTT_NOEXCEPT
         : storage{std::exchange(other.storage, nullptr)},
-          target{std::exchange(other.target, entt::null)}
-    {}
+          target{std::exchange(other.target, entt::null)} {}
 
-    update_from_destructor & operator=(update_from_destructor &&other) ENTT_NOEXCEPT {
+    update_from_destructor &operator=(update_from_destructor &&other) ENTT_NOEXCEPT {
         storage = std::exchange(other.storage, nullptr);
         target = std::exchange(other.target, entt::null);
         return *this;
@@ -54,7 +61,7 @@ struct entt::component_traits<stable_type>: basic_component_traits {
 };
 
 template<>
-struct entt::component_traits<empty_type>: basic_component_traits {
+struct entt::component_traits<empty_stable_type>: basic_component_traits {
     using in_place_delete = std::true_type;
 };
 
@@ -213,12 +220,22 @@ TEST(Storage, StableSwap) {
 }
 
 TEST(Storage, EmptyType) {
-    entt::storage<empty_type> pool;
+    entt::storage<empty_stable_type> pool;
     pool.emplace(entt::entity{99});
 
     ASSERT_NO_THROW([[maybe_unused]] auto alloc = pool.get_allocator());
     ASSERT_TRUE(pool.contains(entt::entity{99}));
     ASSERT_DEATH(pool.get(entt::entity{}), "");
+
+    entt::storage<empty_stable_type> other{std::move(pool)};
+
+    ASSERT_FALSE(pool.contains(entt::entity{99}));
+    ASSERT_TRUE(other.contains(entt::entity{99}));
+
+    pool = std::move(other);
+
+    ASSERT_TRUE(pool.contains(entt::entity{99}));
+    ASSERT_FALSE(other.contains(entt::entity{99}));
 }
 
 TEST(Storage, Insert) {
@@ -235,7 +252,7 @@ TEST(Storage, Insert) {
     ASSERT_EQ(pool.get(entities[1u]).value, 99);
 
     pool.erase(std::begin(entities), std::end(entities));
-    const stable_type values[2u] = { stable_type{42}, stable_type{3} };
+    const stable_type values[2u] = {stable_type{42}, stable_type{3}};
     pool.insert(std::rbegin(entities), std::rend(entities), std::begin(values));
 
     ASSERT_EQ(pool.size(), 2u);
@@ -248,7 +265,7 @@ TEST(Storage, Insert) {
 }
 
 TEST(Storage, InsertEmptyType) {
-    entt::storage<empty_type> pool;
+    entt::storage<empty_stable_type> pool;
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
 
     pool.insert(std::begin(entities), std::end(entities));
@@ -260,7 +277,7 @@ TEST(Storage, InsertEmptyType) {
     ASSERT_EQ(pool.size(), 2u);
 
     pool.erase(std::begin(entities), std::end(entities));
-    const empty_type values[2u]{};
+    const empty_stable_type values[2u]{};
     pool.insert(std::rbegin(entities), std::rend(entities), std::begin(values));
 
     ASSERT_EQ(pool.size(), 2u);
@@ -579,7 +596,7 @@ TEST(Storage, TypeFromBase) {
 }
 
 TEST(Storage, EmptyTypeFromBase) {
-    entt::storage<empty_type> pool;
+    entt::storage<empty_stable_type> pool;
     entt::sparse_set &base = pool;
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
 
@@ -715,7 +732,10 @@ TEST(Storage, ShrinkToFit) {
 }
 
 TEST(Storage, AggregatesMustWork) {
-    struct aggregate_type { int value; };
+    struct aggregate_type {
+        int value;
+    };
+
     // the goal of this test is to enforce the requirements for aggregate types
     entt::storage<aggregate_type>{}.emplace(entt::entity{0}, 42);
 }
@@ -749,8 +769,8 @@ TEST(Storage, Iterator) {
     ASSERT_EQ(begin++, pool.begin());
     ASSERT_EQ(begin--, pool.end());
 
-    ASSERT_EQ(begin+1, pool.end());
-    ASSERT_EQ(end-1, pool.begin());
+    ASSERT_EQ(begin + 1, pool.end());
+    ASSERT_EQ(end - 1, pool.begin());
 
     ASSERT_EQ(++begin, pool.end());
     ASSERT_EQ(--begin, pool.begin());
@@ -795,8 +815,8 @@ TEST(Storage, ConstIterator) {
     ASSERT_EQ(cbegin++, pool.cbegin());
     ASSERT_EQ(cbegin--, pool.cend());
 
-    ASSERT_EQ(cbegin+1, pool.cend());
-    ASSERT_EQ(cend-1, pool.cbegin());
+    ASSERT_EQ(cbegin + 1, pool.cend());
+    ASSERT_EQ(cend - 1, pool.cbegin());
 
     ASSERT_EQ(++cbegin, pool.cend());
     ASSERT_EQ(--cbegin, pool.cbegin());
@@ -841,8 +861,8 @@ TEST(Storage, ReverseIterator) {
     ASSERT_EQ(begin++, pool.rbegin());
     ASSERT_EQ(begin--, pool.rend());
 
-    ASSERT_EQ(begin+1, pool.rend());
-    ASSERT_EQ(end-1, pool.rbegin());
+    ASSERT_EQ(begin + 1, pool.rend());
+    ASSERT_EQ(end - 1, pool.rbegin());
 
     ASSERT_EQ(++begin, pool.rend());
     ASSERT_EQ(--begin, pool.rbegin());
@@ -887,8 +907,8 @@ TEST(Storage, ConstReverseIterator) {
     ASSERT_EQ(cbegin++, pool.crbegin());
     ASSERT_EQ(cbegin--, pool.crend());
 
-    ASSERT_EQ(cbegin+1, pool.crend());
-    ASSERT_EQ(cend-1, pool.crbegin());
+    ASSERT_EQ(cbegin + 1, pool.crend());
+    ASSERT_EQ(cend - 1, pool.crbegin());
 
     ASSERT_EQ(++cbegin, pool.crend());
     ASSERT_EQ(--cbegin, pool.crbegin());
@@ -1225,13 +1245,13 @@ TEST(Storage, UpdateFromDestructor) {
 
         for(std::size_t next{}; next < size; ++next) {
             const auto entity = entt::entity(next);
-            pool.emplace(entity, pool, entity == entt::entity(size/2) ? target : entity);
+            pool.emplace(entity, pool, entity == entt::entity(size / 2) ? target : entity);
         }
 
-        pool.erase(entt::entity(size/2));
+        pool.erase(entt::entity(size / 2));
 
         ASSERT_EQ(pool.size(), size - 1u - (target != entt::null));
-        ASSERT_FALSE(pool.contains(entt::entity(size/2)));
+        ASSERT_FALSE(pool.contains(entt::entity(size / 2)));
         ASSERT_FALSE(pool.contains(target));
 
         pool.clear();
@@ -1249,51 +1269,55 @@ TEST(Storage, UpdateFromDestructor) {
 }
 
 TEST(Storage, CustomAllocator) {
+    auto test = [](auto pool, auto alloc) {
+        ASSERT_EQ(pool.get_allocator(), alloc);
+
+        pool.reserve(1u);
+
+        ASSERT_NE(pool.capacity(), 0u);
+
+        pool.emplace(entt::entity{0});
+        pool.emplace(entt::entity{1});
+
+        decltype(pool) other{std::move(pool), alloc};
+
+        ASSERT_TRUE(pool.empty());
+        ASSERT_FALSE(other.empty());
+        ASSERT_EQ(pool.capacity(), 0u);
+        ASSERT_NE(other.capacity(), 0u);
+        ASSERT_EQ(other.size(), 2u);
+
+        pool = std::move(other);
+
+        ASSERT_FALSE(pool.empty());
+        ASSERT_TRUE(other.empty());
+        ASSERT_EQ(other.capacity(), 0u);
+        ASSERT_NE(pool.capacity(), 0u);
+        ASSERT_EQ(pool.size(), 2u);
+
+        pool.swap(other);
+        pool = std::move(other);
+
+        ASSERT_FALSE(pool.empty());
+        ASSERT_TRUE(other.empty());
+        ASSERT_EQ(other.capacity(), 0u);
+        ASSERT_NE(pool.capacity(), 0u);
+        ASSERT_EQ(pool.size(), 2u);
+
+        pool.clear();
+
+        ASSERT_NE(pool.capacity(), 0u);
+        ASSERT_EQ(pool.size(), 0u);
+
+        pool.shrink_to_fit();
+
+        ASSERT_EQ(pool.capacity(), 0u);
+    };
+
     test::throwing_allocator<entt::entity> allocator{};
-    entt::basic_storage<entt::entity, int, test::throwing_allocator<entt::entity>> pool{allocator};
 
-    ASSERT_EQ(pool.get_allocator(), allocator);
-
-    pool.reserve(1u);
-
-    ASSERT_EQ(pool.capacity(), ENTT_PACKED_PAGE);
-
-    pool.emplace(entt::entity{0}, 3);
-    pool.emplace(entt::entity{1}, 42);
-
-    entt::basic_storage<entt::entity, int, test::throwing_allocator<entt::entity>> other{std::move(pool), allocator};
-
-    ASSERT_TRUE(pool.empty());
-    ASSERT_FALSE(other.empty());
-    ASSERT_EQ(pool.capacity(), 0u);
-    ASSERT_EQ(other.capacity(), ENTT_PACKED_PAGE);
-    ASSERT_EQ(other.size(), 2u);
-
-    pool = std::move(other);
-
-    ASSERT_FALSE(pool.empty());
-    ASSERT_TRUE(other.empty());
-    ASSERT_EQ(other.capacity(), 0u);
-    ASSERT_EQ(pool.capacity(), ENTT_PACKED_PAGE);
-    ASSERT_EQ(pool.size(), 2u);
-
-    pool.swap(other);
-    pool = std::move(other);
-
-    ASSERT_FALSE(pool.empty());
-    ASSERT_TRUE(other.empty());
-    ASSERT_EQ(other.capacity(), 0u);
-    ASSERT_EQ(pool.capacity(), ENTT_PACKED_PAGE);
-    ASSERT_EQ(pool.size(), 2u);
-
-    pool.clear();
-
-    ASSERT_EQ(pool.capacity(), ENTT_PACKED_PAGE);
-    ASSERT_EQ(pool.size(), 0u);
-
-    pool.shrink_to_fit();
-
-    ASSERT_EQ(pool.capacity(), 0u);
+    test(entt::basic_storage<entt::entity, int, test::throwing_allocator<entt::entity>>{allocator}, allocator);
+    test(entt::basic_storage<entt::entity, std::true_type, test::throwing_allocator<entt::entity>>{allocator}, allocator);
 }
 
 TEST(Storage, ThrowingAllocator) {
@@ -1302,34 +1326,32 @@ TEST(Storage, ThrowingAllocator) {
 
     test::throwing_allocator<int>::trigger_on_allocate = true;
 
-    // strong exception safety
     ASSERT_THROW(pool.reserve(1u), test::throwing_allocator<int>::exception_type);
     ASSERT_EQ(pool.capacity(), 0u);
 
     test::throwing_allocator<int>::trigger_after_allocate = true;
 
-    // strong exception safety
     ASSERT_THROW(pool.reserve(2 * ENTT_PACKED_PAGE), test::throwing_allocator<int>::exception_type);
-    ASSERT_EQ(pool.capacity(), 0u);
+    ASSERT_EQ(pool.capacity(), ENTT_PACKED_PAGE);
 
     pool.shrink_to_fit();
+
+    ASSERT_EQ(pool.capacity(), 0u);
+
     test::throwing_allocator<int>::trigger_on_allocate = true;
 
-    // strong exception safety
     ASSERT_THROW(pool.emplace(entt::entity{0}, 0), test::throwing_allocator<int>::exception_type);
     ASSERT_FALSE(pool.contains(entt::entity{0}));
     ASSERT_TRUE(pool.empty());
 
     test::throwing_allocator<entt::entity>::trigger_on_allocate = true;
 
-    // strong exception safety
     ASSERT_THROW(pool.emplace(entt::entity{0}, 0), test::throwing_allocator<entt::entity>::exception_type);
     ASSERT_FALSE(pool.contains(entt::entity{0}));
     ASSERT_TRUE(pool.empty());
 
     test::throwing_allocator<entt::entity>::trigger_on_allocate = true;
 
-    // strong exception safety
     ASSERT_THROW(base.emplace(entt::entity{0}), test::throwing_allocator<entt::entity>::exception_type);
     ASSERT_FALSE(base.contains(entt::entity{0}));
     ASSERT_TRUE(base.empty());
@@ -1338,7 +1360,6 @@ TEST(Storage, ThrowingAllocator) {
     const entt::entity entities[2u]{entt::entity{1}, entt::entity{ENTT_SPARSE_PAGE}};
     test::throwing_allocator<entt::entity>::trigger_after_allocate = true;
 
-    // basic exception safety
     ASSERT_THROW(pool.insert(std::begin(entities), std::end(entities), 0), test::throwing_allocator<entt::entity>::exception_type);
     ASSERT_TRUE(pool.contains(entt::entity{1}));
     ASSERT_FALSE(pool.contains(entt::entity{ENTT_SPARSE_PAGE}));
@@ -1347,7 +1368,6 @@ TEST(Storage, ThrowingAllocator) {
     const int components[2u]{1, ENTT_SPARSE_PAGE};
     test::throwing_allocator<entt::entity>::trigger_on_allocate = true;
 
-    // basic exception safety
     ASSERT_THROW(pool.insert(std::begin(entities), std::end(entities), std::begin(components)), test::throwing_allocator<entt::entity>::exception_type);
     ASSERT_TRUE(pool.contains(entt::entity{1}));
     ASSERT_FALSE(pool.contains(entt::entity{ENTT_SPARSE_PAGE}));

@@ -14,7 +14,10 @@ struct not_comparable {
 
 struct nlohmann_json_like {
     using value_type = nlohmann_json_like;
-    bool operator==(const nlohmann_json_like &) const { return true; }
+
+    bool operator==(const nlohmann_json_like &) const {
+        return true;
+    }
 };
 
 TEST(TypeTraits, SizeOf) {
@@ -25,17 +28,21 @@ TEST(TypeTraits, SizeOf) {
 }
 
 TEST(TypeTraits, UnpackAsType) {
-    ASSERT_EQ([](auto &&... args) {
+    auto test = [](auto &&...args) {
         return [](entt::unpack_as_t<int, decltype(args)>... value) {
             return (value + ... + 0);
         };
-    }('c', 42., true)(1, 2, 3), 6);
+    };
+
+    ASSERT_EQ(test('c', 42., true)(1, 2, 3), 6);
 }
 
 TEST(TypeTraits, UnpackAsValue) {
-    ASSERT_EQ([](auto &&... args) {
+    auto test = [](auto &&...args) {
         return (entt::unpack_as_v<2, decltype(args)> + ... + 0);
-    }('c', 42., true), 6);
+    };
+
+    ASSERT_EQ(test('c', 42., true), 6);
 }
 
 TEST(TypeTraits, IntegralConstant) {
@@ -155,8 +162,14 @@ TEST(TypeTraits, ConstnessAs) {
 
 TEST(TypeTraits, MemberClass) {
     struct clazz {
-        char foo(int) { return {}; }
-        int bar(double, float) const { return {}; }
+        char foo(int) {
+            return {};
+        }
+
+        int bar(double, float) const {
+            return {};
+        }
+
         bool quux;
     };
 

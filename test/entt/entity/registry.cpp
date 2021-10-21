@@ -1,9 +1,9 @@
-#include <unordered_set>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <memory>
-#include <cstdint>
 #include <type_traits>
+#include <unordered_set>
 #include <gtest/gtest.h>
 #include <entt/core/type_traits.hpp>
 #include <entt/entity/component.hpp>
@@ -11,7 +11,10 @@
 #include <entt/entity/registry.hpp>
 
 struct empty_type {};
-struct stable_type { int value; };
+
+struct stable_type {
+    int value;
+};
 
 template<>
 struct entt::component_traits<stable_type>: basic_component_traits {
@@ -19,7 +22,9 @@ struct entt::component_traits<stable_type>: basic_component_traits {
 };
 
 struct non_default_constructible {
-    non_default_constructible(int v): value{v} {}
+    non_default_constructible(int v)
+        : value{v} {}
+
     int value;
 };
 
@@ -78,7 +83,7 @@ TEST(Registry, Context) {
 
     auto count = 0;
 
-    registry.ctx([&count](auto info) {
+    registry.ctx([&count](const auto &info) {
         ASSERT_EQ(info.hash(), entt::type_hash<char>::value());
         ++count;
     });
@@ -937,7 +942,6 @@ TEST(Registry, PartialOwningGroupInitOnFirstUse) {
     ASSERT_FALSE(registry.sortable<int>());
     ASSERT_TRUE(registry.sortable<char>());
     ASSERT_EQ(cnt, 2u);
-
 }
 
 TEST(Registry, PartialOwningGroupInitOnEmplace) {
@@ -1105,28 +1109,28 @@ TEST(Registry, NestedGroups) {
     ASSERT_EQ(g2.size(), 10u);
 
     for(auto i = 0u; i < 5u; ++i) {
-        ASSERT_TRUE(g1.contains(entities[i*2+1]));
-        ASSERT_TRUE(g1.contains(entities[i*2]));
-        ASSERT_TRUE(g2.contains(entities[i*2+1]));
-        ASSERT_TRUE(g2.contains(entities[i*2]));
-        registry.emplace<double>(entities[i*2]);
+        ASSERT_TRUE(g1.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g1.contains(entities[i * 2]));
+        ASSERT_TRUE(g2.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g2.contains(entities[i * 2]));
+        registry.emplace<double>(entities[i * 2]);
     }
 
     ASSERT_EQ(g1.size(), 5u);
     ASSERT_EQ(g2.size(), 10u);
 
     for(auto i = 0u; i < 5u; ++i) {
-        ASSERT_TRUE(g1.contains(entities[i*2+1]));
-        ASSERT_FALSE(g1.contains(entities[i*2]));
-        ASSERT_TRUE(g2.contains(entities[i*2+1]));
-        ASSERT_TRUE(g2.contains(entities[i*2]));
-        registry.erase<int>(entities[i*2+1]);
+        ASSERT_TRUE(g1.contains(entities[i * 2 + 1]));
+        ASSERT_FALSE(g1.contains(entities[i * 2]));
+        ASSERT_TRUE(g2.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g2.contains(entities[i * 2]));
+        registry.erase<int>(entities[i * 2 + 1]);
     }
 
     ASSERT_EQ(g1.size(), 0u);
     ASSERT_EQ(g2.size(), 5u);
 
-    const auto g3= registry.group<int, float>(entt::get<char>, entt::exclude<double>);
+    const auto g3 = registry.group<int, float>(entt::get<char>, entt::exclude<double>);
 
     ASSERT_FALSE(registry.sortable(g1));
     ASSERT_FALSE(registry.sortable(g2));
@@ -1137,13 +1141,13 @@ TEST(Registry, NestedGroups) {
     ASSERT_EQ(g3.size(), 0u);
 
     for(auto i = 0u; i < 5u; ++i) {
-        ASSERT_FALSE(g1.contains(entities[i*2+1]));
-        ASSERT_FALSE(g1.contains(entities[i*2]));
-        ASSERT_FALSE(g2.contains(entities[i*2+1]));
-        ASSERT_TRUE(g2.contains(entities[i*2]));
-        ASSERT_FALSE(g3.contains(entities[i*2+1]));
-        ASSERT_FALSE(g3.contains(entities[i*2]));
-        registry.emplace<int>(entities[i*2+1]);
+        ASSERT_FALSE(g1.contains(entities[i * 2 + 1]));
+        ASSERT_FALSE(g1.contains(entities[i * 2]));
+        ASSERT_FALSE(g2.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g2.contains(entities[i * 2]));
+        ASSERT_FALSE(g3.contains(entities[i * 2 + 1]));
+        ASSERT_FALSE(g3.contains(entities[i * 2]));
+        registry.emplace<int>(entities[i * 2 + 1]);
     }
 
     ASSERT_EQ(g1.size(), 5u);
@@ -1151,13 +1155,13 @@ TEST(Registry, NestedGroups) {
     ASSERT_EQ(g3.size(), 0u);
 
     for(auto i = 0u; i < 5u; ++i) {
-        ASSERT_TRUE(g1.contains(entities[i*2+1]));
-        ASSERT_FALSE(g1.contains(entities[i*2]));
-        ASSERT_TRUE(g2.contains(entities[i*2+1]));
-        ASSERT_TRUE(g2.contains(entities[i*2]));
-        ASSERT_FALSE(g3.contains(entities[i*2+1]));
-        ASSERT_FALSE(g3.contains(entities[i*2]));
-        registry.emplace<float>(entities[i*2]);
+        ASSERT_TRUE(g1.contains(entities[i * 2 + 1]));
+        ASSERT_FALSE(g1.contains(entities[i * 2]));
+        ASSERT_TRUE(g2.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g2.contains(entities[i * 2]));
+        ASSERT_FALSE(g3.contains(entities[i * 2 + 1]));
+        ASSERT_FALSE(g3.contains(entities[i * 2]));
+        registry.emplace<float>(entities[i * 2]);
     }
 
     ASSERT_EQ(g1.size(), 5u);
@@ -1165,7 +1169,7 @@ TEST(Registry, NestedGroups) {
     ASSERT_EQ(g3.size(), 0u);
 
     for(auto i = 0u; i < 5u; ++i) {
-        registry.erase<double>(entities[i*2]);
+        registry.erase<double>(entities[i * 2]);
     }
 
     ASSERT_EQ(g1.size(), 10u);
@@ -1173,14 +1177,14 @@ TEST(Registry, NestedGroups) {
     ASSERT_EQ(g3.size(), 5u);
 
     for(auto i = 0u; i < 5u; ++i) {
-        ASSERT_TRUE(g1.contains(entities[i*2+1]));
-        ASSERT_TRUE(g1.contains(entities[i*2]));
-        ASSERT_TRUE(g2.contains(entities[i*2+1]));
-        ASSERT_TRUE(g2.contains(entities[i*2]));
-        ASSERT_FALSE(g3.contains(entities[i*2+1]));
-        ASSERT_TRUE(g3.contains(entities[i*2]));
-        registry.erase<int>(entities[i*2+1]);
-        registry.erase<int>(entities[i*2]);
+        ASSERT_TRUE(g1.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g1.contains(entities[i * 2]));
+        ASSERT_TRUE(g2.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g2.contains(entities[i * 2]));
+        ASSERT_FALSE(g3.contains(entities[i * 2 + 1]));
+        ASSERT_TRUE(g3.contains(entities[i * 2]));
+        registry.erase<int>(entities[i * 2 + 1]);
+        registry.erase<int>(entities[i * 2]);
     }
 
     ASSERT_EQ(g1.size(), 0u);
@@ -1758,7 +1762,7 @@ TEST(Registry, GetOrEmplace) {
     const auto entity = registry.create();
     const auto value = registry.get_or_emplace<int>(entity, 3);
     // get_or_emplace must work for empty types
-    registry.get_or_emplace<empty_type>(entity);
+    static_cast<void>(registry.get_or_emplace<empty_type>(entity));
 
     ASSERT_TRUE((registry.all_of<int, empty_type>(entity)));
     ASSERT_EQ(registry.get<int>(entity), value);
@@ -1880,7 +1884,7 @@ TEST(Registry, Visit) {
 
     bool hasType[3]{};
 
-    registry.visit([&hasType](auto info) {
+    registry.visit([&hasType](const auto &info) {
         hasType[0] = hasType[0] || (info.hash() == entt::type_hash<int>::value());
         hasType[1] = hasType[1] || (info.hash() == entt::type_hash<double>::value());
         hasType[2] = hasType[2] || (info.hash() == entt::type_hash<char>::value());
@@ -1890,7 +1894,7 @@ TEST(Registry, Visit) {
 
     hasType[0] = hasType[1] = hasType[2] = false;
 
-    registry.visit(entity, [&hasType](auto info) {
+    registry.visit(entity, [&hasType](const auto &info) {
         hasType[0] = hasType[0] || (info.hash() == entt::type_hash<int>::value());
         hasType[1] = hasType[1] || (info.hash() == entt::type_hash<double>::value());
         hasType[2] = hasType[2] || (info.hash() == entt::type_hash<char>::value());
@@ -1900,7 +1904,7 @@ TEST(Registry, Visit) {
 
     hasType[0] = hasType[2] = false;
 
-    registry.visit(other, [&hasType](auto info) {
+    registry.visit(other, [&hasType](const auto &info) {
         hasType[0] = hasType[0] || (info.hash() == entt::type_hash<int>::value());
         hasType[1] = hasType[1] || (info.hash() == entt::type_hash<double>::value());
         hasType[2] = hasType[2] || (info.hash() == entt::type_hash<char>::value());

@@ -1,40 +1,30 @@
 #ifndef ENTT_ENTITY_ENTITY_HPP
 #define ENTT_ENTITY_ENTITY_HPP
 
-
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include "../config/config.h"
 
-
 namespace entt {
-
 
 /**
  * @cond TURN_OFF_DOXYGEN
  * Internal details not to be documented.
  */
 
-
 namespace internal {
-
 
 template<typename, typename = void>
 struct entt_traits;
 
-
 template<typename Type>
 struct entt_traits<Type, std::enable_if_t<std::is_enum_v<Type>>>
-    : entt_traits<std::underlying_type_t<Type>>
-{};
-
+    : entt_traits<std::underlying_type_t<Type>> {};
 
 template<typename Type>
 struct entt_traits<Type, std::enable_if_t<std::is_class_v<Type>>>
-    : entt_traits<typename Type::entity_type>
-{};
-
+    : entt_traits<typename Type::entity_type> {};
 
 template<>
 struct entt_traits<std::uint32_t> {
@@ -46,7 +36,6 @@ struct entt_traits<std::uint32_t> {
     static constexpr std::size_t entity_shift = 20u;
 };
 
-
 template<>
 struct entt_traits<std::uint64_t> {
     using entity_type = std::uint64_t;
@@ -57,15 +46,12 @@ struct entt_traits<std::uint64_t> {
     static constexpr std::size_t entity_shift = 32u;
 };
 
-
-}
-
+} // namespace internal
 
 /**
  * Internal details not to be documented.
  * @endcond
  */
-
 
 /**
  * @brief Entity traits.
@@ -143,18 +129,32 @@ public:
     }
 };
 
-
 /**
- * @brief Converts an entity to its underlying type.
+ * @copydoc entt_traits<Entity>::to_integral
  * @tparam Entity The value type.
- * @param entity The value to convert.
- * @return The integral representation of the given value.
  */
 template<typename Entity>
-[[nodiscard]] constexpr auto to_integral(const Entity entity) ENTT_NOEXCEPT {
-    return entt_traits<Entity>::to_integral(entity);
+[[nodiscard]] constexpr typename entt_traits<Entity>::entity_type to_integral(const Entity value) ENTT_NOEXCEPT {
+    return entt_traits<Entity>::to_integral(value);
 }
 
+/**
+ * @copydoc entt_traits<Entity>::to_entity
+ * @tparam Entity The value type.
+ */
+template<typename Entity>
+[[nodiscard]] constexpr typename entt_traits<Entity>::entity_type to_entity(const Entity value) ENTT_NOEXCEPT {
+    return entt_traits<Entity>::to_entity(value);
+}
+
+/**
+ * @copydoc entt_traits<Entity>::to_version
+ * @tparam Entity The value type.
+ */
+template<typename Entity>
+[[nodiscard]] constexpr typename entt_traits<Entity>::version_type to_version(const Entity value) ENTT_NOEXCEPT {
+    return entt_traits<Entity>::to_version(value);
+}
 
 /*! @brief Null object for all identifiers.  */
 struct null_t {
@@ -211,7 +211,6 @@ struct null_t {
     }
 };
 
-
 /**
  * @brief Compares a null object and an identifier of any type.
  * @tparam Entity Type of identifier.
@@ -224,7 +223,6 @@ template<typename Entity>
     return other.operator==(entity);
 }
 
-
 /**
  * @brief Compares a null object and an identifier of any type.
  * @tparam Entity Type of identifier.
@@ -236,7 +234,6 @@ template<typename Entity>
 [[nodiscard]] constexpr bool operator!=(const Entity entity, const null_t other) ENTT_NOEXCEPT {
     return !(other == entity);
 }
-
 
 /*! @brief Tombstone object for all identifiers.  */
 struct tombstone_t {
@@ -293,7 +290,6 @@ struct tombstone_t {
     }
 };
 
-
 /**
  * @brief Compares a tombstone object and an identifier of any type.
  * @tparam Entity Type of identifier.
@@ -305,7 +301,6 @@ template<typename Entity>
 [[nodiscard]] constexpr bool operator==(const Entity entity, const tombstone_t other) ENTT_NOEXCEPT {
     return other.operator==(entity);
 }
-
 
 /**
  * @brief Compares a tombstone object and an identifier of any type.
@@ -319,7 +314,6 @@ template<typename Entity>
     return !(other == entity);
 }
 
-
 /**
  * @brief Compile-time constant for null entities.
  *
@@ -328,7 +322,6 @@ template<typename Entity>
  * entity and any other identifier.
  */
 inline constexpr null_t null{};
-
 
 /**
  * @brief Compile-time constant for tombstone entities.
@@ -339,8 +332,6 @@ inline constexpr null_t null{};
  */
 inline constexpr tombstone_t tombstone{};
 
-
-}
-
+} // namespace entt
 
 #endif

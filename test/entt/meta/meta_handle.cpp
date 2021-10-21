@@ -5,9 +5,17 @@
 #include <entt/meta/resolve.hpp>
 
 struct clazz_t {
-    clazz_t(): value{} {}
-    void incr() { ++value; }
-    void decr() { --value; }
+    clazz_t()
+        : value{} {}
+
+    void incr() {
+        ++value;
+    }
+
+    void decr() {
+        --value;
+    }
+
     int value;
 };
 

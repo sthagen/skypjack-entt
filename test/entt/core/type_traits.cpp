@@ -1,3 +1,4 @@
+#include <functional>
 #include <iterator>
 #include <tuple>
 #include <type_traits>
@@ -12,7 +13,7 @@ struct not_comparable {
     bool operator==(const not_comparable &) const = delete;
 };
 
-struct nlohmann_json_like {
+struct nlohmann_json_like final {
     using value_type = nlohmann_json_like;
 
     bool operator==(const nlohmann_json_like &) const {
@@ -29,7 +30,7 @@ TEST(TypeTraits, SizeOf) {
 
 TEST(TypeTraits, UnpackAsType) {
     auto test = [](auto &&...args) {
-        return [](entt::unpack_as_t<int, decltype(args)>... value) {
+        return [](entt::unpack_as_type<int, decltype(args)>... value) {
             return (value + ... + 0);
         };
     };
@@ -39,7 +40,7 @@ TEST(TypeTraits, UnpackAsType) {
 
 TEST(TypeTraits, UnpackAsValue) {
     auto test = [](auto &&...args) {
-        return (entt::unpack_as_v<2, decltype(args)> + ... + 0);
+        return (entt::unpack_as_value<2, decltype(args)> + ... + 0);
     };
 
     ASSERT_EQ(test('c', 42., true), 6);
@@ -104,18 +105,24 @@ TEST(TypeTraits, ValueList) {
 
 TEST(TypeTraits, IsEqualityComparable) {
     static_assert(entt::is_equality_comparable_v<int>);
+    static_assert(entt::is_equality_comparable_v<const int>);
     static_assert(entt::is_equality_comparable_v<std::vector<int>>);
     static_assert(entt::is_equality_comparable_v<std::vector<std::vector<int>>>);
     static_assert(entt::is_equality_comparable_v<std::unordered_map<int, int>>);
     static_assert(entt::is_equality_comparable_v<std::unordered_map<int, std::unordered_map<int, char>>>);
+    static_assert(entt::is_equality_comparable_v<std::pair<const int, int>>);
+    static_assert(entt::is_equality_comparable_v<std::pair<const int, std::unordered_map<int, char>>>);
     static_assert(entt::is_equality_comparable_v<std::vector<not_comparable>::iterator>);
     static_assert(entt::is_equality_comparable_v<nlohmann_json_like>);
 
     static_assert(!entt::is_equality_comparable_v<not_comparable>);
+    static_assert(!entt::is_equality_comparable_v<const not_comparable>);
     static_assert(!entt::is_equality_comparable_v<std::vector<not_comparable>>);
     static_assert(!entt::is_equality_comparable_v<std::vector<std::vector<not_comparable>>>);
     static_assert(!entt::is_equality_comparable_v<std::unordered_map<int, not_comparable>>);
     static_assert(!entt::is_equality_comparable_v<std::unordered_map<int, std::unordered_map<int, not_comparable>>>);
+    static_assert(!entt::is_equality_comparable_v<std::pair<const int, not_comparable>>);
+    static_assert(!entt::is_equality_comparable_v<std::pair<const int, std::unordered_map<int, not_comparable>>>);
     static_assert(!entt::is_equality_comparable_v<void>);
 }
 
@@ -137,7 +144,9 @@ TEST(TypeTraits, IsIterator) {
     static_assert(!entt::is_iterator_v<void>);
     static_assert(!entt::is_iterator_v<int>);
 
+    static_assert(!entt::is_iterator_v<void *>);
     static_assert(entt::is_iterator_v<int *>);
+
     static_assert(entt::is_iterator_v<std::vector<int>::iterator>);
     static_assert(entt::is_iterator_v<std::vector<int>::const_iterator>);
     static_assert(entt::is_iterator_v<std::vector<int>::reverse_iterator>);
@@ -151,6 +160,20 @@ TEST(TypeTraits, IsIteratorType) {
     static_assert(entt::is_iterator_type_v<std::vector<int>::iterator, std::vector<int>::iterator>);
     static_assert(entt::is_iterator_type_v<std::vector<int>::iterator, std::reverse_iterator<std::vector<int>::iterator>>);
     static_assert(entt::is_iterator_type_v<std::vector<int>::iterator, std::reverse_iterator<std::reverse_iterator<std::vector<int>::iterator>>>);
+}
+
+TEST(TypeTraits, IsEBCOEligible) {
+    static_assert(entt::is_ebco_eligible_v<not_comparable>);
+    static_assert(!entt::is_ebco_eligible_v<nlohmann_json_like>);
+    static_assert(!entt::is_ebco_eligible_v<double>);
+    static_assert(!entt::is_ebco_eligible_v<void>);
+}
+
+TEST(TypeTraits, IsTransparent) {
+    static_assert(!entt::is_transparent_v<std::less<int>>);
+    static_assert(entt::is_transparent_v<std::less<void>>);
+    static_assert(!entt::is_transparent_v<std::logical_not<double>>);
+    static_assert(entt::is_transparent_v<std::logical_not<void>>);
 }
 
 TEST(TypeTraits, ConstnessAs) {

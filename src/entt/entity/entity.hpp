@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <type_traits>
 #include "../config/config.h"
+#include "fwd.hpp"
 
 namespace entt {
 
@@ -58,18 +59,20 @@ struct entt_traits<std::uint64_t> {
  * @tparam Type Type of identifier.
  */
 template<typename Type>
-class entt_traits {
-    using entity_traits = internal::entt_traits<Type>;
+class entt_traits: internal::entt_traits<Type> {
+    using base_type = internal::entt_traits<Type>;
 
 public:
     /*! @brief Value type. */
     using value_type = Type;
     /*! @brief Underlying entity type. */
-    using entity_type = typename entity_traits::entity_type;
+    using entity_type = typename base_type::entity_type;
     /*! @brief Underlying version type. */
-    using version_type = typename entity_traits::version_type;
+    using version_type = typename base_type::version_type;
     /*! @brief Reserved identifier. */
-    static constexpr entity_type reserved = entity_traits::entity_mask | (entity_traits::version_mask << entity_traits::entity_shift);
+    static constexpr entity_type reserved = base_type::entity_mask | (base_type::version_mask << base_type::entity_shift);
+    /*! @brief Page size, default is `ENTT_SPARSE_PAGE`. */
+    static constexpr auto page_size = ENTT_SPARSE_PAGE;
 
     /**
      * @brief Converts an entity to its underlying type.
@@ -86,7 +89,7 @@ public:
      * @return The integral representation of the entity part.
      */
     [[nodiscard]] static constexpr entity_type to_entity(const value_type value) ENTT_NOEXCEPT {
-        return (to_integral(value) & entity_traits::entity_mask);
+        return (to_integral(value) & base_type::entity_mask);
     }
 
     /**
@@ -95,8 +98,7 @@ public:
      * @return The integral representation of the version part.
      */
     [[nodiscard]] static constexpr version_type to_version(const value_type value) ENTT_NOEXCEPT {
-        constexpr auto version_mask = (entity_traits::version_mask << entity_traits::entity_shift);
-        return ((to_integral(value) & version_mask) >> entity_traits::entity_shift);
+        return (to_integral(value) >> base_type::entity_shift);
     }
 
     /**
@@ -110,7 +112,7 @@ public:
      * @return A properly constructed identifier.
      */
     [[nodiscard]] static constexpr value_type construct(const entity_type entity, const version_type version) ENTT_NOEXCEPT {
-        return value_type{(entity & entity_traits::entity_mask) | (static_cast<entity_type>(version) << entity_traits::entity_shift)};
+        return value_type{(entity & base_type::entity_mask) | (static_cast<entity_type>(version) << base_type::entity_shift)};
     }
 
     /**
@@ -124,8 +126,8 @@ public:
      * @return A properly constructed identifier.
      */
     [[nodiscard]] static constexpr value_type combine(const entity_type lhs, const entity_type rhs) ENTT_NOEXCEPT {
-        constexpr auto version_mask = (entity_traits::version_mask << entity_traits::entity_shift);
-        return value_type{(lhs & entity_traits::entity_mask) | (rhs & version_mask)};
+        constexpr auto mask = (base_type::version_mask << base_type::entity_shift);
+        return value_type{(lhs & base_type::entity_mask) | (rhs & mask)};
     }
 };
 

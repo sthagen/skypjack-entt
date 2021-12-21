@@ -10,8 +10,11 @@
 #include <vector>
 #include "../config/config.h"
 #include "../core/algorithm.hpp"
+#include "../core/any.hpp"
 #include "../core/compressed_pair.hpp"
+#include "../core/iterator.hpp"
 #include "../core/memory.hpp"
+#include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
 #include "../signal/sigh.hpp"
 #include "component.hpp"
@@ -30,10 +33,11 @@ namespace internal {
 
 template<typename Container>
 class storage_iterator final {
-    static constexpr auto packed_page_v = ENTT_PACKED_PAGE;
+    friend storage_iterator<const Container>;
 
     using container_type = std::remove_const_t<Container>;
     using allocator_traits = std::allocator_traits<typename container_type::allocator_type>;
+    using comp_traits = component_traits<typename container_type::value_type>;
 
     using iterator_traits = std::iterator_traits<std::conditional_t<
         std::is_const_v<Container>,
@@ -51,10 +55,15 @@ public:
 
     storage_iterator(Container *ref, difference_type idx) ENTT_NOEXCEPT
         : packed{ref},
-          index{idx} {}
+          offset{idx} {}
+
+    template<bool Const = std::is_const_v<Container>, typename = std::enable_if_t<Const>>
+    storage_iterator(const storage_iterator<std::remove_const_t<Container>> &other) ENTT_NOEXCEPT
+        : packed{other.packed},
+          offset{other.offset} {}
 
     storage_iterator &operator++() ENTT_NOEXCEPT {
-        return --index, *this;
+        return --offset, *this;
     }
 
     storage_iterator operator++(int) ENTT_NOEXCEPT {
@@ -63,7 +72,7 @@ public:
     }
 
     storage_iterator &operator--() ENTT_NOEXCEPT {
-        return ++index, *this;
+        return ++offset, *this;
     }
 
     storage_iterator operator--(int) ENTT_NOEXCEPT {
@@ -72,7 +81,7 @@ public:
     }
 
     storage_iterator &operator+=(const difference_type value) ENTT_NOEXCEPT {
-        index -= value;
+        offset -= value;
         return *this;
     }
 
@@ -89,51 +98,118 @@ public:
         return (*this + -value);
     }
 
-    difference_type operator-(const storage_iterator &other) const ENTT_NOEXCEPT {
-        return other.index - index;
-    }
-
     [[nodiscard]] reference operator[](const difference_type value) const ENTT_NOEXCEPT {
-        return *operator+(value);
-    }
-
-    [[nodiscard]] bool operator==(const storage_iterator &other) const ENTT_NOEXCEPT {
-        return other.index == index;
-    }
-
-    [[nodiscard]] bool operator!=(const storage_iterator &other) const ENTT_NOEXCEPT {
-        return !(*this == other);
-    }
-
-    [[nodiscard]] bool operator<(const storage_iterator &other) const ENTT_NOEXCEPT {
-        return index > other.index;
-    }
-
-    [[nodiscard]] bool operator>(const storage_iterator &other) const ENTT_NOEXCEPT {
-        return index < other.index;
-    }
-
-    [[nodiscard]] bool operator<=(const storage_iterator &other) const ENTT_NOEXCEPT {
-        return !(*this > other);
-    }
-
-    [[nodiscard]] bool operator>=(const storage_iterator &other) const ENTT_NOEXCEPT {
-        return !(*this < other);
+        const auto pos = offset - value - 1;
+        return (*packed)[pos / comp_traits::page_size][fast_mod(pos, comp_traits::page_size)];
     }
 
     [[nodiscard]] pointer operator->() const ENTT_NOEXCEPT {
-        const auto pos = index - 1;
-        return (*packed)[pos / packed_page_v] + fast_mod<packed_page_v>(pos);
+        const auto pos = offset - 1;
+        return (*packed)[pos / comp_traits::page_size] + fast_mod(pos, comp_traits::page_size);
     }
 
     [[nodiscard]] reference operator*() const ENTT_NOEXCEPT {
         return *operator->();
     }
 
+    [[nodiscard]] difference_type index() const ENTT_NOEXCEPT {
+        return offset;
+    }
+
 private:
     Container *packed;
-    difference_type index;
+    difference_type offset;
 };
+
+template<typename CLhs, typename CRhs>
+[[nodiscard]] auto operator-(const storage_iterator<CLhs> &lhs, const storage_iterator<CRhs> &rhs) ENTT_NOEXCEPT {
+    return rhs.index() - lhs.index();
+}
+
+template<typename CLhs, typename CRhs>
+[[nodiscard]] bool operator==(const storage_iterator<CLhs> &lhs, const storage_iterator<CRhs> &rhs) ENTT_NOEXCEPT {
+    return lhs.index() == rhs.index();
+}
+
+template<typename CLhs, typename CRhs>
+[[nodiscard]] bool operator!=(const storage_iterator<CLhs> &lhs, const storage_iterator<CRhs> &rhs) ENTT_NOEXCEPT {
+    return !(lhs == rhs);
+}
+
+template<typename CLhs, typename CRhs>
+[[nodiscard]] bool operator<(const storage_iterator<CLhs> &lhs, const storage_iterator<CRhs> &rhs) ENTT_NOEXCEPT {
+    return lhs.index() > rhs.index();
+}
+
+template<typename CLhs, typename CRhs>
+[[nodiscard]] bool operator>(const storage_iterator<CLhs> &lhs, const storage_iterator<CRhs> &rhs) ENTT_NOEXCEPT {
+    return lhs.index() < rhs.index();
+}
+
+template<typename CLhs, typename CRhs>
+[[nodiscard]] bool operator<=(const storage_iterator<CLhs> &lhs, const storage_iterator<CRhs> &rhs) ENTT_NOEXCEPT {
+    return !(lhs > rhs);
+}
+
+template<typename CLhs, typename CRhs>
+[[nodiscard]] bool operator>=(const storage_iterator<CLhs> &lhs, const storage_iterator<CRhs> &rhs) ENTT_NOEXCEPT {
+    return !(lhs < rhs);
+}
+
+template<typename It, typename... Other>
+class extended_storage_iterator final {
+    template<typename Iter, typename... Args>
+    friend class extended_storage_iterator;
+
+public:
+    using difference_type = typename std::iterator_traits<It>::difference_type;
+    using value_type = decltype(std::tuple_cat(std::make_tuple(*std::declval<It>()), std::forward_as_tuple(*std::declval<Other>()...)));
+    using pointer = input_iterator_pointer<value_type>;
+    using reference = value_type;
+    using iterator_category = std::input_iterator_tag;
+
+    extended_storage_iterator() = default;
+
+    extended_storage_iterator(It base, Other... other) ENTT_NOEXCEPT
+        : it{base, other...} {}
+
+    template<typename... Args, typename = std::enable_if_t<(!std::is_same_v<Other, Args> && ...) && (std::is_constructible_v<Other, Args> && ...)>>
+    extended_storage_iterator(const extended_storage_iterator<It, Args...> &other) ENTT_NOEXCEPT
+        : it{other.it} {}
+
+    extended_storage_iterator &operator++() ENTT_NOEXCEPT {
+        return ++std::get<It>(it), (++std::get<Other>(it), ...), *this;
+    }
+
+    extended_storage_iterator operator++(int) ENTT_NOEXCEPT {
+        extended_storage_iterator orig = *this;
+        return ++(*this), orig;
+    }
+
+    [[nodiscard]] pointer operator->() const ENTT_NOEXCEPT {
+        return operator*();
+    }
+
+    [[nodiscard]] reference operator*() const ENTT_NOEXCEPT {
+        return {*std::get<It>(it), *std::get<Other>(it)...};
+    }
+
+    template<typename... CLhs, typename... CRhs>
+    friend bool operator==(const extended_storage_iterator<CLhs...> &, const extended_storage_iterator<CRhs...> &) ENTT_NOEXCEPT;
+
+private:
+    std::tuple<It, Other...> it;
+};
+
+template<typename... CLhs, typename... CRhs>
+[[nodiscard]] bool operator==(const extended_storage_iterator<CLhs...> &lhs, const extended_storage_iterator<CRhs...> &rhs) ENTT_NOEXCEPT {
+    return std::get<0>(lhs.it) == std::get<0>(rhs.it);
+}
+
+template<typename... CLhs, typename... CRhs>
+[[nodiscard]] bool operator!=(const extended_storage_iterator<CLhs...> &lhs, const extended_storage_iterator<CRhs...> &rhs) ENTT_NOEXCEPT {
+    return !(lhs == rhs);
+}
 
 } // namespace internal
 
@@ -145,15 +221,6 @@ private:
 /**
  * @brief Basic storage implementation.
  *
- * This class is a refinement of a sparse set that associates an object to an
- * entity. The main purpose of this class is to extend sparse sets to store
- * components in a registry. It guarantees fast access both to the elements and
- * to the entities.
- *
- * @note
- * Entities and objects have the same order.
- *
- * @note
  * Internal data structures arrange elements to maximize performance. There are
  * no guarantees that objects are returned in the insertion order when iterate
  * a storage. Do not make assumption on the order in any case.
@@ -162,32 +229,27 @@ private:
  * Empty types aren't explicitly instantiated. Therefore, many of the functions
  * normally available for non-empty types will not be available for empty ones.
  *
- * @sa sparse_set<Entity>
- *
  * @tparam Entity A valid entity type (see entt_traits for more details).
  * @tparam Type Type of objects assigned to the entities.
  * @tparam Allocator Type of allocator used to manage memory and elements.
  */
 template<typename Entity, typename Type, typename Allocator, typename>
 class basic_storage: public basic_sparse_set<Entity, typename std::allocator_traits<Allocator>::template rebind_alloc<Entity>> {
-    static constexpr auto packed_page_v = ENTT_PACKED_PAGE;
-
     using allocator_traits = std::allocator_traits<Allocator>;
     using alloc = typename allocator_traits::template rebind_alloc<Type>;
     using alloc_traits = typename std::allocator_traits<alloc>;
 
-    using entity_traits = entt_traits<Entity>;
     using comp_traits = component_traits<Type>;
     using underlying_type = basic_sparse_set<Entity, typename allocator_traits::template rebind_alloc<Entity>>;
     using container_type = std::vector<typename alloc_traits::pointer, typename alloc_traits::template rebind_alloc<typename alloc_traits::pointer>>;
 
     [[nodiscard]] auto &element_at(const std::size_t pos) const {
-        return packed.first()[pos / packed_page_v][fast_mod<packed_page_v>(pos)];
+        return packed.first()[pos / comp_traits::page_size][fast_mod(pos, comp_traits::page_size)];
     }
 
     auto assure_at_least(const std::size_t pos) {
         auto &&container = packed.first();
-        const auto idx = pos / packed_page_v;
+        const auto idx = pos / comp_traits::page_size;
 
         if(!(idx < container.size())) {
             auto curr = container.size();
@@ -195,7 +257,7 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
 
             ENTT_TRY {
                 for(const auto last = container.size(); curr < last; ++curr) {
-                    container[curr] = alloc_traits::allocate(packed.second(), packed_page_v);
+                    container[curr] = alloc_traits::allocate(packed.second(), comp_traits::page_size);
                 }
             }
             ENTT_CATCH {
@@ -204,16 +266,16 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
             }
         }
 
-        return container[idx] + fast_mod<packed_page_v>(pos);
+        return container[idx] + fast_mod(pos, comp_traits::page_size);
     }
 
     void release_unused_pages() {
         auto &&container = packed.first();
         auto page_allocator{packed.second()};
-        const auto in_use = (base_type::size() + packed_page_v - 1u) / packed_page_v;
+        const auto in_use = (base_type::size() + comp_traits::page_size - 1u) / comp_traits::page_size;
 
         for(auto pos = in_use, last = container.size(); pos < last; ++pos) {
-            alloc_traits::deallocate(page_allocator, container[pos], packed_page_v);
+            alloc_traits::deallocate(page_allocator, container[pos], comp_traits::page_size);
         }
 
         container.resize(in_use);
@@ -221,7 +283,7 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
 
     void release_all_pages() {
         for(size_type pos{}, last = base_type::size(); pos < last; ++pos) {
-            if constexpr(comp_traits::in_place_delete::value) {
+            if constexpr(comp_traits::in_place_delete) {
                 if(base_type::at(pos) != tombstone) {
                     std::destroy_at(std::addressof(element_at(pos)));
                 }
@@ -234,7 +296,7 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
         auto page_allocator{packed.second()};
 
         for(size_type pos{}, last = container.size(); pos < last; ++pos) {
-            alloc_traits::deallocate(page_allocator, container[pos], packed_page_v);
+            alloc_traits::deallocate(page_allocator, container[pos], comp_traits::page_size);
         }
     }
 
@@ -264,14 +326,12 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
 
 protected:
     /**
-     * @brief Exchanges the contents with those of a given storage.
-     * @param base Reference to base storage to exchange the content with.
+     * @brief Returns the element assigned to an entity.
+     * @param pos A valid position of an element within a storage.
+     * @return An opaque pointer to the element assigned to the entity.
      */
-    void swap_contents(underlying_type &base) override {
-        using std::swap;
-        auto &other = static_cast<basic_storage &>(base);
-        propagate_on_container_swap(packed.second(), other.packed.second());
-        swap(packed.first(), other.packed.first());
+    const void *get_at(const std::size_t pos) const ENTT_NOEXCEPT override {
+        return std::addressof(element_at(pos));
     }
 
     /**
@@ -297,9 +357,8 @@ protected:
     /**
      * @brief Erase an element from a storage.
      * @param entt A valid identifier.
-     * @param ud Optional user data that are forwarded as-is to derived classes.
      */
-    void swap_and_pop(const Entity entt, void *ud) override {
+    void swap_and_pop(const Entity entt) override {
         const auto pos = base_type::index(entt);
         const auto last = base_type::size() - 1u;
 
@@ -311,17 +370,16 @@ protected:
         target = std::move(elem);
         std::destroy_at(std::addressof(elem));
 
-        base_type::swap_and_pop(entt, ud);
+        base_type::swap_and_pop(entt);
     }
 
     /**
      * @brief Erases an element from a storage.
      * @param entt A valid identifier.
-     * @param ud Optional user data that are forwarded as-is to derived classes.
      */
-    void in_place_pop(const Entity entt, void *ud) override {
+    void in_place_pop(const Entity entt) override {
         const auto pos = base_type::index(entt);
-        base_type::in_place_pop(entt, ud);
+        base_type::in_place_pop(entt);
         // support for nosy destructors
         std::destroy_at(std::addressof(element_at(pos)));
     }
@@ -329,20 +387,16 @@ protected:
     /**
      * @brief Assigns an entity to a storage.
      * @param entt A valid identifier.
-     * @param ud Optional user data that are forwarded as-is to derived classes.
+     * @param value Optional opaque value.
      */
-    void try_emplace([[maybe_unused]] const Entity entt, [[maybe_unused]] void *ud) override {
-        if constexpr(std::is_default_constructible_v<value_type>) {
-            const auto pos = base_type::slot();
-            construct(assure_at_least(pos));
-
-            ENTT_TRY {
-                base_type::try_emplace(entt, nullptr);
-                ENTT_ASSERT(pos == base_type::index(entt), "Misplaced component");
+    void try_emplace([[maybe_unused]] const Entity entt, const void *value) override {
+        if(value) {
+            if constexpr(std::is_copy_constructible_v<value_type>) {
+                emplace(entt, *static_cast<const value_type *>(value));
             }
-            ENTT_CATCH {
-                std::destroy_at(std::addressof(element_at(pos)));
-                ENTT_THROW;
+        } else {
+            if constexpr(std::is_default_constructible_v<value_type>) {
+                emplace(entt);
             }
         }
     }
@@ -370,18 +424,21 @@ public:
     using reverse_iterator = std::reverse_iterator<iterator>;
     /*! @brief Constant reverse iterator type. */
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    /*! @brief Extended iterable storage proxy. */
+    using iterable = iterable_adaptor<internal::extended_storage_iterator<typename base_type::iterator, iterator>>;
+    /*! @brief Constant extended iterable storage proxy. */
+    using const_iterable = iterable_adaptor<internal::extended_storage_iterator<typename base_type::const_iterator, const_iterator>>;
 
     /*! @brief Default constructor. */
     basic_storage()
-        : base_type{deletion_policy{comp_traits::in_place_delete::value}},
-          packed{} {}
+        : basic_storage{allocator_type{}} {}
 
     /**
      * @brief Constructs an empty storage with a given allocator.
      * @param allocator The allocator to use.
      */
     explicit basic_storage(const allocator_type &allocator)
-        : base_type{deletion_policy{comp_traits::in_place_delete::value}, allocator},
+        : base_type{type_id<value_type>(), deletion_policy{comp_traits::in_place_delete}, allocator},
           packed{container_type{allocator}, allocator} {}
 
     /**
@@ -424,6 +481,17 @@ public:
     }
 
     /**
+     * @brief Exchanges the contents with those of a given storage.
+     * @param other Storage to exchange the content with.
+     */
+    void swap(basic_storage &other) {
+        using std::swap;
+        underlying_type::swap(other);
+        propagate_on_container_swap(packed.second(), other.packed.second());
+        swap(packed.first(), other.packed.first());
+    }
+
+    /**
      * @brief Returns the associated allocator.
      * @return The associated allocator.
      */
@@ -453,7 +521,7 @@ public:
      * @return Capacity of the storage.
      */
     [[nodiscard]] size_type capacity() const ENTT_NOEXCEPT override {
-        return packed.first().size() * packed_page_v;
+        return packed.first().size() * comp_traits::page_size;
     }
 
     /*! @brief Requests the removal of unused capacity. */
@@ -609,10 +677,6 @@ public:
     /**
      * @brief Assigns an entity to a storage and constructs its object.
      *
-     * This version accept both types that can be constructed in place directly
-     * and types like aggregates that do not work well with a placement new as
-     * performed usually under the hood during an _emplace back_.
-     *
      * @warning
      * Attempting to use an entity that already belongs to the storage results
      * in undefined behavior.
@@ -629,7 +693,7 @@ public:
         construct(elem, std::forward<Args>(args)...);
 
         ENTT_TRY {
-            base_type::try_emplace(entt, nullptr);
+            base_type::try_emplace(entt);
             ENTT_ASSERT(pos == base_type::index(entt), "Misplaced component");
         }
         ENTT_CATCH {
@@ -690,6 +754,23 @@ public:
         consume_range(std::move(first), std::move(last), [&from]() -> decltype(auto) { return *(from++); });
     }
 
+    /**
+     * @brief Returns an iterable object to use to _visit_ a storage.
+     *
+     * The iterable object returns a tuple that contains the current entity and
+     * a reference to its component.
+     *
+     * @return An iterable object to use to _visit_ the storage.
+     */
+    [[nodiscard]] iterable each() ENTT_NOEXCEPT {
+        return {internal::extended_storage_iterator{base_type::begin(), begin()}, internal::extended_storage_iterator{base_type::end(), end()}};
+    }
+
+    /*! @copydoc each */
+    [[nodiscard]] const_iterable each() const ENTT_NOEXCEPT {
+        return {internal::extended_storage_iterator{base_type::cbegin(), cbegin()}, internal::extended_storage_iterator{base_type::cend(), cend()}};
+    }
+
 private:
     compressed_pair<container_type, alloc> packed;
 };
@@ -712,17 +793,21 @@ public:
     using entity_type = Entity;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
+    /*! @brief Extended iterable storage proxy. */
+    using iterable = iterable_adaptor<internal::extended_storage_iterator<typename base_type::iterator>>;
+    /*! @brief Constant extended iterable storage proxy. */
+    using const_iterable = iterable_adaptor<internal::extended_storage_iterator<typename base_type::const_iterator>>;
 
     /*! @brief Default constructor. */
     basic_storage()
-        : base_type{deletion_policy{comp_traits::in_place_delete::value}} {}
+        : basic_storage{allocator_type{}} {}
 
     /**
      * @brief Constructs an empty container with a given allocator.
      * @param allocator The allocator to use.
      */
     explicit basic_storage(const allocator_type &allocator)
-        : base_type{deletion_policy{comp_traits::in_place_delete::value}, allocator} {}
+        : base_type{type_id<value_type>(), deletion_policy{comp_traits::in_place_delete}, allocator} {}
 
     /**
      * @brief Move constructor.
@@ -795,7 +880,7 @@ public:
     template<typename... Args>
     void emplace(const entity_type entt, Args &&...args) {
         [[maybe_unused]] const value_type elem{std::forward<Args>(args)...};
-        base_type::try_emplace(entt, nullptr);
+        base_type::try_emplace(entt);
     }
 
     /**
@@ -829,89 +914,58 @@ public:
             emplace(*first);
         }
     }
-};
-
-/**
- * @brief Mixin type to use to wrap basic storage classes.
- * @tparam Type The type of the underlying storage.
- */
-template<typename Type>
-struct storage_adapter_mixin: Type {
-    static_assert(std::is_same_v<typename Type::value_type, std::decay_t<typename Type::value_type>>, "Invalid object type");
-
-    /*! @brief Type of the objects assigned to entities. */
-    using value_type = typename Type::value_type;
-    /*! @brief Underlying entity identifier. */
-    using entity_type = typename Type::entity_type;
-
-    /*! @brief Inherited constructors. */
-    using Type::Type;
 
     /**
-     * @brief Assigns entities to a storage.
-     * @tparam Args Types of arguments to use to construct the object.
-     * @param entt A valid identifier.
-     * @param args Parameters to use to initialize the object.
-     * @return A reference to the newly created object.
+     * @brief Returns an iterable object to use to _visit_ a storage.
+     *
+     * The iterable object returns a tuple that contains the current entity.
+     *
+     * @return An iterable object to use to _visit_ the storage.
      */
-    template<typename... Args>
-    decltype(auto) emplace(basic_registry<entity_type> &, const entity_type entt, Args &&...args) {
-        return Type::emplace(entt, std::forward<Args>(args)...);
+    [[nodiscard]] iterable each() ENTT_NOEXCEPT {
+        return {internal::extended_storage_iterator{base_type::begin()}, internal::extended_storage_iterator{base_type::end()}};
     }
 
-    /**
-     * @brief Patches the given instance for an entity.
-     * @tparam Func Types of the function objects to invoke.
-     * @param entt A valid identifier.
-     * @param func Valid function objects.
-     * @return A reference to the patched instance.
-     */
-    template<typename... Func>
-    decltype(auto) patch(basic_registry<entity_type> &, const entity_type entt, Func &&...func) {
-        return Type::patch(entt, std::forward<Func>(func)...);
-    }
-
-    /**
-     * @brief Assigns entities to a storage.
-     * @tparam It Type of input iterator.
-     * @tparam Args Types of arguments to use to construct the objects assigned
-     * to the entities.
-     * @param first An iterator to the first element of the range of entities.
-     * @param last An iterator past the last element of the range of entities.
-     * @param args Parameters to use to initialize the objects assigned to the
-     * entities.
-     */
-    template<typename It, typename... Args>
-    void insert(basic_registry<entity_type> &, It first, It last, Args &&...args) {
-        Type::insert(std::move(first), std::move(last), std::forward<Args>(args)...);
+    /*! @copydoc each */
+    [[nodiscard]] const_iterable each() const ENTT_NOEXCEPT {
+        return {internal::extended_storage_iterator{base_type::cbegin()}, internal::extended_storage_iterator{base_type::cend()}};
     }
 };
 
 /**
- * @brief Mixin type to use to add signal support to storage types.
+ * @brief Mixin type used to add signal support to storage types.
+ *
+ * The function type of a listener is equivalent to:
+ *
+ * @code{.cpp}
+ * void(basic_registry<entity_type> &, entity_type);
+ * @endcode
+ *
+ * This applies to all signals made available.
+ *
  * @tparam Type The type of the underlying storage.
  */
 template<typename Type>
 class sigh_storage_mixin final: public Type {
     /*! @copydoc basic_sparse_set::swap_and_pop */
-    void swap_and_pop(const typename Type::entity_type entt, void *ud) final {
-        ENTT_ASSERT(ud != nullptr, "Invalid pointer to registry");
-        destruction.publish(*static_cast<basic_registry<typename Type::entity_type> *>(ud), entt);
-        Type::swap_and_pop(entt, ud);
+    void swap_and_pop(const typename Type::entity_type entt) final {
+        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+        destruction.publish(*owner, entt);
+        Type::swap_and_pop(entt);
     }
 
     /*! @copydoc basic_sparse_set::in_place_pop */
-    void in_place_pop(const typename Type::entity_type entt, void *ud) final {
-        ENTT_ASSERT(ud != nullptr, "Invalid pointer to registry");
-        destruction.publish(*static_cast<basic_registry<typename Type::entity_type> *>(ud), entt);
-        Type::in_place_pop(entt, ud);
+    void in_place_pop(const typename Type::entity_type entt) final {
+        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+        destruction.publish(*owner, entt);
+        Type::in_place_pop(entt);
     }
 
     /*! @copydoc basic_sparse_set::try_emplace */
-    void try_emplace(const typename Type::entity_type entt, void *ud) final {
-        ENTT_ASSERT(ud != nullptr, "Invalid pointer to registry");
-        Type::try_emplace(entt, ud);
-        construction.publish(*static_cast<basic_registry<typename Type::entity_type> *>(ud), entt);
+    void try_emplace(const typename Type::entity_type entt, const void *value) final {
+        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+        Type::try_emplace(entt, value);
+        construction.publish(*owner, entt);
     }
 
 public:
@@ -928,14 +982,7 @@ public:
      *
      * The sink returned by this function can be used to receive notifications
      * whenever a new instance is created and assigned to an entity.<br/>
-     * The function type for a listener is equivalent to:
-     *
-     * @code{.cpp}
-     * void(basic_registry<entity_type> &, entity_type);
-     * @endcode
-     *
-     * Listeners are invoked **after** the object has been assigned to the
-     * entity.
+     * Listeners are invoked after the object has been assigned to the entity.
      *
      * @sa sink
      *
@@ -950,13 +997,7 @@ public:
      *
      * The sink returned by this function can be used to receive notifications
      * whenever an instance is explicitly updated.<br/>
-     * The function type for a listener is equivalent to:
-     *
-     * @code{.cpp}
-     * void(basic_registry<entity_type> &, entity_type);
-     * @endcode
-     *
-     * Listeners are invoked **after** the object has been updated.
+     * Listeners are invoked after the object has been updated.
      *
      * @sa sink
      *
@@ -971,14 +1012,7 @@ public:
      *
      * The sink returned by this function can be used to receive notifications
      * whenever an instance is removed from an entity and thus destroyed.<br/>
-     * The function type for a listener is equivalent to:
-     *
-     * @code{.cpp}
-     * void(basic_registry<entity_type> &, entity_type);
-     * @endcode
-     *
-     * Listeners are invoked **before** the object has been removed from the
-     * entity.
+     * Listeners are invoked before the object has been removed from the entity.
      *
      * @sa sink
      *
@@ -991,30 +1025,28 @@ public:
     /**
      * @brief Assigns entities to a storage.
      * @tparam Args Types of arguments to use to construct the object.
-     * @param owner The registry that issued the request.
      * @param entt A valid identifier.
      * @param args Parameters to use to initialize the object.
      * @return A reference to the newly created object.
      */
     template<typename... Args>
-    decltype(auto) emplace(basic_registry<entity_type> &owner, const entity_type entt, Args &&...args) {
+    decltype(auto) emplace(const entity_type entt, Args &&...args) {
         Type::emplace(entt, std::forward<Args>(args)...);
-        construction.publish(owner, entt);
+        construction.publish(*owner, entt);
         return this->get(entt);
     }
 
     /**
      * @brief Patches the given instance for an entity.
      * @tparam Func Types of the function objects to invoke.
-     * @param owner The registry that issued the request.
      * @param entt A valid identifier.
      * @param func Valid function objects.
      * @return A reference to the patched instance.
      */
     template<typename... Func>
-    decltype(auto) patch(basic_registry<entity_type> &owner, const entity_type entt, Func &&...func) {
+    decltype(auto) patch(const entity_type entt, Func &&...func) {
         Type::patch(entt, std::forward<Func>(func)...);
-        update.publish(owner, entt);
+        update.publish(*owner, entt);
         return this->get(entt);
     }
 
@@ -1023,27 +1055,37 @@ public:
      * @tparam It Type of input iterator.
      * @tparam Args Types of arguments to use to construct the objects assigned
      * to the entities.
-     * @param owner The registry that issued the request.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      * @param args Parameters to use to initialize the objects assigned to the
      * entities.
      */
     template<typename It, typename... Args>
-    void insert(basic_registry<entity_type> &owner, It first, It last, Args &&...args) {
+    void insert(It first, It last, Args &&...args) {
         Type::insert(first, last, std::forward<Args>(args)...);
 
         if(!construction.empty()) {
             for(; first != last; ++first) {
-                construction.publish(owner, *first);
+                construction.publish(*owner, *first);
             }
         }
+    }
+
+    /**
+     * @brief Forwards variables to mixins, if any.
+     * @param value A variable wrapped in an opaque container.
+     */
+    void bind(any value) ENTT_NOEXCEPT final {
+        auto *reg = any_cast<basic_registry<entity_type>>(&value);
+        owner = reg ? reg : owner;
+        Type::bind(std::move(value));
     }
 
 private:
     sigh<void(basic_registry<entity_type> &, const entity_type)> construction{};
     sigh<void(basic_registry<entity_type> &, const entity_type)> destruction{};
     sigh<void(basic_registry<entity_type> &, const entity_type)> update{};
+    basic_registry<entity_type> *owner{};
 };
 
 /**

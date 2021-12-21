@@ -1,3 +1,5 @@
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <gtest/gtest.h>
 #include <entt/core/memory.hpp>
@@ -33,7 +35,10 @@ TEST(Memory, PoccaPocmaAndPocs) {
 }
 
 TEST(Memory, IsPowerOfTwo) {
-    ASSERT_FALSE(entt::is_power_of_two(0u));
+    // constexpr-ness guaranteed
+    constexpr auto zero_is_power_of_two = entt::is_power_of_two(0u);
+
+    ASSERT_FALSE(zero_is_power_of_two);
     ASSERT_TRUE(entt::is_power_of_two(1u));
     ASSERT_TRUE(entt::is_power_of_two(2u));
     ASSERT_TRUE(entt::is_power_of_two(4u));
@@ -42,8 +47,27 @@ TEST(Memory, IsPowerOfTwo) {
     ASSERT_FALSE(entt::is_power_of_two(200u));
 }
 
+TEST(Memory, NextPowerOfTwo) {
+    // constexpr-ness guaranteed
+    constexpr auto next_power_of_two_of_zero = entt::next_power_of_two(0u);
+
+    ASSERT_EQ(next_power_of_two_of_zero, 1u);
+    ASSERT_EQ(entt::next_power_of_two(1u), 1u);
+    ASSERT_EQ(entt::next_power_of_two(2u), 2u);
+    ASSERT_EQ(entt::next_power_of_two(3u), 4u);
+    ASSERT_EQ(entt::next_power_of_two(17u), 32u);
+    ASSERT_EQ(entt::next_power_of_two(32u), 32u);
+    ASSERT_EQ(entt::next_power_of_two(33u), 64u);
+    ASSERT_EQ(entt::next_power_of_two(std::pow(2, 16)), std::pow(2, 16));
+    ASSERT_EQ(entt::next_power_of_two(std::pow(2, 16) + 1u), std::pow(2, 17));
+    ASSERT_DEATH(static_cast<void>(entt::next_power_of_two((std::size_t{1u} << (std::numeric_limits<std::size_t>::digits - 1)) + 1)), "");
+}
+
 TEST(Memory, FastMod) {
-    ASSERT_EQ(entt::fast_mod<8u>(0u), 0u);
-    ASSERT_EQ(entt::fast_mod<8u>(7u), 7u);
-    ASSERT_EQ(entt::fast_mod<8u>(8u), 0u);
+    // constexpr-ness guaranteed
+    constexpr auto fast_mod_of_zero = entt::fast_mod(0u, 8u);
+
+    ASSERT_EQ(fast_mod_of_zero, 0u);
+    ASSERT_EQ(entt::fast_mod(7u, 8u), 7u);
+    ASSERT_EQ(entt::fast_mod(8u, 8u), 0u);
 }

@@ -12,15 +12,15 @@ struct stable_type {
 
 template<>
 struct entt::component_traits<stable_type>: basic_component_traits {
-    using in_place_delete = std::true_type;
+    static constexpr auto in_place_delete = true;
 };
 
 TEST(RuntimeView, Functionalities) {
     entt::registry registry;
 
     // forces the creation of the pools
-    registry.reserve<int>(0);
-    registry.reserve<char>(0);
+    static_cast<void>(registry.storage<int>());
+    static_cast<void>(registry.storage<char>());
 
     entt::id_type types[] = {entt::type_hash<int>::value(), entt::type_hash<char>::value()};
     auto view = registry.runtime_view(std::begin(types), std::end(types));
@@ -273,4 +273,41 @@ TEST(RuntimeView, StableType) {
     registry.compact();
 
     ASSERT_EQ(view.size_hint(), 1u);
+}
+
+TEST(RuntimeView, StableTypeWithExcludedComponent) {
+    entt::registry registry;
+
+    const auto entity = registry.create();
+    const auto other = registry.create();
+
+    registry.emplace<stable_type>(entity, 0);
+    registry.emplace<stable_type>(other, 42);
+    registry.emplace<int>(entity);
+
+    entt::id_type components[] = {entt::type_hash<stable_type>::value()};
+    entt::id_type filter[] = {entt::type_hash<int>::value()};
+    auto view = registry.runtime_view(std::begin(components), std::end(components), std::begin(filter), std::end(filter));
+
+    ASSERT_EQ(view.size_hint(), 2u);
+    ASSERT_FALSE(view.contains(entity));
+    ASSERT_TRUE(view.contains(other));
+
+    registry.destroy(entity);
+
+    ASSERT_EQ(view.size_hint(), 2u);
+    ASSERT_FALSE(view.contains(entity));
+    ASSERT_TRUE(view.contains(other));
+
+    for(auto entt: view) {
+        constexpr entt::entity tombstone = entt::tombstone;
+        ASSERT_NE(entt, tombstone);
+        ASSERT_EQ(entt, other);
+    }
+
+    view.each([other](const auto entt) {
+        constexpr entt::entity tombstone = entt::tombstone;
+        ASSERT_NE(entt, tombstone);
+        ASSERT_EQ(entt, other);
+    });
 }

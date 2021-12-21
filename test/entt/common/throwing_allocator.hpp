@@ -1,5 +1,5 @@
-#ifndef ENTT_ENTITY_THROWING_ALLOCATOR_HPP
-#define ENTT_ENTITY_THROWING_ALLOCATOR_HPP
+#ifndef ENTT_COMMON_THROWING_ALLOCATOR_HPP
+#define ENTT_COMMON_THROWING_ALLOCATOR_HPP
 
 #include <cstddef>
 #include <memory>
@@ -56,8 +56,8 @@ public:
         return true;
     }
 
-    bool operator!=(const throwing_allocator<Type> &) const {
-        return false;
+    bool operator!=(const throwing_allocator<Type> &other) const {
+        return !(*this == other);
     }
 
     static inline bool trigger_on_allocate{};

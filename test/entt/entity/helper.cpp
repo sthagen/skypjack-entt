@@ -13,6 +13,15 @@ struct clazz {
     entt::entity entt{entt::null};
 };
 
+struct stable_type {
+    int value;
+};
+
+template<>
+struct entt::component_traits<stable_type>: basic_component_traits {
+    static constexpr auto in_place_delete = true;
+};
+
 TEST(Helper, AsView) {
     entt::registry registry;
     const entt::registry cregistry;
@@ -51,10 +60,11 @@ TEST(Helper, ToEntity) {
     ASSERT_EQ(entt::to_entity(registry, value), null);
 
     const auto entity = registry.create();
-    registry.emplace<int>(entity);
+    auto &&storage = registry.storage<int>();
+    storage.emplace(entity);
 
-    while(registry.size<int>() < (ENTT_PACKED_PAGE - 1u)) {
-        registry.emplace<int>(registry.create(), value);
+    while(storage.size() < (ENTT_PACKED_PAGE - 1u)) {
+        storage.emplace(registry.create(), value);
     }
 
     const auto other = registry.create();
@@ -77,5 +87,44 @@ TEST(Helper, ToEntity) {
     ASSERT_EQ(&registry.get<int>(entity) + ENTT_PACKED_PAGE - 1u, &registry.get<int>(next));
 
     ASSERT_EQ(entt::to_entity(registry, 42), null);
+    ASSERT_EQ(entt::to_entity(registry, value), null);
+}
+
+TEST(Helper, ToEntityStableType) {
+    entt::registry registry;
+    const entt::entity null = entt::null;
+    const stable_type value{42};
+
+    ASSERT_EQ(entt::to_entity(registry, stable_type{42}), null);
+    ASSERT_EQ(entt::to_entity(registry, value), null);
+
+    const auto entity = registry.create();
+    auto &&storage = registry.storage<stable_type>();
+    registry.emplace<stable_type>(entity);
+
+    while(storage.size() < (ENTT_PACKED_PAGE - 2u)) {
+        storage.emplace(registry.create(), value);
+    }
+
+    const auto other = registry.create();
+    const auto next = registry.create();
+
+    registry.emplace<stable_type>(other);
+    registry.emplace<stable_type>(next);
+
+    ASSERT_EQ(entt::to_entity(registry, registry.get<stable_type>(entity)), entity);
+    ASSERT_EQ(entt::to_entity(registry, registry.get<stable_type>(other)), other);
+    ASSERT_EQ(entt::to_entity(registry, registry.get<stable_type>(next)), next);
+
+    ASSERT_EQ(&registry.get<stable_type>(entity) + ENTT_PACKED_PAGE - 2u, &registry.get<stable_type>(other));
+
+    registry.destroy(other);
+
+    ASSERT_EQ(entt::to_entity(registry, registry.get<stable_type>(entity)), entity);
+    ASSERT_EQ(entt::to_entity(registry, registry.get<stable_type>(next)), next);
+
+    ASSERT_EQ(&registry.get<stable_type>(entity) + ENTT_PACKED_PAGE - 1u, &registry.get<stable_type>(next));
+
+    ASSERT_EQ(entt::to_entity(registry, stable_type{42}), null);
     ASSERT_EQ(entt::to_entity(registry, value), null);
 }

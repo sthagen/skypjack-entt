@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/sparse_set.hpp>
-#include "throwing_allocator.hpp"
+#include "../common/throwing_allocator.hpp"
 
 struct empty_type {};
 
@@ -19,6 +19,7 @@ TEST(SparseSet, Functionalities) {
     entt::sparse_set set;
 
     ASSERT_NO_THROW([[maybe_unused]] auto alloc = set.get_allocator());
+    ASSERT_EQ(set.type(), entt::type_id<void>());
 
     set.reserve(42);
 
@@ -48,6 +49,9 @@ TEST(SparseSet, Functionalities) {
     ASSERT_EQ(set.at(1u), static_cast<entt::entity>(entt::null));
     ASSERT_EQ(set[0u], entt::entity{42});
 
+    ASSERT_DEATH(set.get(entt::entity{0}), "");
+    ASSERT_EQ(set.get(entt::entity{42}), nullptr);
+
     set.erase(entt::entity{42});
 
     ASSERT_TRUE(set.empty());
@@ -75,6 +79,8 @@ TEST(SparseSet, Functionalities) {
     ASSERT_EQ(set.begin(), set.end());
     ASSERT_FALSE(set.contains(entt::entity{0}));
     ASSERT_FALSE(set.contains(entt::entity{42}));
+
+    ASSERT_NO_THROW(set.bind(entt::any{}));
 }
 
 TEST(SparseSet, Contains) {
@@ -798,8 +804,8 @@ TEST(SparseSet, Iterator) {
     begin = set.end();
     std::swap(begin, end);
 
-    ASSERT_EQ(begin, set.begin());
-    ASSERT_EQ(end, set.end());
+    ASSERT_EQ(begin, set.cbegin());
+    ASSERT_EQ(end, set.cend());
     ASSERT_NE(begin, end);
 
     ASSERT_EQ(begin++, set.begin());
@@ -830,6 +836,12 @@ TEST(SparseSet, Iterator) {
 
     ASSERT_EQ(*begin, entt::entity{3});
     ASSERT_EQ(*begin.operator->(), entt::entity{3});
+
+    set.emplace(entt::entity{42});
+    begin = set.begin();
+
+    ASSERT_EQ(begin[0u], entt::entity{42});
+    ASSERT_EQ(begin[1u], entt::entity{3});
 }
 
 TEST(SparseSet, ReverseIterator) {
@@ -847,8 +859,8 @@ TEST(SparseSet, ReverseIterator) {
     begin = set.rend();
     std::swap(begin, end);
 
-    ASSERT_EQ(begin, set.rbegin());
-    ASSERT_EQ(end, set.rend());
+    ASSERT_EQ(begin, set.crbegin());
+    ASSERT_EQ(end, set.crend());
     ASSERT_NE(begin, end);
 
     ASSERT_EQ(begin++, set.rbegin());
@@ -878,6 +890,13 @@ TEST(SparseSet, ReverseIterator) {
     ASSERT_GE(end, set.rend());
 
     ASSERT_EQ(*begin, entt::entity{3});
+    ASSERT_EQ(*begin.operator->(), entt::entity{3});
+
+    set.emplace(entt::entity{42});
+    begin = set.rbegin();
+
+    ASSERT_EQ(begin[0u], entt::entity{3});
+    ASSERT_EQ(begin[1u], entt::entity{42});
 }
 
 TEST(SparseSet, Find) {
@@ -1154,35 +1173,6 @@ TEST(SparseSet, CanModifyDuringIteration) {
 
     // this should crash with asan enabled if we break the constraint
     [[maybe_unused]] const auto entity = *it;
-}
-
-TEST(SparseSet, UserData) {
-    entt::sparse_set set;
-    int value = 42;
-
-    ASSERT_EQ(set.user_data(), nullptr);
-
-    set.user_data(&value);
-    entt::sparse_set other{std::move(set)};
-
-    ASSERT_EQ(std::as_const(set).user_data(), nullptr);
-    ASSERT_EQ(other.user_data(), &value);
-
-    std::swap(set, other);
-
-    ASSERT_EQ(set.user_data(), &value);
-    ASSERT_EQ(std::as_const(other).user_data(), nullptr);
-
-    other = std::move(set);
-
-    ASSERT_EQ(set.user_data(), nullptr);
-    ASSERT_EQ(other.user_data(), &value);
-
-    entt::sparse_set last{std::move(other), std::allocator<entt::entity>{}};
-
-    ASSERT_EQ(set.user_data(), nullptr);
-    ASSERT_EQ(other.user_data(), nullptr);
-    ASSERT_EQ(last.user_data(), &value);
 }
 
 TEST(SparseSet, CustomAllocator) {

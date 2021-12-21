@@ -7,8 +7,10 @@
 #include <utility>
 #include <vector>
 #include "../config/config.h"
+#include "../container/dense_hash_map.hpp"
 #include "../core/fwd.hpp"
 #include "../core/type_info.hpp"
+#include "../core/utility.hpp"
 #include "sigh.hpp"
 
 namespace entt {
@@ -84,17 +86,13 @@ class dispatcher {
 
     template<typename Event>
     [[nodiscard]] pool_handler<Event> &assure() {
-        const auto index = type_index<Event>::value();
-
-        if(!(index < pools.size())) {
-            pools.resize(std::size_t(index) + 1u);
+        if(auto &&ptr = pools[type_hash<Event>::value()]; !ptr) {
+            auto *cpool = new pool_handler<Event>{};
+            ptr.reset(cpool);
+            return *cpool;
+        } else {
+            return static_cast<pool_handler<Event> &>(*ptr);
         }
-
-        if(!pools[index]) {
-            pools[index].reset(new pool_handler<Event>{});
-        }
-
-        return static_cast<pool_handler<Event> &>(*pools[index]);
     }
 
 public:
@@ -207,9 +205,7 @@ public:
     template<typename Type>
     void disconnect(Type *value_or_instance) {
         for(auto &&cpool: pools) {
-            if(cpool) {
-                cpool->disconnect(value_or_instance);
-            }
+            cpool.second->disconnect(value_or_instance);
         }
     }
 
@@ -225,9 +221,7 @@ public:
     void clear() {
         if constexpr(sizeof...(Event) == 0) {
             for(auto &&cpool: pools) {
-                if(cpool) {
-                    cpool->clear();
-                }
+                cpool.second->clear();
             }
         } else {
             (assure<Event>().clear(), ...);
@@ -256,15 +250,13 @@ public:
      * to reduce at a minimum the time spent in the bodies of the listeners.
      */
     void update() const {
-        for(auto pos = pools.size(); pos; --pos) {
-            if(auto &&cpool = pools[pos - 1]; cpool) {
-                cpool->publish();
-            }
+        for(auto &&cpool: pools) {
+            cpool.second->publish();
         }
     }
 
 private:
-    std::vector<std::unique_ptr<basic_pool>> pools;
+    dense_hash_map<id_type, std::unique_ptr<basic_pool>, identity> pools;
 };
 
 } // namespace entt

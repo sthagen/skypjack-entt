@@ -19,11 +19,14 @@ namespace internal {
 
 template<typename Type, std::size_t, typename = void>
 struct compressed_pair_element {
+    using reference = Type &;
+    using const_reference = const Type &;
+
     template<bool Dummy = true, typename = std::enable_if_t<Dummy && std::is_default_constructible_v<Type>>>
     compressed_pair_element()
         : value{} {}
 
-    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::decay_t<Args>, compressed_pair_element>>>
+    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::remove_const_t<std::remove_reference_t<Args>>, compressed_pair_element>>>
     compressed_pair_element(Args &&args)
         : value{std::forward<Args>(args)} {}
 
@@ -31,11 +34,11 @@ struct compressed_pair_element {
     compressed_pair_element(std::tuple<Args...> args, std::index_sequence<Index...>)
         : value{std::get<Index>(args)...} {}
 
-    [[nodiscard]] Type &get() ENTT_NOEXCEPT {
+    [[nodiscard]] reference get() ENTT_NOEXCEPT {
         return value;
     }
 
-    [[nodiscard]] const Type &get() const ENTT_NOEXCEPT {
+    [[nodiscard]] const_reference get() const ENTT_NOEXCEPT {
         return value;
     }
 
@@ -45,23 +48,27 @@ private:
 
 template<typename Type, std::size_t Tag>
 struct compressed_pair_element<Type, Tag, std::enable_if_t<is_ebco_eligible_v<Type>>>: Type {
-    template<bool Dummy = true, typename = std::enable_if_t<Dummy && std::is_default_constructible_v<Type>>>
-    compressed_pair_element()
-        : Type{} {}
+    using reference = Type &;
+    using const_reference = const Type &;
+    using base_type = Type;
 
-    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::decay_t<Args>, compressed_pair_element>>>
+    template<bool Dummy = true, typename = std::enable_if_t<Dummy && std::is_default_constructible_v<base_type>>>
+    compressed_pair_element()
+        : base_type{} {}
+
+    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::remove_const_t<std::remove_reference_t<Args>>, compressed_pair_element>>>
     compressed_pair_element(Args &&args)
-        : Type{std::forward<Args>(args)} {}
+        : base_type{std::forward<Args>(args)} {}
 
     template<typename... Args, std::size_t... Index>
     compressed_pair_element(std::tuple<Args...> args, std::index_sequence<Index...>)
-        : Type{std::get<Index>(args)...} {}
+        : base_type{std::get<Index>(args)...} {}
 
-    [[nodiscard]] Type &get() ENTT_NOEXCEPT {
+    [[nodiscard]] reference get() ENTT_NOEXCEPT {
         return *this;
     }
 
-    [[nodiscard]] const Type &get() const ENTT_NOEXCEPT {
+    [[nodiscard]] const_reference get() const ENTT_NOEXCEPT {
         return *this;
     }
 };
@@ -90,6 +97,11 @@ class compressed_pair final
     using second_base = internal::compressed_pair_element<Second, 1u>;
 
 public:
+    /*! @brief The type of the first element that the pair stores. */
+    using first_type = First;
+    /*! @brief The type of the second element that the pair stores. */
+    using second_type = Second;
+
     /**
      * @brief Default constructor, conditionally enabled.
      *
@@ -98,7 +110,7 @@ public:
      *
      * @tparam Dummy Dummy template parameter used for internal purposes.
      */
-    template<bool Dummy = true, typename = std::enable_if_t<Dummy && std::is_default_constructible_v<First> && std::is_default_constructible_v<Second>>>
+    template<bool Dummy = true, typename = std::enable_if_t<Dummy && std::is_default_constructible_v<first_type> && std::is_default_constructible_v<second_type>>>
     constexpr compressed_pair()
         : first_base{},
           second_base{} {}
@@ -157,12 +169,12 @@ public:
      * @brief Returns the first element that a pair stores.
      * @return The first element that a pair stores.
      */
-    [[nodiscard]] First &first() ENTT_NOEXCEPT {
+    [[nodiscard]] first_type &first() ENTT_NOEXCEPT {
         return static_cast<first_base &>(*this).get();
     }
 
     /*! @copydoc first */
-    [[nodiscard]] const First &first() const ENTT_NOEXCEPT {
+    [[nodiscard]] const first_type &first() const ENTT_NOEXCEPT {
         return static_cast<const first_base &>(*this).get();
     }
 
@@ -170,12 +182,12 @@ public:
      * @brief Returns the second element that a pair stores.
      * @return The second element that a pair stores.
      */
-    [[nodiscard]] Second &second() ENTT_NOEXCEPT {
+    [[nodiscard]] second_type &second() ENTT_NOEXCEPT {
         return static_cast<second_base &>(*this).get();
     }
 
     /*! @copydoc second */
-    [[nodiscard]] const Second &second() const ENTT_NOEXCEPT {
+    [[nodiscard]] const second_type &second() const ENTT_NOEXCEPT {
         return static_cast<const second_base &>(*this).get();
     }
 

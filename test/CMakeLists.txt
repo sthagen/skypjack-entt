@@ -13,7 +13,7 @@ else()
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG master
+        GIT_TAG main
         GIT_SHALLOW 1
     )
 
@@ -105,6 +105,7 @@ endif()
 
 if(ENTT_BUILD_EXAMPLE)
     SETUP_BASIC_TEST(custom_identifier example/custom_identifier.cpp)
+    SETUP_BASIC_TEST(entity_copy example/entity_copy.cpp)
     SETUP_BASIC_TEST(signal_less example/signal_less.cpp)
 endif()
 
@@ -159,6 +160,11 @@ if(ENTT_BUILD_SNAPSHOT)
     target_include_directories(cereal PRIVATE ${cereal_INCLUDE_DIR})
 endif()
 
+# Test container
+
+SETUP_BASIC_TEST(dense_hash_map entt/container/dense_hash_map.cpp)
+SETUP_BASIC_TEST(dense_hash_set entt/container/dense_hash_set.cpp)
+
 # Test core
 
 SETUP_BASIC_TEST(algorithm entt/core/algorithm.cpp)
@@ -168,6 +174,7 @@ SETUP_BASIC_TEST(enum entt/core/enum.cpp)
 SETUP_BASIC_TEST(family entt/core/family.cpp)
 SETUP_BASIC_TEST(hashed_string entt/core/hashed_string.cpp)
 SETUP_BASIC_TEST(ident entt/core/ident.cpp)
+SETUP_BASIC_TEST(iterator entt/core/iterator.cpp)
 SETUP_BASIC_TEST(memory entt/core/memory.cpp)
 SETUP_BASIC_TEST(monostate entt/core/monostate.cpp)
 SETUP_BASIC_TEST(tuple entt/core/tuple.cpp)
@@ -182,7 +189,6 @@ SETUP_BASIC_TEST(group entt/entity/group.cpp)
 SETUP_BASIC_TEST(handle entt/entity/handle.cpp)
 SETUP_BASIC_TEST(helper entt/entity/helper.cpp)
 SETUP_BASIC_TEST(observer entt/entity/observer.cpp)
-SETUP_BASIC_TEST(poly_storage entt/entity/poly_storage.cpp)
 SETUP_BASIC_TEST(organizer entt/entity/organizer.cpp)
 SETUP_BASIC_TEST(registry entt/entity/registry.cpp)
 SETUP_BASIC_TEST(registry_no_eto entt/entity/registry_no_eto.cpp ENTT_NO_ETO)
@@ -213,6 +219,7 @@ SETUP_BASIC_TEST(meta_prop entt/meta/meta_prop.cpp)
 SETUP_BASIC_TEST(meta_range entt/meta/meta_range.cpp)
 SETUP_BASIC_TEST(meta_template entt/meta/meta_template.cpp)
 SETUP_BASIC_TEST(meta_type entt/meta/meta_type.cpp)
+SETUP_BASIC_TEST(meta_utility entt/meta/meta_utility.cpp)
 
 # Test poly
 

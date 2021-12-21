@@ -265,14 +265,27 @@ struct basic_handle {
     }
 
     /**
-     * @brief Visits a handle and returns the types for its components.
-     * @sa basic_registry::visit
+     * @brief Visits a handle and returns the pools for its components.
+     *
+     * The signature of the function should be equivalent to the following:
+     *
+     * @code{.cpp}
+     * void(id_type, const basic_sparse_set<entity_type> &);
+     * @endcode
+     *
+     * Returned pools are those that contain the entity associated with the
+     * handle.
+     *
      * @tparam Func Type of the function object to invoke.
      * @param func A valid function object.
      */
     template<typename Func>
     void visit(Func &&func) const {
-        reg->visit(entt, std::forward<Func>(func));
+        for(auto [id, storage]: reg->storage()) {
+            if(storage.contains(entt)) {
+                func(id, storage);
+            }
+        }
     }
 
 private:

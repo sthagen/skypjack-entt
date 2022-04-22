@@ -1,6 +1,7 @@
-#include <type_traits>
+#include <memory>
+#include <utility>
 #include <gtest/gtest.h>
-#include <entt/core/type_traits.hpp>
+#include <entt/core/hashed_string.hpp>
 #include <entt/signal/dispatcher.hpp>
 
 struct an_event {};
@@ -29,9 +30,16 @@ struct receiver {
 
 TEST(Dispatcher, Functionalities) {
     entt::dispatcher dispatcher;
+    entt::dispatcher other;
     receiver receiver;
 
-    dispatcher.trigger<one_more_event>(42);
+    ASSERT_NO_FATAL_FAILURE(entt::dispatcher{std::move(dispatcher)});
+    ASSERT_NO_FATAL_FAILURE(dispatcher = std::move(other));
+
+    ASSERT_EQ(dispatcher.size<an_event>(), 0u);
+    ASSERT_EQ(dispatcher.size(), 0u);
+
+    dispatcher.trigger(one_more_event{42});
     dispatcher.enqueue<one_more_event>(42);
     dispatcher.update<one_more_event>();
 
@@ -39,26 +47,36 @@ TEST(Dispatcher, Functionalities) {
     dispatcher.trigger<an_event>();
     dispatcher.enqueue<an_event>();
 
+    ASSERT_EQ(dispatcher.size<one_more_event>(), 0u);
+    ASSERT_EQ(dispatcher.size<an_event>(), 1u);
+    ASSERT_EQ(dispatcher.size(), 1u);
     ASSERT_EQ(receiver.cnt, 1);
 
-    dispatcher.enqueue<another_event>();
+    dispatcher.enqueue(another_event{});
     dispatcher.update<another_event>();
 
+    ASSERT_EQ(dispatcher.size<another_event>(), 0u);
+    ASSERT_EQ(dispatcher.size<an_event>(), 1u);
+    ASSERT_EQ(dispatcher.size(), 1u);
     ASSERT_EQ(receiver.cnt, 1);
 
     dispatcher.update<an_event>();
     dispatcher.trigger<an_event>();
 
+    ASSERT_EQ(dispatcher.size<an_event>(), 0u);
+    ASSERT_EQ(dispatcher.size(), 0u);
     ASSERT_EQ(receiver.cnt, 3);
 
     dispatcher.enqueue<an_event>();
     dispatcher.clear<an_event>();
     dispatcher.update();
 
-    dispatcher.enqueue<an_event>();
+    dispatcher.enqueue(an_event{});
     dispatcher.clear();
     dispatcher.update();
 
+    ASSERT_EQ(dispatcher.size<an_event>(), 0u);
+    ASSERT_EQ(dispatcher.size(), 0u);
     ASSERT_EQ(receiver.cnt, 3);
 
     receiver.reset();
@@ -72,6 +90,32 @@ TEST(Dispatcher, Functionalities) {
     dispatcher.trigger(std::as_const(event));
 
     ASSERT_EQ(receiver.cnt, 0);
+}
+
+TEST(Dispatcher, Swap) {
+    entt::dispatcher dispatcher;
+    entt::dispatcher other;
+    receiver receiver;
+
+    dispatcher.sink<an_event>().connect<&receiver::receive>(receiver);
+    dispatcher.enqueue<an_event>();
+
+    ASSERT_EQ(dispatcher.size(), 1u);
+    ASSERT_EQ(other.size(), 0u);
+    ASSERT_EQ(receiver.cnt, 0);
+
+    dispatcher.swap(other);
+    dispatcher.update();
+
+    ASSERT_EQ(dispatcher.size(), 0u);
+    ASSERT_EQ(other.size(), 1u);
+    ASSERT_EQ(receiver.cnt, 0);
+
+    other.update();
+
+    ASSERT_EQ(dispatcher.size(), 0u);
+    ASSERT_EQ(other.size(), 0u);
+    ASSERT_EQ(receiver.cnt, 1);
 }
 
 TEST(Dispatcher, StopAndGo) {
@@ -105,4 +149,52 @@ TEST(Dispatcher, OpaqueDisconnect) {
     dispatcher.trigger<an_event>();
 
     ASSERT_EQ(receiver.cnt, 1);
+}
+
+TEST(Dispatcher, NamedQueue) {
+    using namespace entt::literals;
+
+    entt::dispatcher dispatcher;
+    receiver receiver;
+
+    dispatcher.sink<an_event>("named"_hs).connect<&receiver::receive>(receiver);
+    dispatcher.trigger<an_event>();
+
+    ASSERT_EQ(receiver.cnt, 0);
+
+    dispatcher.trigger("named"_hs, an_event{});
+
+    ASSERT_EQ(receiver.cnt, 1);
+
+    dispatcher.enqueue<an_event>();
+    dispatcher.enqueue(an_event{});
+    dispatcher.enqueue_hint<an_event>("named"_hs);
+    dispatcher.enqueue_hint("named"_hs, an_event{});
+    dispatcher.update<an_event>();
+
+    ASSERT_EQ(receiver.cnt, 1);
+
+    dispatcher.clear<an_event>();
+    dispatcher.update<an_event>("named"_hs);
+
+    ASSERT_EQ(receiver.cnt, 3);
+
+    dispatcher.enqueue_hint<an_event>("named"_hs);
+    dispatcher.clear<an_event>("named"_hs);
+    dispatcher.update<an_event>("named"_hs);
+
+    ASSERT_EQ(receiver.cnt, 3);
+}
+
+TEST(Dispatcher, CustomAllocator) {
+    std::allocator<char> allocator;
+    entt::dispatcher dispatcher{allocator};
+
+    ASSERT_EQ(dispatcher.get_allocator(), allocator);
+    ASSERT_FALSE(dispatcher.get_allocator() != allocator);
+
+    dispatcher.enqueue<an_event>();
+    decltype(dispatcher) other{std::move(dispatcher), allocator};
+
+    ASSERT_EQ(other.size<an_event>(), 1u);
 }

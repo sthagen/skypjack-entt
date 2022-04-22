@@ -28,6 +28,8 @@ I hope this list can grow much more in the future:
     ECS that uses sparse sets to keep track of entities in systems.
   * [EntityX](https://github.com/alecthomas/entityx): a bitset based ECS that
     uses a single large matrix of components indexed with entities.
+  * [Gaia-ECS](https://github.com/richardbiely/gaia-ecs): a chunk based
+    archetype ECS.
   * [Polypropylene](https://github.com/pmbittner/Polypropylene): a hybrid
     solution between an ECS and dynamic mixins.
 
@@ -61,6 +63,8 @@ I hope this list can grow much more in the future:
   * [Legion](https://github.com/TomGillen/legion): a chunk based archetype ECS.
   * [Shipyard](https://github.com/leudz/shipyard): it borrows some ideas from
     `EnTT` and offers a sparse sets based ECS with grouping functionalities.
+  * [Sparsey](https://github.com/LechintanTudor/sparsey): sparse set based ECS
+    written in Rust.
   * [Specs](https://github.com/amethyst/specs): a parallel ECS based mainly on
     hierarchical bitsets that allows different types of storage as needed.
 

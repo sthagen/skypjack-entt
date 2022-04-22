@@ -5,14 +5,6 @@
 cmake_minimum_required(VERSION 3.12.4)
 
 #
-# Building in-tree is not allowed (we take care of your craziness).
-#
-
-if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-    message(FATAL_ERROR "Prevented in-tree built. Please create a build directory outside of the source code and call cmake from there. Thank you.")
-endif()
-
-#
 # Read project version
 #
 
@@ -39,15 +31,15 @@ endif()
 
 message(VERBOSE "*")
 message(VERBOSE "* ${PROJECT_NAME} v${PROJECT_VERSION} (${CMAKE_BUILD_TYPE})")
-message(VERBOSE "* Copyright (c) 2017-2021 Michele Caini <michele.caini@gmail.com>")
+message(VERBOSE "* Copyright (c) 2017-2022 Michele Caini <michele.caini@gmail.com>")
 message(VERBOSE "*")
 
 #
 # Compiler stuff
 #
 
-option(ENTT_USE_LIBCPP "Use libc++ by adding -stdlib=libc++ flag if availbale." OFF)
-option(ENTT_USE_SANITIZER "Enable sanitizers by adding -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined flags if availbale." OFF)
+option(ENTT_USE_LIBCPP "Use libc++ by adding -stdlib=libc++ flag if available." OFF)
+option(ENTT_USE_SANITIZER "Enable sanitizers by adding -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined flags if available." OFF)
 
 if(ENTT_USE_LIBCPP)
     if(NOT WIN32)
@@ -119,9 +111,10 @@ if(ENTT_INCLUDE_HEADERS)
         EnTT
         INTERFACE
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/config/config.h>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/config/macro.h>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/config/version.h>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/container/dense_hash_map.hpp>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/container/dense_hash_set.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/container/dense_map.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/container/dense_set.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/container/fwd.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/core/algorithm.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/core/any.hpp>
@@ -149,6 +142,7 @@ if(ENTT_INCLUDE_HEADERS)
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/organizer.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/registry.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/runtime_view.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/sigh_storage_mixin.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/snapshot.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/sparse_set.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/storage.hpp>
@@ -176,8 +170,8 @@ if(ENTT_INCLUDE_HEADERS)
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/process/scheduler.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/resource/cache.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/resource/fwd.hpp>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/resource/handle.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/resource/loader.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/resource/resource.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/signal/delegate.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/signal/dispatcher.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/signal/emitter.hpp>

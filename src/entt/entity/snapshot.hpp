@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 #include "../config/config.h"
-#include "../container/dense_hash_map.hpp"
+#include "../container/dense_map.hpp"
 #include "../core/type_traits.hpp"
 #include "component.hpp"
 #include "entity.hpp"
@@ -71,10 +71,10 @@ public:
         : reg{&source} {}
 
     /*! @brief Default move constructor. */
-    basic_snapshot(basic_snapshot &&) = default;
+    basic_snapshot(basic_snapshot &&) ENTT_NOEXCEPT = default;
 
     /*! @brief Default move assignment operator. @return This snapshot. */
-    basic_snapshot &operator=(basic_snapshot &&) = default;
+    basic_snapshot &operator=(basic_snapshot &&) ENTT_NOEXCEPT = default;
 
     /**
      * @brief Puts aside all the entities from the underlying registry.
@@ -164,25 +164,25 @@ class basic_snapshot_loader {
     template<typename Type, typename Archive>
     void assign(Archive &archive) const {
         typename entity_traits::entity_type length{};
+        entity_type entt;
+
         archive(length);
 
-        entity_type entt{};
-
-        if constexpr(ignore_as_empty_v<std::remove_const_t<Type>>) {
+        if constexpr(ignore_as_empty_v<Type>) {
             while(length--) {
                 archive(entt);
                 const auto entity = reg->valid(entt) ? entt : reg->create(entt);
                 ENTT_ASSERT(entity == entt, "Entity not available for use");
-                reg->template emplace<Type>(entity);
+                reg->template emplace<Type>(entt);
             }
         } else {
-            Type instance{};
+            Type instance;
 
             while(length--) {
                 archive(entt, instance);
                 const auto entity = reg->valid(entt) ? entt : reg->create(entt);
                 ENTT_ASSERT(entity == entt, "Entity not available for use");
-                reg->template emplace<Type>(entity, std::move(instance));
+                reg->template emplace<Type>(entt, std::move(instance));
             }
         }
     }
@@ -202,10 +202,10 @@ public:
     }
 
     /*! @brief Default move constructor. */
-    basic_snapshot_loader(basic_snapshot_loader &&) = default;
+    basic_snapshot_loader(basic_snapshot_loader &&) ENTT_NOEXCEPT = default;
 
     /*! @brief Default move assignment operator. @return This loader. */
-    basic_snapshot_loader &operator=(basic_snapshot_loader &&) = default;
+    basic_snapshot_loader &operator=(basic_snapshot_loader &&) ENTT_NOEXCEPT = default;
 
     /**
      * @brief Restores entities that were in use during serialization.
@@ -321,8 +321,7 @@ class basic_continuous_loader {
     }
 
     template<typename Container>
-    auto update(int, Container &container)
-        -> decltype(typename Container::mapped_type{}, void()) {
+    auto update(int, Container &container) -> decltype(typename Container::mapped_type{}, void()) {
         // map like container
         Container other;
 
@@ -340,12 +339,12 @@ class basic_continuous_loader {
             }
         }
 
-        std::swap(container, other);
+        using std::swap;
+        swap(container, other);
     }
 
     template<typename Container>
-    auto update(char, Container &container)
-        -> decltype(typename Container::value_type{}, void()) {
+    auto update(char, Container &container) -> decltype(typename Container::value_type{}, void()) {
         // vector like container
         static_assert(std::is_same_v<typename Container::value_type, entity_type>, "Invalid value type");
 
@@ -380,18 +379,18 @@ class basic_continuous_loader {
     template<typename Other, typename Archive, typename... Type, typename... Member>
     void assign(Archive &archive, [[maybe_unused]] Member Type::*...member) {
         typename entity_traits::entity_type length{};
+        entity_type entt;
+
         archive(length);
 
-        entity_type entt{};
-
-        if constexpr(ignore_as_empty_v<std::remove_const_t<Other>>) {
+        if constexpr(ignore_as_empty_v<Other>) {
             while(length--) {
                 archive(entt);
                 restore(entt);
                 reg->template emplace_or_replace<Other>(map(entt));
             }
         } else {
-            Other instance{};
+            Other instance;
 
             while(length--) {
                 archive(entt, instance);
@@ -553,7 +552,7 @@ public:
     }
 
 private:
-    dense_hash_map<entity_type, std::pair<entity_type, bool>> remloc;
+    dense_map<entity_type, std::pair<entity_type, bool>> remloc;
     basic_registry<entity_type> *reg;
 };
 

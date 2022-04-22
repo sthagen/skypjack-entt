@@ -17,14 +17,14 @@ namespace entt {
  */
 template<typename Type>
 [[nodiscard]] meta_type resolve() ENTT_NOEXCEPT {
-    return internal::meta_node<std::remove_const_t<std::remove_reference_t<Type>>>::resolve();
+    return internal::meta_node<std::remove_cv_t<std::remove_reference_t<Type>>>::resolve();
 }
 
 /**
  * @brief Returns a range to use to visit all meta types.
  * @return An iterable range to use to visit all meta types.
  */
-[[nodiscard]] inline meta_range<meta_type> resolve() {
+[[nodiscard]] inline meta_range<meta_type> resolve() ENTT_NOEXCEPT {
     return *internal::meta_context::global();
 }
 

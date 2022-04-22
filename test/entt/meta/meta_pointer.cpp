@@ -1,7 +1,7 @@
 #include <memory>
 #include <type_traits>
+#include <utility>
 #include <gtest/gtest.h>
-#include <entt/core/hashed_string.hpp>
 #include <entt/meta/meta.hpp>
 #include <entt/meta/pointer.hpp>
 #include <entt/meta/resolve.hpp>
@@ -117,8 +117,16 @@ TEST(MetaPointerLike, DereferenceOperatorConstType) {
 
     ASSERT_EQ(deref.try_cast<int>(), nullptr);
     ASSERT_EQ(deref.try_cast<const int>(), &value);
-    ASSERT_DEATH(deref.cast<int &>() = 0, "");
     ASSERT_EQ(deref.cast<const int &>(), 42);
+}
+
+TEST(MetaPointerLikeDeathTest, DereferenceOperatorConstType) {
+    const int value = 42;
+    entt::meta_any any{&value};
+    auto deref = *any;
+
+    ASSERT_TRUE(deref);
+    ASSERT_DEATH(deref.cast<int &>() = 0, "");
 }
 
 TEST(MetaPointerLike, DereferenceOperatorConstAnyNonConstType) {
@@ -149,8 +157,16 @@ TEST(MetaPointerLike, DereferenceOperatorConstAnyConstType) {
 
     ASSERT_EQ(deref.try_cast<int>(), nullptr);
     ASSERT_NE(deref.try_cast<const int>(), nullptr);
-    ASSERT_DEATH(deref.cast<int &>() = 0, "");
     ASSERT_EQ(deref.cast<const int &>(), 42);
+}
+
+TEST(MetaPointerLikeDeathTest, DereferenceOperatorConstAnyConstType) {
+    const int value = 42;
+    const entt::meta_any any{&value};
+    auto deref = *any;
+
+    ASSERT_TRUE(deref);
+    ASSERT_DEATH(deref.cast<int &>() = 0, "");
 }
 
 TEST(MetaPointerLike, DereferenceOperatorRawPointer) {
@@ -283,9 +299,19 @@ TEST(MetaPointerLike, DereferencePointerToConstOverload) {
         ASSERT_FALSE(deref.type().is_pointer());
         ASSERT_FALSE(deref.type().is_pointer_like());
         ASSERT_EQ(deref.type(), entt::resolve<int>());
-
-        ASSERT_DEATH(deref.cast<int &>() = 42, "");
         ASSERT_EQ(deref.cast<const int &>(), 42);
+    };
+
+    test(adl_wrapped_shared_ptr<const int>{42});
+    test(spec_wrapped_shared_ptr<const int>{42});
+}
+
+TEST(MetaPointerLikeDeathTest, DereferencePointerToConstOverload) {
+    auto test = [](entt::meta_any any) {
+        auto deref = *any;
+
+        ASSERT_TRUE(deref);
+        ASSERT_DEATH(deref.cast<int &>() = 42, "");
     };
 
     test(adl_wrapped_shared_ptr<const int>{42});
@@ -373,4 +399,15 @@ TEST(MetaPointerLike, DereferenceArray) {
 
     ASSERT_FALSE(*array);
     ASSERT_FALSE(*array_of_array);
+}
+
+TEST(MetaPointerLike, DereferenceVerifiableNullPointerLike) {
+    auto test = [](entt::meta_any any) {
+        ASSERT_TRUE(any);
+        ASSERT_FALSE(*any);
+    };
+
+    test(entt::meta_any{static_cast<int *>(nullptr)});
+    test(entt::meta_any{std::shared_ptr<int>{}});
+    test(entt::meta_any{std::unique_ptr<int>{}});
 }

@@ -1,5 +1,8 @@
 #include <algorithm>
+#include <cstddef>
+#include <iterator>
 #include <type_traits>
+#include <utility>
 #include <gtest/gtest.h>
 #include <entt/core/hashed_string.hpp>
 #include <entt/meta/factory.hpp>
@@ -101,6 +104,8 @@ struct MetaAny: ::testing::Test {
         entt::meta_reset();
     }
 };
+
+using MetaAnyDeathTest = MetaAny;
 
 TEST_F(MetaAny, SBO) {
     entt::meta_any any{'c'};
@@ -204,7 +209,6 @@ TEST_F(MetaAny, SBOAsConstRefConstruction) {
     ASSERT_EQ(any.type(), entt::resolve<int>());
 
     ASSERT_FALSE(any.try_cast<std::size_t>());
-    ASSERT_DEATH(any.cast<int &>() = 3, "");
     ASSERT_EQ(any.cast<const int &>(), 3);
     ASSERT_EQ(any.cast<int>(), 3);
     ASSERT_EQ(any.data(), nullptr);
@@ -228,6 +232,14 @@ TEST_F(MetaAny, SBOAsConstRefConstruction) {
     ASSERT_EQ(any.type(), entt::resolve<int>());
     ASSERT_EQ(any.cast<int>(), 3);
     ASSERT_EQ(other.data(), any.data());
+}
+
+TEST_F(MetaAnyDeathTest, SBOAsConstRefConstruction) {
+    const int value = 3;
+    auto any = entt::forward_as_meta(value);
+
+    ASSERT_TRUE(any);
+    ASSERT_DEATH(any.cast<int &>() = 3, "");
 }
 
 TEST_F(MetaAny, SBOCopyConstruction) {
@@ -463,7 +475,6 @@ TEST_F(MetaAny, NoSBOAsConstRefConstruction) {
     ASSERT_EQ(any.type(), entt::resolve<fat_t>());
 
     ASSERT_FALSE(any.try_cast<std::size_t>());
-    ASSERT_DEATH(any.cast<fat_t &>() = {}, "");
     ASSERT_EQ(any.cast<const fat_t &>(), instance);
     ASSERT_EQ(any.cast<fat_t>(), instance);
     ASSERT_EQ(any.data(), nullptr);
@@ -486,6 +497,14 @@ TEST_F(MetaAny, NoSBOAsConstRefConstruction) {
     ASSERT_EQ(any.type(), entt::resolve<fat_t>());
     ASSERT_EQ(any, entt::meta_any{instance});
     ASSERT_EQ(other.data(), any.data());
+}
+
+TEST_F(MetaAnyDeathTest, NoSBOAsConstRefConstruction) {
+    const fat_t instance{.1, .2, .3, .4};
+    auto any = entt::forward_as_meta(instance);
+
+    ASSERT_TRUE(any);
+    ASSERT_DEATH(any.cast<fat_t &>() = {}, "");
 }
 
 TEST_F(MetaAny, NoSBOCopyConstruction) {
@@ -962,7 +981,6 @@ TEST_F(MetaAny, AsRef) {
     ASSERT_EQ(any.cast<const int &>(), 42);
     ASSERT_EQ(ref.cast<int &>(), 42);
     ASSERT_EQ(ref.cast<const int &>(), 42);
-    ASSERT_DEATH(cref.cast<int &>() = 3, "");
     ASSERT_EQ(cref.cast<const int &>(), 42);
 
     any.cast<int &>() = 3;
@@ -983,9 +1001,6 @@ TEST_F(MetaAny, AsRef) {
     ASSERT_EQ(cref.try_cast<int>(), nullptr);
     ASSERT_EQ(ref.try_cast<const int>(), any.data());
     ASSERT_EQ(cref.try_cast<const int>(), any.data());
-
-    ASSERT_DEATH(ref.cast<int &>() = 3, "");
-    ASSERT_DEATH(cref.cast<int &>() = 3, "");
 
     ASSERT_EQ(ref.cast<const int &>(), 3);
     ASSERT_EQ(cref.cast<const int &>(), 3);
@@ -1009,6 +1024,14 @@ TEST_F(MetaAny, AsRef) {
     ASSERT_TRUE(any);
     ASSERT_FALSE(ref);
     ASSERT_FALSE(cref);
+}
+
+TEST_F(MetaAnyDeathTest, AsRef) {
+    entt::meta_any any{42};
+    auto cref = std::as_const(any).as_ref();
+
+    ASSERT_TRUE(any);
+    ASSERT_DEATH(cref.cast<int &>() = 3, "");
 }
 
 TEST_F(MetaAny, Comparable) {

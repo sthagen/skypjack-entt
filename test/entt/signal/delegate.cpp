@@ -1,4 +1,6 @@
 #include <memory>
+#include <type_traits>
+#include <utility>
 #include <gtest/gtest.h>
 #include <entt/signal/delegate.hpp>
 
@@ -63,9 +65,6 @@ TEST(Delegate, Functionalities) {
     entt::delegate<int(int)> lf_del;
     delegate_functor functor;
 
-    ASSERT_DEATH(ff_del(42), "");
-    ASSERT_DEATH(mf_del(42), "");
-
     ASSERT_FALSE(ff_del);
     ASSERT_FALSE(mf_del);
     ASSERT_EQ(ff_del, mf_del);
@@ -107,6 +106,14 @@ TEST(Delegate, Functionalities) {
     ASSERT_EQ(ff_del, mf_del);
     ASSERT_NE(ff_del, lf_del);
     ASSERT_NE(mf_del, lf_del);
+}
+
+TEST(DelegateDeathTest, InvokeEmpty) {
+    entt::delegate<int(int)> del;
+
+    ASSERT_FALSE(del);
+    ASSERT_DEATH(del(42), "");
+    ASSERT_DEATH(std::as_const(del)(42), "");
 }
 
 TEST(Delegate, DataMembers) {
@@ -189,7 +196,7 @@ TEST(Delegate, Comparison) {
     lhs.connect<&delegate_functor::operator()>(other);
 
     ASSERT_EQ(lhs, (entt::delegate<int(int)>{entt::connect_arg<&delegate_functor::operator()>, other}));
-    ASSERT_NE(lhs.instance(), rhs.instance());
+    ASSERT_NE(lhs.data(), rhs.data());
     ASSERT_TRUE(lhs != rhs);
     ASSERT_FALSE(lhs == rhs);
     ASSERT_NE(lhs, rhs);

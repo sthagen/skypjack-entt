@@ -15,7 +15,7 @@ namespace entt {
 template<typename Type>
 struct input_iterator_pointer final {
     /*! @brief Pointer type. */
-    using pointer = decltype(std::addressof(std::declval<Type &>()));
+    using pointer = Type *;
 
     /*! @brief Default copy constructor, deleted on purpose. */
     input_iterator_pointer(const input_iterator_pointer &) = delete;
@@ -56,16 +56,17 @@ private:
 
 /**
  * @brief Utility class to create an iterable object from a pair of iterators.
- * @tparam It Type of iterators.
+ * @tparam It Type of iterator.
+ * @tparam Sentinel Type of sentinel.
  */
-template<typename It>
+template<typename It, typename Sentinel = It>
 struct iterable_adaptor final {
-    /*! @brief Type of the objects returned during iteration. */
+    /*! @brief Value type. */
     using value_type = typename std::iterator_traits<It>::value_type;
     /*! @brief Iterator type. */
     using iterator = It;
-    /*! @brief Const iterator type. */
-    using const_iterator = iterator;
+    /*! @brief Sentinel type. */
+    using sentinel = Sentinel;
 
     /*! @brief Default constructor. */
     iterable_adaptor() = default;
@@ -75,7 +76,7 @@ struct iterable_adaptor final {
      * @param from Begin iterator.
      * @param to End iterator.
      */
-    iterable_adaptor(It from, It to)
+    iterable_adaptor(iterator from, sentinel to)
         : first{from},
           last{to} {}
 
@@ -83,7 +84,7 @@ struct iterable_adaptor final {
      * @brief Returns an iterator to the beginning.
      * @return An iterator to the first element of the range.
      */
-    [[nodiscard]] const_iterator begin() const ENTT_NOEXCEPT {
+    [[nodiscard]] iterator begin() const ENTT_NOEXCEPT {
         return first;
     }
 
@@ -92,23 +93,23 @@ struct iterable_adaptor final {
      * @return An iterator to the element following the last element of the
      * range.
      */
-    [[nodiscard]] const_iterator end() const ENTT_NOEXCEPT {
+    [[nodiscard]] sentinel end() const ENTT_NOEXCEPT {
         return last;
     }
 
     /*! @copydoc begin */
-    [[nodiscard]] const_iterator cbegin() const ENTT_NOEXCEPT {
+    [[nodiscard]] iterator cbegin() const ENTT_NOEXCEPT {
         return begin();
     }
 
     /*! @copydoc end */
-    [[nodiscard]] const_iterator cend() const ENTT_NOEXCEPT {
+    [[nodiscard]] sentinel cend() const ENTT_NOEXCEPT {
         return end();
     }
 
 private:
     It first;
-    It last;
+    Sentinel last;
 };
 
 } // namespace entt

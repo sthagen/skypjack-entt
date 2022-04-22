@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <iterator>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -57,11 +56,9 @@ class sigh<Ret(Args...), Allocator> {
     /*! @brief A sink is allowed to modify a signal. */
     friend class sink<sigh<Ret(Args...), Allocator>>;
 
-    using allocator_traits = std::allocator_traits<Allocator>;
-    using alloc = typename allocator_traits::template rebind_alloc<delegate<Ret(Args...)>>;
-    using alloc_traits = typename std::allocator_traits<alloc>;
-
-    using container_type = std::vector<delegate<Ret(Args...)>, alloc>;
+    using alloc_traits = std::allocator_traits<Allocator>;
+    static_assert(std::is_same_v<typename alloc_traits::value_type, Ret (*)(Args...)>, "Invalid value type");
+    using container_type = std::vector<delegate<Ret(Args...)>, typename alloc_traits::template rebind_alloc<delegate<Ret(Args...)>>>;
 
 public:
     /*! @brief Allocator type. */
@@ -83,7 +80,7 @@ public:
         : calls{allocator} {}
 
     /**
-     * @brief Default copy constructor.
+     * @brief Copy constructor.
      * @param other The instance to copy from.
      */
     sigh(const sigh &other)
@@ -98,7 +95,7 @@ public:
         : calls{other.calls, allocator} {}
 
     /**
-     * @brief Default move constructor.
+     * @brief Move constructor.
      * @param other The instance to move from.
      */
     sigh(sigh &&other) ENTT_NOEXCEPT
@@ -113,7 +110,7 @@ public:
         : calls{std::move(other.calls), allocator} {}
 
     /**
-     * @brief Default copy assignment operator.
+     * @brief Copy assignment operator.
      * @param other The instance to copy from.
      * @return This signal handler.
      */
@@ -123,7 +120,7 @@ public:
     }
 
     /**
-     * @brief Default move assignment operator.
+     * @brief Move assignment operator.
      * @param other The instance to move from.
      * @return This signal handler.
      */
@@ -364,7 +361,7 @@ private:
 template<typename Ret, typename... Args, typename Allocator>
 class sink<sigh<Ret(Args...), Allocator>> {
     using signal_type = sigh<Ret(Args...), Allocator>;
-    using difference_type = typename std::iterator_traits<typename decltype(signal_type::calls)::iterator>::difference_type;
+    using difference_type = typename signal_type::container_type::difference_type;
 
     template<auto Candidate, typename Type>
     static void release(Type value_or_instance, void *signal) {
@@ -408,7 +405,7 @@ public:
         const auto it = std::find(calls.cbegin(), calls.cend(), std::move(call));
 
         sink other{*this};
-        other.offset = std::distance(it, calls.cend());
+        other.offset = calls.cend() - it;
         return other;
     }
 
@@ -429,7 +426,7 @@ public:
         const auto it = std::find(calls.cbegin(), calls.cend(), std::move(call));
 
         sink other{*this};
-        other.offset = std::distance(it, calls.cend());
+        other.offset = calls.cend() - it;
         return other;
     }
 
@@ -459,10 +456,10 @@ public:
         if(value_or_instance) {
             const auto &calls = signal->calls;
             const auto it = std::find_if(calls.cbegin(), calls.cend(), [value_or_instance](const auto &delegate) {
-                return delegate.instance() == value_or_instance;
+                return delegate.data() == value_or_instance;
             });
 
-            other.offset = std::distance(it, calls.cend());
+            other.offset = calls.cend() - it;
         }
 
         return other;
@@ -578,7 +575,7 @@ public:
     void disconnect(Type *value_or_instance) {
         if(value_or_instance) {
             auto &calls = signal->calls;
-            auto predicate = [value_or_instance](const auto &delegate) { return delegate.instance() == value_or_instance; };
+            auto predicate = [value_or_instance](const auto &delegate) { return delegate.data() == value_or_instance; };
             calls.erase(std::remove_if(calls.begin(), calls.end(), std::move(predicate)), calls.end());
         }
     }

@@ -3,6 +3,12 @@
 #
 
 include(FetchContent)
+include(CheckCXXSourceCompiles)
+
+check_cxx_source_compiles("
+    #include<version>
+    int main() { return 0; }
+" ENTT_HAS_HEADER_VERSION)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -67,6 +73,14 @@ function(SETUP_TARGET TARGET_NAME)
             NOMINMAX
             ${ARGN}
     )
+
+    if(ENTT_HAS_HEADER_VERSION)
+        target_compile_definitions(
+            ${TARGET_NAME}
+            PRIVATE
+                ENTT_HAS_HEADER_VERSION
+        )
+    endif()
 endfunction()
 
 add_library(odr OBJECT odr.cpp)
@@ -160,10 +174,14 @@ if(ENTT_BUILD_SNAPSHOT)
     target_include_directories(cereal PRIVATE ${cereal_INCLUDE_DIR})
 endif()
 
+# Test config
+
+SETUP_BASIC_TEST(version entt/config/version.cpp)
+
 # Test container
 
-SETUP_BASIC_TEST(dense_hash_map entt/container/dense_hash_map.cpp)
-SETUP_BASIC_TEST(dense_hash_set entt/container/dense_hash_set.cpp)
+SETUP_BASIC_TEST(dense_map entt/container/dense_map.cpp)
+SETUP_BASIC_TEST(dense_set entt/container/dense_set.cpp)
 
 # Test core
 
@@ -184,6 +202,7 @@ SETUP_BASIC_TEST(utility entt/core/utility.cpp)
 
 # Test entity
 
+SETUP_BASIC_TEST(component entt/entity/component.cpp)
 SETUP_BASIC_TEST(entity entt/entity/entity.cpp)
 SETUP_BASIC_TEST(group entt/entity/group.cpp)
 SETUP_BASIC_TEST(handle entt/entity/handle.cpp)
@@ -191,7 +210,6 @@ SETUP_BASIC_TEST(helper entt/entity/helper.cpp)
 SETUP_BASIC_TEST(observer entt/entity/observer.cpp)
 SETUP_BASIC_TEST(organizer entt/entity/organizer.cpp)
 SETUP_BASIC_TEST(registry entt/entity/registry.cpp)
-SETUP_BASIC_TEST(registry_no_eto entt/entity/registry_no_eto.cpp ENTT_NO_ETO)
 SETUP_BASIC_TEST(runtime_view entt/entity/runtime_view.cpp)
 SETUP_BASIC_TEST(sigh_storage_mixin entt/entity/sigh_storage_mixin.cpp)
 SETUP_BASIC_TEST(snapshot entt/entity/snapshot.cpp)
@@ -223,8 +241,7 @@ SETUP_BASIC_TEST(meta_utility entt/meta/meta_utility.cpp)
 
 # Test poly
 
-SETUP_BASIC_TEST(poly_deduced entt/poly/poly_deduced.cpp)
-SETUP_BASIC_TEST(poly_defined entt/poly/poly_defined.cpp)
+SETUP_BASIC_TEST(poly entt/poly/poly.cpp)
 
 # Test process
 
@@ -234,6 +251,8 @@ SETUP_BASIC_TEST(scheduler entt/process/scheduler.cpp)
 # Test resource
 
 SETUP_BASIC_TEST(resource entt/resource/resource.cpp)
+SETUP_BASIC_TEST(resource_cache entt/resource/resource_cache.cpp)
+SETUP_BASIC_TEST(resource_loader entt/resource/resource_loader.cpp)
 
 # Test signal
 

@@ -1,13 +1,16 @@
-#include <cmath>
+#include <cstddef>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <gtest/gtest.h>
-#include <entt/container/dense_hash_set.hpp>
+#include <entt/container/dense_set.hpp>
 #include <entt/core/memory.hpp>
 #include <entt/core/utility.hpp>
+#include "../common/throwing_allocator.hpp"
+#include "../common/tracked_memory_resource.hpp"
 
 struct transparent_equal_to {
     using is_transparent = void;
@@ -19,8 +22,8 @@ struct transparent_equal_to {
     }
 };
 
-TEST(DenseHashSet, Functionalities) {
-    entt::dense_hash_set<std::size_t, entt::identity, transparent_equal_to> set;
+TEST(DenseSet, Functionalities) {
+    entt::dense_set<std::size_t, entt::identity, transparent_equal_to> set;
 
     ASSERT_NO_THROW([[maybe_unused]] auto alloc = set.get_allocator());
 
@@ -85,33 +88,33 @@ TEST(DenseHashSet, Functionalities) {
     ASSERT_FALSE(set.contains(0u));
 }
 
-TEST(DenseHashSet, Contructors) {
+TEST(DenseSet, Constructors) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<int> set;
+    entt::dense_set<int> set;
 
     ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
 
-    set = entt::dense_hash_set<int>{std::allocator<int>{}};
-    set = entt::dense_hash_set<int>{2u * minimum_bucket_count, std::allocator<float>{}};
-    set = entt::dense_hash_set<int>{4u * minimum_bucket_count, std::hash<int>(), std::allocator<double>{}};
+    set = entt::dense_set<int>{std::allocator<int>{}};
+    set = entt::dense_set<int>{2u * minimum_bucket_count, std::allocator<float>{}};
+    set = entt::dense_set<int>{4u * minimum_bucket_count, std::hash<int>(), std::allocator<double>{}};
 
     set.emplace(3);
 
-    entt::dense_hash_set<int> temp{set, set.get_allocator()};
-    entt::dense_hash_set<int> other{std::move(temp), set.get_allocator()};
+    entt::dense_set<int> temp{set, set.get_allocator()};
+    entt::dense_set<int> other{std::move(temp), set.get_allocator()};
 
-    ASSERT_EQ(other.size(), 1u);
+    ASSERT_EQ(set.size(), 1u);
     ASSERT_EQ(other.size(), 1u);
     ASSERT_EQ(set.bucket_count(), 4u * minimum_bucket_count);
     ASSERT_EQ(other.bucket_count(), 4u * minimum_bucket_count);
 }
 
-TEST(DenseHashSet, Copy) {
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+TEST(DenseSet, Copy) {
+    entt::dense_set<std::size_t, entt::identity> set;
     set.max_load_factor(set.max_load_factor() - .05f);
     set.emplace(3u);
 
-    entt::dense_hash_set<std::size_t, entt::identity> other{set};
+    entt::dense_set<std::size_t, entt::identity> other{set};
 
     ASSERT_TRUE(set.contains(3u));
     ASSERT_TRUE(other.contains(3u));
@@ -134,12 +137,12 @@ TEST(DenseHashSet, Copy) {
     ASSERT_EQ((*++other.begin(3u)), 3u);
 }
 
-TEST(DenseHashSet, Move) {
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+TEST(DenseSet, Move) {
+    entt::dense_set<std::size_t, entt::identity> set;
     set.max_load_factor(set.max_load_factor() - .05f);
     set.emplace(3u);
 
-    entt::dense_hash_set<std::size_t, entt::identity> other{std::move(set)};
+    entt::dense_set<std::size_t, entt::identity> other{std::move(set)};
 
     ASSERT_EQ(set.size(), 0u);
     ASSERT_TRUE(other.contains(3u));
@@ -162,14 +165,14 @@ TEST(DenseHashSet, Move) {
     ASSERT_EQ(*++other.begin(3u), 3u);
 }
 
-TEST(DenseHashSet, Iterator) {
-    using iterator = typename entt::dense_hash_set<int>::iterator;
+TEST(DenseSet, Iterator) {
+    using iterator = typename entt::dense_set<int>::iterator;
 
     static_assert(std::is_same_v<iterator::value_type, int>);
     static_assert(std::is_same_v<iterator::pointer, const int *>);
     static_assert(std::is_same_v<iterator::reference, const int &>);
 
-    entt::dense_hash_set<int> set;
+    entt::dense_set<int> set;
     set.emplace(3);
 
     iterator end{set.begin()};
@@ -215,14 +218,14 @@ TEST(DenseHashSet, Iterator) {
     ASSERT_EQ(begin[1u], 42);
 }
 
-TEST(DenseHashSet, ConstIterator) {
-    using iterator = typename entt::dense_hash_set<int>::const_iterator;
+TEST(DenseSet, ConstIterator) {
+    using iterator = typename entt::dense_set<int>::const_iterator;
 
     static_assert(std::is_same_v<iterator::value_type, int>);
     static_assert(std::is_same_v<iterator::pointer, const int *>);
     static_assert(std::is_same_v<iterator::reference, const int &>);
 
-    entt::dense_hash_set<int> set;
+    entt::dense_set<int> set;
     set.emplace(3);
 
     iterator cend{set.cbegin()};
@@ -268,12 +271,12 @@ TEST(DenseHashSet, ConstIterator) {
     ASSERT_EQ(cbegin[1u], 42);
 }
 
-TEST(DenseHashSet, IteratorConversion) {
-    entt::dense_hash_set<int> set;
+TEST(DenseSet, IteratorConversion) {
+    entt::dense_set<int> set;
     set.emplace(3);
 
-    typename entt::dense_hash_set<int, int>::iterator it = set.begin();
-    typename entt::dense_hash_set<int, int>::const_iterator cit = it;
+    typename entt::dense_set<int, int>::iterator it = set.begin();
+    typename entt::dense_set<int, int>::const_iterator cit = it;
 
     static_assert(std::is_same_v<decltype(*it), const int &>);
     static_assert(std::is_same_v<decltype(*cit), const int &>);
@@ -293,9 +296,9 @@ TEST(DenseHashSet, IteratorConversion) {
     ASSERT_NE(++cit, it);
 }
 
-TEST(DenseHashSet, Insert) {
-    entt::dense_hash_set<int> set;
-    typename entt::dense_hash_set<int>::iterator it;
+TEST(DenseSet, Insert) {
+    entt::dense_set<int> set;
+    typename entt::dense_set<int>::iterator it;
     bool result;
 
     ASSERT_TRUE(set.empty());
@@ -344,9 +347,9 @@ TEST(DenseHashSet, Insert) {
     ASSERT_NE(set.find(9), set.end());
 }
 
-TEST(DenseHashSet, InsertRehash) {
+TEST(DenseSet, InsertRehash) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
 
     ASSERT_EQ(set.size(), 0u);
     ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
@@ -375,9 +378,9 @@ TEST(DenseHashSet, InsertRehash) {
     }
 }
 
-TEST(DenseHashSet, InsertSameBucket) {
+TEST(DenseSet, InsertSameBucket) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
 
     for(std::size_t next{}; next < minimum_bucket_count; ++next) {
         ASSERT_EQ(set.cbegin(next), set.cend(next));
@@ -395,9 +398,9 @@ TEST(DenseHashSet, InsertSameBucket) {
     ASSERT_EQ(set.cbegin(6u), set.cend(6u));
 }
 
-TEST(DenseHashSet, Emplace) {
-    entt::dense_hash_set<int> set;
-    typename entt::dense_hash_set<int>::iterator it;
+TEST(DenseSet, Emplace) {
+    entt::dense_set<int> set;
+    typename entt::dense_set<int>::iterator it;
     bool result;
 
     ASSERT_TRUE(set.empty());
@@ -438,9 +441,9 @@ TEST(DenseHashSet, Emplace) {
     ASSERT_EQ(*it, 1);
 }
 
-TEST(DenseHashSet, EmplaceRehash) {
+TEST(DenseSet, EmplaceRehash) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
 
     ASSERT_EQ(set.size(), 0u);
     ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
@@ -470,9 +473,9 @@ TEST(DenseHashSet, EmplaceRehash) {
     }
 }
 
-TEST(DenseHashSet, EmplaceSameBucket) {
+TEST(DenseSet, EmplaceSameBucket) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
 
     for(std::size_t next{}; next < minimum_bucket_count; ++next) {
         ASSERT_EQ(set.cbegin(next), set.cend(next));
@@ -490,9 +493,9 @@ TEST(DenseHashSet, EmplaceSameBucket) {
     ASSERT_EQ(set.cbegin(6u), set.cend(6u));
 }
 
-TEST(DenseHashSet, Erase) {
+TEST(DenseSet, Erase) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
 
     for(std::size_t next{}, last = minimum_bucket_count + 1u; next < last; ++next) {
         set.emplace(next);
@@ -540,9 +543,9 @@ TEST(DenseHashSet, Erase) {
     ASSERT_EQ(set.size(), 0u);
 }
 
-TEST(DenseHashSet, EraseFromBucket) {
+TEST(DenseSet, EraseFromBucket) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
 
     ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
     ASSERT_EQ(set.size(), 0u);
@@ -631,9 +634,9 @@ TEST(DenseHashSet, EraseFromBucket) {
     ASSERT_FALSE(set.contains(4u * minimum_bucket_count + 2u));
 }
 
-TEST(DenseHashSet, Swap) {
-    entt::dense_hash_set<int> set;
-    entt::dense_hash_set<int> other;
+TEST(DenseSet, Swap) {
+    entt::dense_set<int> set;
+    entt::dense_set<int> other;
 
     set.emplace(0);
 
@@ -650,15 +653,15 @@ TEST(DenseHashSet, Swap) {
     ASSERT_TRUE(other.contains(0));
 }
 
-TEST(DenseHashSet, LocalIterator) {
-    using iterator = typename entt::dense_hash_set<std::size_t, entt::identity>::local_iterator;
+TEST(DenseSet, LocalIterator) {
+    using iterator = typename entt::dense_set<std::size_t, entt::identity>::local_iterator;
 
     static_assert(std::is_same_v<iterator::value_type, std::size_t>);
     static_assert(std::is_same_v<iterator::pointer, const std::size_t *>);
     static_assert(std::is_same_v<iterator::reference, const std::size_t &>);
 
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
     set.emplace(3u);
     set.emplace(3u + minimum_bucket_count);
 
@@ -678,15 +681,15 @@ TEST(DenseHashSet, LocalIterator) {
     ASSERT_EQ(++begin, set.end(3u));
 }
 
-TEST(DenseHashSet, ConstLocalIterator) {
-    using iterator = typename entt::dense_hash_set<std::size_t, entt::identity>::const_local_iterator;
+TEST(DenseSet, ConstLocalIterator) {
+    using iterator = typename entt::dense_set<std::size_t, entt::identity>::const_local_iterator;
 
     static_assert(std::is_same_v<iterator::value_type, std::size_t>);
     static_assert(std::is_same_v<iterator::pointer, const std::size_t *>);
     static_assert(std::is_same_v<iterator::reference, const std::size_t &>);
 
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
     set.emplace(3u);
     set.emplace(3u + minimum_bucket_count);
 
@@ -706,12 +709,12 @@ TEST(DenseHashSet, ConstLocalIterator) {
     ASSERT_EQ(++cbegin, set.end(3u));
 }
 
-TEST(DenseHashSet, LocalIteratorConversion) {
-    entt::dense_hash_set<int> set;
+TEST(DenseSet, LocalIteratorConversion) {
+    entt::dense_set<int> set;
     set.emplace(3);
 
-    typename entt::dense_hash_set<int>::local_iterator it = set.begin(set.bucket(3));
-    typename entt::dense_hash_set<int>::const_local_iterator cit = it;
+    typename entt::dense_set<int>::local_iterator it = set.begin(set.bucket(3));
+    typename entt::dense_set<int>::const_local_iterator cit = it;
 
     static_assert(std::is_same_v<decltype(*it), const int &>);
     static_assert(std::is_same_v<decltype(*cit), const int &>);
@@ -725,9 +728,9 @@ TEST(DenseHashSet, LocalIteratorConversion) {
     ASSERT_NE(++cit, it);
 }
 
-TEST(DenseHashSet, Rehash) {
+TEST(DenseSet, Rehash) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<std::size_t, entt::identity> set;
+    entt::dense_set<std::size_t, entt::identity> set;
     set.emplace(32u);
 
     ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
@@ -800,9 +803,9 @@ TEST(DenseHashSet, Rehash) {
     ASSERT_EQ(set.bucket_size(3u), 0u);
 }
 
-TEST(DenseHashSet, Reserve) {
+TEST(DenseSet, Reserve) {
     static constexpr std::size_t minimum_bucket_count = 8u;
-    entt::dense_hash_set<int> set;
+    entt::dense_set<int> set;
 
     ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
 
@@ -815,3 +818,68 @@ TEST(DenseHashSet, Reserve) {
     ASSERT_EQ(set.bucket_count(), 2 * minimum_bucket_count);
     ASSERT_EQ(set.bucket_count(), entt::next_power_of_two(std::ceil(minimum_bucket_count / set.max_load_factor())));
 }
+
+TEST(DenseSet, ThrowingAllocator) {
+    using allocator = test::throwing_allocator<std::size_t>;
+    using packed_allocator = test::throwing_allocator<std::pair<std::size_t, std::size_t>>;
+    using packed_exception = typename packed_allocator::exception_type;
+
+    static constexpr std::size_t minimum_bucket_count = 8u;
+    entt::dense_set<std::size_t, std::hash<std::size_t>, std::equal_to<std::size_t>, allocator> set{};
+
+    packed_allocator::trigger_on_allocate = true;
+
+    ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
+    ASSERT_THROW(set.reserve(2u * set.bucket_count()), packed_exception);
+    ASSERT_EQ(set.bucket_count(), minimum_bucket_count);
+
+    packed_allocator::trigger_on_allocate = true;
+
+    ASSERT_THROW(set.emplace(), packed_exception);
+    ASSERT_FALSE(set.contains(0u));
+
+    packed_allocator::trigger_on_allocate = true;
+
+    ASSERT_THROW(set.emplace(std::size_t{}), packed_exception);
+    ASSERT_FALSE(set.contains(0u));
+
+    packed_allocator::trigger_on_allocate = true;
+
+    ASSERT_THROW(set.insert(0u), packed_exception);
+    ASSERT_FALSE(set.contains(0u));
+}
+
+#if defined(ENTT_HAS_TRACKED_MEMORY_RESOURCE)
+
+TEST(DenseSet, NoUsesAllocatorConstruction) {
+    using allocator = std::pmr::polymorphic_allocator<int>;
+
+    test::tracked_memory_resource memory_resource{};
+    entt::dense_set<int, std::hash<int>, std::equal_to<int>, allocator> set{&memory_resource};
+
+    set.reserve(1u);
+    memory_resource.reset();
+    set.emplace(0);
+
+    ASSERT_TRUE(set.get_allocator().resource()->is_equal(memory_resource));
+    ASSERT_EQ(memory_resource.do_allocate_counter(), 0u);
+    ASSERT_EQ(memory_resource.do_deallocate_counter(), 0u);
+}
+
+TEST(DenseSet, UsesAllocatorConstruction) {
+    using string_type = typename test::tracked_memory_resource::string_type;
+    using allocator = std::pmr::polymorphic_allocator<string_type>;
+
+    test::tracked_memory_resource memory_resource{};
+    entt::dense_set<string_type, std::hash<string_type>, std::equal_to<string_type>, allocator> set{&memory_resource};
+
+    set.reserve(1u);
+    memory_resource.reset();
+    set.emplace(test::tracked_memory_resource::default_value);
+
+    ASSERT_TRUE(set.get_allocator().resource()->is_equal(memory_resource));
+    ASSERT_GT(memory_resource.do_allocate_counter(), 0u);
+    ASSERT_EQ(memory_resource.do_deallocate_counter(), 0u);
+}
+
+#endif

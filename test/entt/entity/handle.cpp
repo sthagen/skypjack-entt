@@ -1,3 +1,4 @@
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <gtest/gtest.h>
@@ -179,8 +180,6 @@ TEST(BasicHandle, Component) {
     ASSERT_FALSE(handle.orphan());
 
     ASSERT_EQ(1u, (handle.remove<int>()));
-    ASSERT_DEATH(handle.erase<int>(), "");
-
     ASSERT_TRUE(registry.storage<int>().empty());
     ASSERT_TRUE(handle.orphan());
 

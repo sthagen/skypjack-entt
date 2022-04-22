@@ -1,10 +1,14 @@
 #include <algorithm>
-#include <string>
+#include <cstdint>
+#include <cstring>
+#include <iterator>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <gtest/gtest.h>
 #include <entt/core/any.hpp>
+#include <entt/core/type_info.hpp>
 
 struct empty {
     ~empty() {
@@ -66,6 +70,8 @@ struct Any: ::testing::Test {
         empty::counter = 0;
     }
 };
+
+using AnyDeathTest = Any;
 
 TEST_F(Any, SBO) {
     entt::any any{'c'};
@@ -1174,9 +1180,7 @@ TEST_F(Any, AnyCast) {
     ASSERT_EQ(*entt::any_cast<int>(&any), 42);
     ASSERT_EQ(*entt::any_cast<int>(&cany), 42);
     ASSERT_EQ(entt::any_cast<int &>(any), 42);
-    ASSERT_DEATH(entt::any_cast<double &>(any), "");
     ASSERT_EQ(entt::any_cast<const int &>(cany), 42);
-    ASSERT_DEATH(entt::any_cast<const double &>(cany), "");
 
     not_copyable instance{};
     instance.payload = 42.;
@@ -1184,10 +1188,24 @@ TEST_F(Any, AnyCast) {
     entt::any cref{entt::forward_as_any(std::as_const(instance).payload)};
 
     ASSERT_EQ(entt::any_cast<not_copyable>(std::move(ref)).payload, 42.);
-    ASSERT_DEATH(entt::any_cast<not_copyable>(std::as_const(ref).as_ref()), "");
     ASSERT_EQ(entt::any_cast<double>(std::move(cref)), 42.);
-    ASSERT_DEATH(entt::any_cast<double>(entt::any{42}), "");
     ASSERT_EQ(entt::any_cast<int>(entt::any{42}), 42);
+}
+
+TEST_F(AnyDeathTest, AnyCast) {
+    entt::any any{42};
+    const auto &cany = any;
+
+    ASSERT_DEATH(entt::any_cast<double &>(any), "");
+    ASSERT_DEATH(entt::any_cast<const double &>(cany), "");
+
+    not_copyable instance{};
+    instance.payload = 42.;
+    entt::any ref{entt::forward_as_any(instance)};
+    entt::any cref{entt::forward_as_any(std::as_const(instance).payload)};
+
+    ASSERT_DEATH(entt::any_cast<not_copyable>(std::as_const(ref).as_ref()), "");
+    ASSERT_DEATH(entt::any_cast<double>(entt::any{42}), "");
 }
 
 TEST_F(Any, MakeAny) {
@@ -1244,68 +1262,83 @@ TEST_F(Any, ForwardAsAny) {
 }
 
 TEST_F(Any, NotCopyableType) {
-    auto test = [](entt::any any, entt::any other) {
-        ASSERT_TRUE(any);
-        ASSERT_TRUE(other);
-
-        ASSERT_TRUE(any.owner());
-        ASSERT_FALSE(other.owner());
-        ASSERT_EQ(any.type(), other.type());
-
-        ASSERT_FALSE(any.assign(other));
-        ASSERT_FALSE(any.assign(std::move(other)));
-
-        entt::any copy{any};
-
-        ASSERT_TRUE(any);
-        ASSERT_FALSE(copy);
-
-        ASSERT_TRUE(any.owner());
-        ASSERT_TRUE(copy.owner());
-
-        copy = any;
-
-        ASSERT_TRUE(any);
-        ASSERT_FALSE(copy);
-
-        ASSERT_TRUE(any.owner());
-        ASSERT_TRUE(copy.owner());
-    };
-
     const not_copyable value{};
-    test(entt::any{std::in_place_type<not_copyable>}, entt::forward_as_any(value));
+    entt::any any{std::in_place_type<not_copyable>};
+    entt::any other = entt::forward_as_any(value);
+
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(other);
+
+    ASSERT_TRUE(any.owner());
+    ASSERT_FALSE(other.owner());
+    ASSERT_EQ(any.type(), other.type());
+
+    ASSERT_FALSE(any.assign(other));
+    ASSERT_FALSE(any.assign(std::move(other)));
+
+    entt::any copy{any};
+
+    ASSERT_TRUE(any);
+    ASSERT_FALSE(copy);
+
+    ASSERT_TRUE(any.owner());
+    ASSERT_TRUE(copy.owner());
+
+    copy = any;
+
+    ASSERT_TRUE(any);
+    ASSERT_FALSE(copy);
+
+    ASSERT_TRUE(any.owner());
+    ASSERT_TRUE(copy.owner());
+}
+
+TEST_F(Any, NotCopyableValueType) {
+    std::vector<entt::any> vec{};
+    vec.emplace_back(std::in_place_type<not_copyable>);
+    vec.shrink_to_fit();
+
+    ASSERT_EQ(vec.size(), 1u);
+    ASSERT_EQ(vec.capacity(), 1u);
+    ASSERT_TRUE(vec[0u]);
+
+    // strong exception guarantee due to noexcept move ctor
+    vec.emplace_back(std::in_place_type<not_copyable>);
+
+    ASSERT_EQ(vec.size(), 2u);
+    ASSERT_TRUE(vec[0u]);
+    ASSERT_TRUE(vec[1u]);
 }
 
 TEST_F(Any, NotMovableType) {
-    auto test = [](entt::any any, entt::any other) {
-        ASSERT_TRUE(any);
-        ASSERT_TRUE(other);
+    entt::any any{std::in_place_type<not_movable>};
+    entt::any other{std::in_place_type<not_movable>};
 
-        ASSERT_TRUE(any.owner());
-        ASSERT_TRUE(other.owner());
-        ASSERT_EQ(any.type(), other.type());
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(other);
 
-        ASSERT_TRUE(any.assign(other));
-        ASSERT_TRUE(any.assign(std::move(other)));
+    ASSERT_TRUE(any.owner());
+    ASSERT_TRUE(other.owner());
+    ASSERT_EQ(any.type(), other.type());
 
-        entt::any copy{any};
+    ASSERT_TRUE(any.assign(other));
+    ASSERT_TRUE(any.assign(std::move(other)));
 
-        ASSERT_TRUE(any);
-        ASSERT_TRUE(copy);
+    entt::any copy{any};
 
-        ASSERT_TRUE(any.owner());
-        ASSERT_TRUE(copy.owner());
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(copy);
 
-        copy = any;
+    ASSERT_TRUE(any.owner());
+    ASSERT_TRUE(copy.owner());
 
-        ASSERT_TRUE(any);
-        ASSERT_TRUE(copy);
+    copy = any;
 
-        ASSERT_TRUE(any.owner());
-        ASSERT_TRUE(copy.owner());
-    };
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(copy);
 
-    test(entt::any{std::in_place_type<not_movable>}, entt::any{std::in_place_type<not_movable>});
+    ASSERT_TRUE(any.owner());
+    ASSERT_TRUE(copy.owner());
 }
 
 TEST_F(Any, Array) {
@@ -1376,28 +1409,36 @@ TEST_F(Any, SBOVsZeroedSBOSize) {
     ASSERT_EQ(valid, same.data());
 }
 
-TEST_F(Any, Alignment) {
+TEST_F(Any, SboAlignment) {
     static constexpr auto alignment = alignof(over_aligned);
-
-    auto test = [](auto *target, auto cb) {
-        const auto *data = target[0].data();
-
-        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[0u].data()) % alignment) == 0u);
-        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[1u].data()) % alignment) == 0u);
-
-        std::swap(target[0], target[1]);
-
-        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[0u].data()) % alignment) == 0u);
-        ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(target[1u].data()) % alignment) == 0u);
-
-        cb(data, target[1].data());
-    };
-
-    entt::basic_any<alignment> nosbo[2] = {over_aligned{}, over_aligned{}};
-    test(nosbo, [](auto *pre, auto *post) { ASSERT_EQ(pre, post); });
-
     entt::basic_any<alignment, alignment> sbo[2] = {over_aligned{}, over_aligned{}};
-    test(sbo, [](auto *pre, auto *post) { ASSERT_NE(pre, post); });
+    const auto *data = sbo[0].data();
+
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[0u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[1u].data()) % alignment) == 0u);
+
+    std::swap(sbo[0], sbo[1]);
+
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[0u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[1u].data()) % alignment) == 0u);
+
+    ASSERT_NE(data, sbo[1].data());
+}
+
+TEST_F(Any, NoSboAlignment) {
+    static constexpr auto alignment = alignof(over_aligned);
+    entt::basic_any<alignment> nosbo[2] = {over_aligned{}, over_aligned{}};
+    const auto *data = nosbo[0].data();
+
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[0u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[1u].data()) % alignment) == 0u);
+
+    std::swap(nosbo[0], nosbo[1]);
+
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[0u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[1u].data()) % alignment) == 0u);
+
+    ASSERT_EQ(data, nosbo[1].data());
 }
 
 TEST_F(Any, AggregatesMustWork) {
@@ -1414,11 +1455,11 @@ TEST_F(Any, DeducedArrayType) {
 
     ASSERT_TRUE(any);
     ASSERT_EQ(any.type(), entt::type_id<const char *>());
-    ASSERT_EQ((strcmp("array of char", entt::any_cast<const char *>(any))), 0);
+    ASSERT_EQ((std::strcmp("array of char", entt::any_cast<const char *>(any))), 0);
 
     any = "another array of char";
 
     ASSERT_TRUE(any);
     ASSERT_EQ(any.type(), entt::type_id<const char *>());
-    ASSERT_EQ((strcmp("another array of char", entt::any_cast<const char *>(any))), 0);
+    ASSERT_EQ((std::strcmp("another array of char", entt::any_cast<const char *>(any))), 0);
 }

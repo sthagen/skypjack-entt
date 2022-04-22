@@ -62,7 +62,7 @@ class basic_group;
  * @tparam Exclude Types of components used to filter the group.
  */
 template<typename Entity, typename... Get, typename... Exclude>
-class basic_group<Entity, owned_t<>, get_t<Get...>, exclude_t<Exclude...>> final {
+class basic_group<Entity, owned_t<>, get_t<Get...>, exclude_t<Exclude...>> {
     /*! @brief A registry is allowed to create groups. */
     friend class basic_registry<Entity>;
 
@@ -80,7 +80,7 @@ class basic_group<Entity, owned_t<>, get_t<Get...>, exclude_t<Exclude...>> final
 
         extended_group_iterator() = default;
 
-        extended_group_iterator(typename basic_common_type::iterator from, const std::tuple<storage_type<Get> *...> &args) ENTT_NOEXCEPT
+        extended_group_iterator(typename basic_common_type::iterator from, const std::tuple<storage_type<Get> *...> &args)
             : it{from},
               pools{args} {}
 
@@ -255,7 +255,7 @@ public:
      * @return The first entity of the group if one exists, the null entity
      * otherwise.
      */
-    [[nodiscard]] entity_type front() const {
+    [[nodiscard]] entity_type front() const ENTT_NOEXCEPT {
         const auto it = begin();
         return it != end() ? *it : null;
     }
@@ -265,7 +265,7 @@ public:
      * @return The last entity of the group if one exists, the null entity
      * otherwise.
      */
-    [[nodiscard]] entity_type back() const {
+    [[nodiscard]] entity_type back() const ENTT_NOEXCEPT {
         const auto it = rbegin();
         return it != rend() ? *it : null;
     }
@@ -276,7 +276,7 @@ public:
      * @return An iterator to the given entity if it's found, past the end
      * iterator otherwise.
      */
-    [[nodiscard]] iterator find(const entity_type entt) const {
+    [[nodiscard]] iterator find(const entity_type entt) const ENTT_NOEXCEPT {
         const auto it = *this ? handler->find(entt) : iterator{};
         return it != end() && *it == entt ? it : end();
     }
@@ -303,7 +303,7 @@ public:
      * @param entt A valid identifier.
      * @return True if the group contains the given entity, false otherwise.
      */
-    [[nodiscard]] bool contains(const entity_type entt) const {
+    [[nodiscard]] bool contains(const entity_type entt) const ENTT_NOEXCEPT {
         return *this && handler->contains(entt);
     }
 
@@ -517,7 +517,7 @@ private:
  * @tparam Exclude Types of components used to filter the group.
  */
 template<typename Entity, typename... Owned, typename... Get, typename... Exclude>
-class basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> final {
+class basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> {
     /*! @brief A registry is allowed to create groups. */
     friend class basic_registry<Entity>;
 
@@ -526,11 +526,17 @@ class basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...
 
     using basic_common_type = std::common_type_t<typename storage_type<Owned>::base_type..., typename storage_type<Get>::base_type...>;
 
-    template<typename>
-    struct extended_group_iterator;
+    class extended_group_iterator final {
+        template<typename Type>
+        auto index_to_element(storage_type<Type> &cpool) const {
+            if constexpr(ignore_as_empty_v<std::remove_const_t<Type>>) {
+                return std::make_tuple();
+            } else {
+                return std::forward_as_tuple(cpool.rbegin()[it.index()]);
+            }
+        }
 
-    template<typename... OIt>
-    struct extended_group_iterator<type_list<OIt...>> final {
+    public:
         using difference_type = std::ptrdiff_t;
         using value_type = decltype(std::tuple_cat(std::tuple<Entity>{}, std::declval<basic_group>().get({})));
         using pointer = input_iterator_pointer<value_type>;
@@ -540,13 +546,12 @@ class basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...
         extended_group_iterator() = default;
 
         template<typename... Other>
-        extended_group_iterator(typename basic_common_type::iterator from, const std::tuple<Other...> &other, const std::tuple<storage_type<Get> *...> &cpools) ENTT_NOEXCEPT
+        extended_group_iterator(typename basic_common_type::iterator from, const std::tuple<storage_type<Owned> *..., storage_type<Get> *...> &cpools)
             : it{from},
-              owned{std::get<OIt>(other)...},
-              get{cpools} {}
+              pools{cpools} {}
 
         extended_group_iterator &operator++() ENTT_NOEXCEPT {
-            return ++it, (++std::get<OIt>(owned), ...), *this;
+            return ++it, *this;
         }
 
         extended_group_iterator operator++(int) ENTT_NOEXCEPT {
@@ -557,8 +562,8 @@ class basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...
         [[nodiscard]] reference operator*() const ENTT_NOEXCEPT {
             return std::tuple_cat(
                 std::make_tuple(*it),
-                std::forward_as_tuple(*std::get<OIt>(owned)...),
-                std::get<storage_type<Get> *>(get)->get_as_tuple(*it)...);
+                index_to_element<Owned>(*std::get<storage_type<Owned> *>(pools))...,
+                std::get<storage_type<Get> *>(pools)->get_as_tuple(*it)...);
         }
 
         [[nodiscard]] pointer operator->() const ENTT_NOEXCEPT {
@@ -575,8 +580,7 @@ class basic_group<Entity, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...
 
     private:
         typename basic_common_type::iterator it;
-        std::tuple<OIt...> owned;
-        std::tuple<storage_type<Get> *...> get;
+        std::tuple<storage_type<Owned> *..., storage_type<Get> *...> pools;
     };
 
     basic_group(const std::size_t &extent, storage_type<Owned> &...opool, storage_type<Get> &...gpool) ENTT_NOEXCEPT
@@ -595,7 +599,7 @@ public:
     /*! @brief Reversed iterator type. */
     using reverse_iterator = typename base_type::reverse_iterator;
     /*! @brief Iterable group type. */
-    using iterable = iterable_adaptor<extended_group_iterator<type_list_cat_t<std::conditional_t<ignore_as_empty_v<std::remove_const_t<Owned>>, type_list<>, type_list<decltype(std::declval<storage_type<Owned>>().end())>>...>>>;
+    using iterable = iterable_adaptor<extended_group_iterator>;
 
     /*! @brief Default constructor to use to create empty, invalid groups. */
     basic_group() ENTT_NOEXCEPT
@@ -695,7 +699,7 @@ public:
      * @return The first entity of the group if one exists, the null entity
      * otherwise.
      */
-    [[nodiscard]] entity_type front() const {
+    [[nodiscard]] entity_type front() const ENTT_NOEXCEPT {
         const auto it = begin();
         return it != end() ? *it : null;
     }
@@ -705,7 +709,7 @@ public:
      * @return The last entity of the group if one exists, the null entity
      * otherwise.
      */
-    [[nodiscard]] entity_type back() const {
+    [[nodiscard]] entity_type back() const ENTT_NOEXCEPT {
         const auto it = rbegin();
         return it != rend() ? *it : null;
     }
@@ -716,7 +720,7 @@ public:
      * @return An iterator to the given entity if it's found, past the end
      * iterator otherwise.
      */
-    [[nodiscard]] iterator find(const entity_type entt) const {
+    [[nodiscard]] iterator find(const entity_type entt) const ENTT_NOEXCEPT {
         const auto it = *this ? std::get<0>(pools)->find(entt) : iterator{};
         return it != end() && it >= begin() && *it == entt ? it : end();
     }
@@ -743,7 +747,7 @@ public:
      * @param entt A valid identifier.
      * @return True if the group contains the given entity, false otherwise.
      */
-    [[nodiscard]] bool contains(const entity_type entt) const {
+    [[nodiscard]] bool contains(const entity_type entt) const ENTT_NOEXCEPT {
         return *this && std::get<0>(pools)->contains(entt) && (std::get<0>(pools)->index(entt) < (*length));
     }
 
@@ -822,11 +826,8 @@ public:
      * @return An iterable object to use to _visit_ the group.
      */
     [[nodiscard]] iterable each() const ENTT_NOEXCEPT {
-        using extended_iterator_type = typename iterable::iterator;
         iterator last = length ? std::get<0>(pools)->basic_common_type::end() : iterator{};
-        auto from = extended_iterator_type{last - *length, std::make_tuple((std::get<storage_type<Owned> *>(pools)->end() - *length)...), std::make_tuple(std::get<storage_type<Get> *>(pools)...)};
-        auto to = extended_iterator_type{last, std::make_tuple((std::get<storage_type<Owned> *>(pools)->end())...), std::make_tuple(std::get<storage_type<Get> *>(pools)...)};
-        return {std::move(from), std::move(to)};
+        return {extended_group_iterator{last - *length, pools}, extended_group_iterator{last, pools}};
     }
 
     /**

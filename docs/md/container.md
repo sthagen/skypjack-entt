@@ -7,8 +7,8 @@
 
 * [Introduction](#introduction)
 * [Containers](#containers)
-  * [Dense hash map](#dense-hash-map)
-  * [Dense hash set](#dense-hash-set)
+  * [Dense map](#dense-map)
+  * [Dense set](#dense-set)
 
 <!--
 @endcond TURN_OFF_DOXYGEN
@@ -31,23 +31,34 @@ guaranteed as usual.
 
 # Containers
 
-## Dense hash map
+## Dense map
 
-The dense hash map made available in `EnTT` is a map that aims to return a
+The dense map made available in `EnTT` is a hash map that aims to return a
 packed array of elements, so as to reduce the number of jumps in memory during
-the iteration.<br/>
+iterations.<br/>
 The implementation is based on _sparse sets_ and each bucket is identified by an
 implicit list within the packed array itself.
 
-The interface is in all respects similar to its counterpart in the standard
-library, that is, `std::unordered_map`.<br/>
-Therefore, there is no need to go into the API description.
+The interface is very close to its counterpart in the standard library, that is,
+`std::unordered_map`.<br/>
+However, both local and non-local iterators returned by a dense map belong to
+the input iterator category although they respectively model the concepts of a
+_forward iterator_ type and a _random access iterator_ type.<br/>
+This is because they return a pair of references rather than a reference to a
+pair. In other words, dense maps return a so called _proxy iterator_ the value
+type of which is:
 
-## Dense hash set
+* `std::pair<const Key &, Type &>` for non-const iterator types.
+* `std::pair<const Key &, const Type &>` for const iterator types.
 
-The dense hash set made available in `EnTT` is a set that aims to return a
+This is quite different from what any standard library map returns and should be
+taken into account when looking for a drop-in replacement.
+
+## Dense set
+
+The dense set made available in `EnTT` is a hash set that aims to return a
 packed array of elements, so as to reduce the number of jumps in memory during
-the iteration.<br/>
+iterations.<br/>
 The implementation is based on _sparse sets_ and each bucket is identified by an
 implicit list within the packed array itself.
 

@@ -1,10 +1,14 @@
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <utility>
 #include <vector>
 #include <gtest/gtest.h>
 #include <entt/core/hashed_string.hpp>
+#include <entt/core/type_info.hpp>
+#include <entt/core/utility.hpp>
 #include <entt/meta/container.hpp>
+#include <entt/meta/ctx.hpp>
 #include <entt/meta/factory.hpp>
 #include <entt/meta/meta.hpp>
 #include <entt/meta/pointer.hpp>
@@ -37,6 +41,7 @@ struct abstract_t {
     virtual ~abstract_t() = default;
 
     virtual void func(int) {}
+    void base_only(int) {}
 };
 
 struct concrete_t: base_t, abstract_t {
@@ -124,7 +129,8 @@ struct MetaType: ::testing::Test {
 
         entt::meta<abstract_t>()
             .type("abstract"_hs)
-            .func<&abstract_t::func>("func"_hs);
+            .func<&abstract_t::func>("func"_hs)
+            .func<&abstract_t::base_only>("base_only"_hs);
 
         entt::meta<concrete_t>()
             .type("concrete"_hs)
@@ -166,6 +172,8 @@ struct MetaType: ::testing::Test {
         entt::meta_reset();
     }
 };
+
+using MetaTypeDeathTest = MetaType;
 
 TEST_F(MetaType, Resolve) {
     using namespace entt::literals;
@@ -337,6 +345,16 @@ TEST_F(MetaType, Invoke) {
 
     ASSERT_TRUE(type.invoke("member"_hs, instance));
     ASSERT_FALSE(type.invoke("rebmem"_hs, {}));
+}
+
+TEST_F(MetaType, InvokeFromBase) {
+    using namespace entt::literals;
+
+    auto type = entt::resolve<concrete_t>();
+    concrete_t instance{};
+
+    ASSERT_TRUE(type.invoke("base_only"_hs, instance, 42));
+    ASSERT_FALSE(type.invoke("ylno_esab"_hs, {}, 'c'));
 }
 
 TEST_F(MetaType, OverloadedFunc) {
@@ -649,6 +667,10 @@ TEST_F(MetaType, NameCollision) {
     ASSERT_NO_FATAL_FAILURE(entt::meta<clazz_t>().type("quux"_hs));
     ASSERT_FALSE(entt::resolve("clazz"_hs));
     ASSERT_TRUE(entt::resolve("quux"_hs));
+}
+
+TEST_F(MetaTypeDeathTest, NameCollision) {
+    using namespace entt::literals;
 
     ASSERT_DEATH(entt::meta<clazz_t>().type("abstract"_hs), "");
 }

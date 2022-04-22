@@ -1,3 +1,5 @@
+#include <cstddef>
+#include <utility>
 #include <gtest/gtest.h>
 #include <entt/core/hashed_string.hpp>
 #include <entt/core/utility.hpp>
@@ -131,7 +133,25 @@ struct MetaFunc: ::testing::Test {
     void TearDown() override {
         entt::meta_reset();
     }
+
+    std::size_t reset_and_check() {
+        std::size_t count = 0;
+
+        for(auto func: entt::resolve<func_t>().func()) {
+            count += static_cast<bool>(func);
+        }
+
+        SetUp();
+
+        for(auto func: entt::resolve<func_t>().func()) {
+            count -= static_cast<bool>(func);
+        }
+
+        return count;
+    };
 };
+
+using MetaFuncDeathTest = MetaFunc;
 
 TEST_F(MetaFunc, Functionalities) {
     using namespace entt::literals;
@@ -479,10 +499,18 @@ TEST_F(MetaFunc, AsConstRef) {
     func_t instance{};
     auto func = entt::resolve<func_t>().func("ca"_hs);
 
-    ASSERT_DEATH((func.invoke(instance).cast<int &>() = 3), "");
     ASSERT_EQ(func.ret(), entt::resolve<int>());
     ASSERT_EQ(func.invoke(instance).cast<const int &>(), 3);
     ASSERT_EQ(func.invoke(instance).cast<int>(), 3);
+}
+
+TEST_F(MetaFuncDeathTest, AsConstRef) {
+    using namespace entt::literals;
+
+    func_t instance{};
+    auto func = entt::resolve<func_t>().func("ca"_hs);
+
+    ASSERT_DEATH((func.invoke(instance).cast<int &>() = 3), "");
 }
 
 TEST_F(MetaFunc, InvokeBaseFunction) {
@@ -557,23 +585,7 @@ TEST_F(MetaFunc, ExternalMemberFunction) {
 TEST_F(MetaFunc, ReRegistration) {
     using namespace entt::literals;
 
-    auto reset_and_check = [this]() {
-        int count = 0;
-
-        for(auto func: entt::resolve<func_t>().func()) {
-            count += static_cast<bool>(func);
-        }
-
-        SetUp();
-
-        for(auto func: entt::resolve<func_t>().func()) {
-            count -= static_cast<bool>(func);
-        }
-
-        ASSERT_EQ(count, 0);
-    };
-
-    reset_and_check();
+    ASSERT_EQ(reset_and_check(), 0u);
 
     func_t instance{};
     auto type = entt::resolve<func_t>();
@@ -597,5 +609,5 @@ TEST_F(MetaFunc, ReRegistration) {
     ASSERT_TRUE(type.invoke("f"_hs, instance, 0));
     ASSERT_TRUE(type.invoke("f"_hs, instance, 0, 0));
 
-    reset_and_check();
+    ASSERT_EQ(reset_and_check(), 0u);
 }

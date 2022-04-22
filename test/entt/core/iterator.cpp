@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include <gtest/gtest.h>
@@ -7,7 +8,7 @@ struct clazz {
     int value{0};
 };
 
-TEST(Iterator, InputIteratorPointer) {
+TEST(InputIteratorPointer, Functionalities) {
     static_assert(!std::is_default_constructible_v<entt::input_iterator_pointer<clazz>>);
     static_assert(!std::is_copy_constructible_v<entt::input_iterator_pointer<clazz>>);
     static_assert(std::is_move_constructible_v<entt::input_iterator_pointer<clazz>>);
@@ -22,7 +23,7 @@ TEST(Iterator, InputIteratorPointer) {
     ASSERT_EQ(ptr->value, 42);
 }
 
-TEST(Iterator, IterableAdaptor) {
+TEST(IterableAdaptor, Functionalities) {
     std::vector<int> vec{1, 2};
     entt::iterable_adaptor iterable{vec.begin(), vec.end()};
     decltype(iterable) other{};
@@ -36,4 +37,8 @@ TEST(Iterator, IterableAdaptor) {
     ASSERT_EQ(*iterable.cbegin(), 1);
     ASSERT_EQ(*++iterable.cbegin(), 2);
     ASSERT_EQ(++iterable.cbegin(), --iterable.end());
+
+    for(auto value: entt::iterable_adaptor<const int *, const void *>{vec.data(), vec.data() + 1u}) {
+        ASSERT_EQ(value, 1);
+    }
 }

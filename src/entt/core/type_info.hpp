@@ -138,17 +138,17 @@ struct type_name final {
 };
 
 /*! @brief Implementation specific information about a type. */
-class type_info final {
-    template<typename Type>
-    friend const type_info &type_id() ENTT_NOEXCEPT;
-
+struct type_info final {
+    /**
+     * @brief Constructs a type info object for a given type.
+     * @tparam Type Type for which to construct a type info object.
+     */
     template<typename Type>
     constexpr type_info(std::in_place_type_t<Type>) ENTT_NOEXCEPT
-        : seq{type_index<std::remove_reference_t<std::remove_const_t<Type>>>::value()},
-          identifier{type_hash<std::remove_reference_t<std::remove_const_t<Type>>>::value()},
-          alias{type_name<std::remove_reference_t<std::remove_const_t<Type>>>::value()} {}
+        : seq{type_index<std::remove_cv_t<std::remove_reference_t<Type>>>::value()},
+          identifier{type_hash<std::remove_cv_t<std::remove_reference_t<Type>>>::value()},
+          alias{type_name<std::remove_cv_t<std::remove_reference_t<Type>>>::value()} {}
 
-public:
     /**
      * @brief Type index.
      * @return Type index.
@@ -245,21 +245,28 @@ private:
 /**
  * @brief Returns the type info object associated to a given type.
  *
+ * The returned element refers to an object with static storage duration.<br/>
  * The type doesn't need to be a complete type. If the type is a reference, the
  * result refers to the referenced type. In all cases, top-level cv-qualifiers
  * are ignored.
  *
  * @tparam Type Type for which to generate a type info object.
- * @return A properly initialized type info object.
+ * @return A reference to a properly initialized type info object.
  */
 template<typename Type>
 [[nodiscard]] const type_info &type_id() ENTT_NOEXCEPT {
     if constexpr(std::is_same_v<Type, std::remove_cv_t<std::remove_reference_t<Type>>>) {
-        static type_info instance{std::in_place_type<std::remove_cv_t<std::remove_reference_t<Type>>>};
+        static type_info instance{std::in_place_type<Type>};
         return instance;
     } else {
         return type_id<std::remove_cv_t<std::remove_reference_t<Type>>>();
     }
+}
+
+/*! @copydoc type_id */
+template<typename Type>
+[[nodiscard]] const type_info &type_id(Type &&) ENTT_NOEXCEPT {
+    return type_id<std::remove_cv_t<std::remove_reference_t<Type>>>();
 }
 
 } // namespace entt

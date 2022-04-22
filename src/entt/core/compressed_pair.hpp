@@ -26,13 +26,13 @@ struct compressed_pair_element {
     compressed_pair_element()
         : value{} {}
 
-    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::remove_const_t<std::remove_reference_t<Args>>, compressed_pair_element>>>
+    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, compressed_pair_element>>>
     compressed_pair_element(Args &&args)
         : value{std::forward<Args>(args)} {}
 
     template<typename... Args, std::size_t... Index>
     compressed_pair_element(std::tuple<Args...> args, std::index_sequence<Index...>)
-        : value{std::get<Index>(args)...} {}
+        : value{std::forward<Args>(std::get<Index>(args))...} {}
 
     [[nodiscard]] reference get() ENTT_NOEXCEPT {
         return value;
@@ -56,13 +56,13 @@ struct compressed_pair_element<Type, Tag, std::enable_if_t<is_ebco_eligible_v<Ty
     compressed_pair_element()
         : base_type{} {}
 
-    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::remove_const_t<std::remove_reference_t<Args>>, compressed_pair_element>>>
+    template<typename Args, typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, compressed_pair_element>>>
     compressed_pair_element(Args &&args)
         : base_type{std::forward<Args>(args)} {}
 
     template<typename... Args, std::size_t... Index>
     compressed_pair_element(std::tuple<Args...> args, std::index_sequence<Index...>)
-        : base_type{std::get<Index>(args)...} {}
+        : base_type{std::forward<Args>(std::get<Index>(args))...} {}
 
     [[nodiscard]] reference get() ENTT_NOEXCEPT {
         return *this;
@@ -125,7 +125,7 @@ public:
      * @brief Move constructor.
      * @param other The instance to move from.
      */
-    constexpr compressed_pair(compressed_pair &&other) ENTT_NOEXCEPT = default;
+    constexpr compressed_pair(compressed_pair &&other) = default;
 
     /**
      * @brief Constructs a pair from its values.
@@ -163,7 +163,7 @@ public:
      * @param other The instance to move from.
      * @return This compressed pair object.
      */
-    constexpr compressed_pair &operator=(compressed_pair &&other) ENTT_NOEXCEPT = default;
+    constexpr compressed_pair &operator=(compressed_pair &&other) = default;
 
     /**
      * @brief Returns the first element that a pair stores.
@@ -255,9 +255,20 @@ inline void swap(compressed_pair<First, Second> &lhs, compressed_pair<First, Sec
 #if !defined __clang_major__ || __clang_major__ > 6
 namespace std {
 
+/**
+ * @brief `std::tuple_size` specialization for `compressed_pair`s.
+ * @tparam First The type of the first element that the pair stores.
+ * @tparam Second The type of the second element that the pair stores.
+ */
 template<typename First, typename Second>
 struct tuple_size<entt::compressed_pair<First, Second>>: integral_constant<size_t, 2u> {};
 
+/**
+ * @brief `std::tuple_element` specialization for `compressed_pair`s.
+ * @tparam Index The index of the type to return.
+ * @tparam First The type of the first element that the pair stores.
+ * @tparam Second The type of the second element that the pair stores.
+ */
 template<size_t Index, typename First, typename Second>
 struct tuple_element<Index, entt::compressed_pair<First, Second>>: conditional<Index == 0u, First, Second> {
     static_assert(Index < 2u, "Index out of bounds");

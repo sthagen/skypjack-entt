@@ -1,21 +1,17 @@
 #include <algorithm>
+#include <iterator>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <gtest/gtest.h>
-#include <entt/entity/component.hpp>
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
 struct empty_type {};
 
 struct stable_type {
-    int value;
-};
-
-template<>
-struct entt::component_traits<stable_type>: basic_component_traits {
     static constexpr auto in_place_delete = true;
+    int value;
 };
 
 TEST(SingleComponentView, Functionalities) {
@@ -324,17 +320,15 @@ TEST(SingleComponentView, Find) {
 
 TEST(SingleComponentView, EmptyTypes) {
     entt::registry registry;
-    auto create = [&](auto... component) {
-        const auto entt = registry.create();
-        (registry.emplace<decltype(component)>(entt, component), ...);
-        return entt;
-    };
+    entt::entity entities[2u];
 
-    const auto entity = create(0, empty_type{});
-    create('c');
+    registry.create(std::begin(entities), std::end(entities));
+    registry.emplace<int>(entities[0u], 0);
+    registry.emplace<empty_type>(entities[0u]);
+    registry.emplace<char>(entities[1u], 'c');
 
-    registry.view<empty_type>().each([entity](const auto entt) {
-        ASSERT_EQ(entity, entt);
+    registry.view<empty_type>().each([&](const auto entt) {
+        ASSERT_EQ(entities[0u], entt);
     });
 
     registry.view<empty_type>().each([check = true]() mutable {
@@ -344,11 +338,11 @@ TEST(SingleComponentView, EmptyTypes) {
 
     for(auto [entt]: registry.view<empty_type>().each()) {
         static_assert(std::is_same_v<decltype(entt), entt::entity>);
-        ASSERT_EQ(entity, entt);
+        ASSERT_EQ(entities[0u], entt);
     }
 
-    registry.view<int>().each([entity](const auto entt, int) {
-        ASSERT_EQ(entity, entt);
+    registry.view<int>().each([&](const auto entt, int) {
+        ASSERT_EQ(entities[0u], entt);
     });
 
     registry.view<int>().each([check = true](int) mutable {
@@ -359,7 +353,7 @@ TEST(SingleComponentView, EmptyTypes) {
     for(auto [entt, iv]: registry.view<int>().each()) {
         static_assert(std::is_same_v<decltype(entt), entt::entity>);
         static_assert(std::is_same_v<decltype(iv), int &>);
-        ASSERT_EQ(entity, entt);
+        ASSERT_EQ(entities[0u], entt);
     }
 }
 
@@ -1152,6 +1146,9 @@ TEST(MultiComponentView, SameComponentTypes) {
     typename entt::storage_traits<entt::entity, int>::storage_type storage;
     typename entt::storage_traits<entt::entity, int>::storage_type other;
     entt::basic_view view{storage, other};
+
+    storage.bind(entt::forward_as_any(registry));
+    other.bind(entt::forward_as_any(registry));
 
     const entt::entity e0{42u};
     const entt::entity e1{3u};

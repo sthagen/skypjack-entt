@@ -20,12 +20,22 @@ I hope this list can grow much more in the future:
   * [Minecraft Earth](https://www.minecraft.net/en-us/about-earth) by
     [Mojang](https://mojang.com/): an augmented reality game for mobile, that
     lets users bring Minecraft into the real world.
+  * [Ember Sword](https://embersword.com/): a modern Free-to-Play MMORPG with a
+    player-driven economy, a classless combat system, and scarce, tradable
+    cosmetic collectibles.
+  * Apparently [Diablo II: Resurrected](https://diablo2.blizzard.com/) by
+    [Blizzard](https://www.blizzard.com/): monsters, heroes, items, spells, all
+    resurrected. Thanks unknown insider.
+  * [Apparently](https://www.youtube.com/watch?v=P8xvOA3ikrQ&t=1105s)
+    [Call of Duty: Vanguard](https://www.callofduty.com/vanguard) by
+    [Sledgehammer Games](https://www.sledgehammergames.com/): I can neither
+    confirm nor deny but there is a license I know in the credits.
+  * Apparently [D&D Dark Alliance](https://darkalliance.wizards.com) by
+    [Wizards of the Coast](https://company.wizards.com): your party, their
+    funeral.
   * [TiltedOnline](https://github.com/tiltedphoques/TiltedOnline) by
     [Tilted Phoques](https://github.com/tiltedphoques): Skyrim and Fallout 4 mod
     to play online.
-  * [Apparently](https://www.youtube.com/watch?v=P8xvOA3ikrQ&t=1105s)
-    [Call of Duty: Vanguard](https://www.callofduty.com/vanguard): I can neither
-    confirm nor deny but there is a license I know in the credits.
   * [Antkeeper](https://github.com/antkeeper/antkeeper-source): an ant colony
     simulation [game](https://antkeeper.com/).
   * [Openblack](https://github.com/openblack/openblack): open source
@@ -80,6 +90,10 @@ I hope this list can grow much more in the future:
     space ship through a large 2D open world.
   * [PokeMaster](https://github.com/utilForever/PokeMaster): Pokemon Battle
     simulator using C++ with some reinforcement learning.
+  * [HomeHearth](https://youtu.be/GrEWl8npL9Y): choose your hero, protect the
+    town, before it's too late.
+  * [City Builder Game](https://github.com/PhiGei2000/CityBuilderGame): a simple
+    city-building game using C++ and OpenGL.
 
 * Engines and the like:
   * [Aether Engine](https://hadean.com/spatial-simulation/)
@@ -135,11 +149,13 @@ I hope this list can grow much more in the future:
     oriented game engine.
   * [Becketron](https://github.com/Doctor-Foxling/Becketron): a game engine
     written mostly in C++.
-  * [Spatial Engine](https://github.com/luizgabriel/Spatial.Engine): A
+  * [Spatial Engine](https://github.com/luizgabriel/Spatial.Engine): a
     cross-platform engine created on top of google's filament rendering engine.
   * [Kaguya](https://github.com/KaiH0717/Kaguya): D3D12 Rendering Engine.
-  * [OpenAWE](https://github.com/OpenAWE-Project/OpenAWE): Open implementation
+  * [OpenAWE](https://github.com/OpenAWE-Project/OpenAWE): open implementation
     of the Alan Wake Engine.
+  * [Nazara Engine](https://github.com/DigitalPulseSoftware/NazaraEngine): fast,
+    cross-platform, object-oriented API to help in daily developer life.
 
 * Articles, videos and blog posts:
   * [Some posts](https://skypjack.github.io/tags/#entt) on my personal

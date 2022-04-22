@@ -8,8 +8,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "../container/dense_hash_map.hpp"
-#include "../container/dense_hash_set.hpp"
+#include "../container/dense_map.hpp"
+#include "../container/dense_set.hpp"
 #include "meta.hpp"
 #include "type_traits.hpp"
 
@@ -54,40 +54,26 @@ struct basic_meta_sequence_container_traits {
         return false;
     }
 
-    [[nodiscard]] static bool clear([[maybe_unused]] any &container) {
-        if constexpr(is_dynamic_sequence_container<Type>::value) {
-            if(auto *const cont = any_cast<Type>(&container); cont) {
-                cont->clear();
-                return true;
-            }
-        }
+    [[nodiscard]] static iterator iter(any &container, const bool as_end) {
+        using std::begin;
 
-        return false;
-    }
-
-    [[nodiscard]] static iterator begin(any &container) {
         if(auto *const cont = any_cast<Type>(&container); cont) {
-            return iterator{std::begin(*cont)};
+            return iterator{begin(*cont), static_cast<typename iterator::difference_type>(as_end * cont->size())};
         }
 
-        return iterator{std::begin(any_cast<const Type &>(container))};
+        const Type &as_const = any_cast<const Type &>(container);
+        return iterator{begin(as_const), static_cast<typename iterator::difference_type>(as_end * as_const.size())};
     }
 
-    [[nodiscard]] static iterator end(any &container) {
-        if(auto *const cont = any_cast<Type>(&container); cont) {
-            return iterator{std::end(*cont)};
-        }
-
-        return iterator{std::end(any_cast<const Type &>(container))};
-    }
-
-    [[nodiscard]] static iterator insert([[maybe_unused]] any &container, [[maybe_unused]] iterator it, [[maybe_unused]] meta_any &value) {
+    [[nodiscard]] static iterator insert([[maybe_unused]] any &container, [[maybe_unused]] const std::ptrdiff_t offset, [[maybe_unused]] meta_any &value) {
         if constexpr(is_dynamic_sequence_container<Type>::value) {
             if(auto *const cont = any_cast<Type>(&container); cont) {
                 // this abomination is necessary because only on macos value_type and const_reference are different types for std::vector<bool>
                 if(value.allow_cast<typename Type::const_reference>() || value.allow_cast<typename Type::value_type>()) {
+                    using std::begin;
                     const auto *element = value.try_cast<std::remove_reference_t<typename Type::const_reference>>();
-                    return iterator{cont->insert(any_cast<const typename Type::iterator &>(it.base()), element ? *element : value.cast<typename Type::value_type>())};
+                    const auto curr = cont->insert(begin(*cont) + offset, element ? *element : value.cast<typename Type::value_type>());
+                    return iterator{curr, curr - begin(*cont)};
                 }
             }
         }
@@ -95,22 +81,16 @@ struct basic_meta_sequence_container_traits {
         return {};
     }
 
-    [[nodiscard]] static iterator erase([[maybe_unused]] any &container, [[maybe_unused]] iterator it) {
+    [[nodiscard]] static iterator erase([[maybe_unused]] any &container, [[maybe_unused]] const std::ptrdiff_t offset) {
         if constexpr(is_dynamic_sequence_container<Type>::value) {
             if(auto *const cont = any_cast<Type>(&container); cont) {
-                return iterator{cont->erase(any_cast<const typename Type::iterator &>(it.base()))};
+                using std::begin;
+                const auto curr = cont->erase(begin(*cont) + offset);
+                return iterator{curr, curr - begin(*cont)};
             }
         }
 
         return {};
-    }
-
-    [[nodiscard]] static meta_any get(any &container, size_type pos) {
-        if(auto *const cont = any_cast<Type>(&container); cont) {
-            return meta_any{std::in_place_type<typename Type::reference>, (*cont)[pos]};
-        }
-
-        return meta_any{std::in_place_type<typename Type::const_reference>, any_cast<const Type &>(container)[pos]};
     }
 };
 
@@ -134,42 +114,34 @@ struct basic_meta_associative_container_traits {
         return false;
     }
 
-    [[nodiscard]] static iterator begin(any &container) {
+    [[nodiscard]] static iterator iter(any &container, const bool as_end) {
+        using std::begin;
+        using std::end;
+
         if(auto *const cont = any_cast<Type>(&container); cont) {
-            return iterator{std::integral_constant<bool, key_only>{}, cont->begin()};
+            return iterator{std::integral_constant<bool, key_only>{}, as_end ? end(*cont) : begin(*cont)};
         }
 
-        return iterator{std::integral_constant<bool, key_only>{}, std::begin(any_cast<const Type &>(container))};
-    }
-
-    [[nodiscard]] static iterator end(any &container) {
-        if(auto *const cont = any_cast<Type>(&container); cont) {
-            return iterator{std::integral_constant<bool, key_only>{}, cont->end()};
-        }
-
-        return iterator{std::integral_constant<bool, key_only>{}, std::end(any_cast<const Type &>(container))};
+        const auto &as_const = any_cast<const Type &>(container);
+        return iterator{std::integral_constant<bool, key_only>{}, as_end ? end(as_const) : begin(as_const)};
     }
 
     [[nodiscard]] static bool insert(any &container, meta_any &key, [[maybe_unused]] meta_any &value) {
-        if(auto *const cont = any_cast<Type>(&container); cont && key.allow_cast<const typename Type::key_type &>()) {
-            if constexpr(is_key_only_meta_associative_container<Type>::value) {
-                return cont->insert(key.cast<const typename Type::key_type &>()).second;
-            } else {
-                if(value.allow_cast<const typename Type::mapped_type &>()) {
-                    return cont->emplace(key.cast<const typename Type::key_type &>(), value.cast<const typename Type::mapped_type &>()).second;
-                }
-            }
-        }
+        auto *const cont = any_cast<Type>(&container);
 
-        return false;
+        if constexpr(is_key_only_meta_associative_container<Type>::value) {
+            return cont && key.allow_cast<const typename Type::key_type &>()
+                   && cont->insert(key.cast<const typename Type::key_type &>()).second;
+        } else {
+            return cont && key.allow_cast<const typename Type::key_type &>() && value.allow_cast<const typename Type::mapped_type &>()
+                   && cont->emplace(key.cast<const typename Type::key_type &>(), value.cast<const typename Type::mapped_type &>()).second;
+        }
     }
 
     [[nodiscard]] static bool erase(any &container, meta_any &key) {
-        if(auto *const cont = any_cast<Type>(&container); cont && key.allow_cast<const typename Type::key_type &>()) {
-            return (cont->erase(key.cast<const typename Type::key_type &>()) != cont->size());
-        }
-
-        return false;
+        auto *const cont = any_cast<Type>(&container);
+        return cont && key.allow_cast<const typename Type::key_type &>()
+               && (cont->erase(key.cast<const typename Type::key_type &>()) != cont->size());
     }
 
     [[nodiscard]] static iterator find(any &container, meta_any &key) {
@@ -251,23 +223,23 @@ struct meta_associative_container_traits<std::unordered_set<Key, Args...>>
     : internal::basic_meta_associative_container_traits<std::unordered_set<Key, Args...>> {};
 
 /**
- * @brief Meta associative container traits for `dense_hash_map`s of any type.
+ * @brief Meta associative container traits for `dense_map`s of any type.
  * @tparam Key The key type of the elements.
  * @tparam Type The value type of the elements.
  * @tparam Args Other arguments.
  */
 template<typename Key, typename Type, typename... Args>
-struct meta_associative_container_traits<dense_hash_map<Key, Type, Args...>>
-    : internal::basic_meta_associative_container_traits<dense_hash_map<Key, Type, Args...>> {};
+struct meta_associative_container_traits<dense_map<Key, Type, Args...>>
+    : internal::basic_meta_associative_container_traits<dense_map<Key, Type, Args...>> {};
 
 /**
- * @brief Meta associative container traits for `dense_hash_set`s of any type.
+ * @brief Meta associative container traits for `dense_set`s of any type.
  * @tparam Type The value type of the elements.
  * @tparam Args Other arguments.
  */
 template<typename Type, typename... Args>
-struct meta_associative_container_traits<dense_hash_set<Type, Args...>>
-    : internal::basic_meta_associative_container_traits<dense_hash_set<Type, Args...>> {};
+struct meta_associative_container_traits<dense_set<Type, Args...>>
+    : internal::basic_meta_associative_container_traits<dense_set<Type, Args...>> {};
 
 } // namespace entt
 

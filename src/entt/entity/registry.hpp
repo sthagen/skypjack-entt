@@ -25,7 +25,6 @@
 #include "runtime_view.hpp"
 #include "sparse_set.hpp"
 #include "storage.hpp"
-#include "utility.hpp"
 #include "view.hpp"
 
 namespace entt {
@@ -302,20 +301,20 @@ class basic_registry {
     }
 
     auto generate_identifier(const std::size_t pos) ENTT_NOEXCEPT {
-        ENTT_ASSERT(pos < entity_traits::to_integral(null), "No entities available");
+        ENTT_ASSERT(pos < entity_traits::to_entity(null), "No entities available");
         return entity_traits::combine(static_cast<typename entity_traits::entity_type>(pos), {});
     }
 
     auto recycle_identifier() ENTT_NOEXCEPT {
         ENTT_ASSERT(free_list != null, "No entities available");
         const auto curr = entity_traits::to_entity(free_list);
-        free_list = entity_traits::combine(entity_traits::to_integral(entities[curr]), tombstone);
-        return (entities[curr] = entity_traits::combine(curr, entity_traits::to_integral(entities[curr])));
+        free_list = entity_traits::combine(entity_traits::to_integral(epool[curr]), tombstone);
+        return (epool[curr] = entity_traits::combine(curr, entity_traits::to_integral(epool[curr])));
     }
 
     auto release_entity(const Entity entity, const typename entity_traits::version_type version) {
         const typename entity_traits::version_type vers = version + (version == entity_traits::to_version(tombstone));
-        entities[entity_traits::to_entity(entity)] = entity_traits::construct(entity_traits::to_integral(free_list), vers);
+        epool[entity_traits::to_entity(entity)] = entity_traits::construct(entity_traits::to_integral(free_list), vers);
         free_list = entity_traits::combine(entity_traits::to_integral(entity), tombstone);
         return vers;
     }
@@ -336,7 +335,7 @@ public:
     basic_registry()
         : pools{},
           groups{},
-          entities{},
+          epool{},
           free_list{tombstone},
           vars{} {}
 
@@ -345,11 +344,7 @@ public:
      * @param count The number of pools to allocate memory for.
      */
     basic_registry(const size_type count)
-        : pools{},
-          groups{},
-          entities{},
-          free_list{tombstone},
-          vars{} {
+        : basic_registry{} {
         pools.reserve(count);
     }
 
@@ -360,7 +355,7 @@ public:
     basic_registry(basic_registry &&other)
         : pools{std::move(other.pools)},
           groups{std::move(other.groups)},
-          entities{std::move(other.entities)},
+          epool{std::move(other.epool)},
           free_list{other.free_list},
           vars{std::move(other.vars)} {
         for(auto &&curr: pools) {
@@ -376,7 +371,7 @@ public:
     basic_registry &operator=(basic_registry &&other) {
         pools = std::move(other.pools);
         groups = std::move(other.groups);
-        entities = std::move(other.entities);
+        epool = std::move(other.epool);
         free_list = other.free_list;
         vars = std::move(other.vars);
 
@@ -460,7 +455,7 @@ public:
      * @return Number of entities created so far.
      */
     [[nodiscard]] size_type size() const ENTT_NOEXCEPT {
-        return entities.size();
+        return epool.size();
     }
 
     /**
@@ -468,10 +463,10 @@ public:
      * @return Number of entities still in use.
      */
     [[nodiscard]] size_type alive() const {
-        auto sz = entities.size();
+        auto sz = epool.size();
 
         for(auto curr = free_list; curr != null; --sz) {
-            curr = entities[entity_traits::to_entity(curr)];
+            curr = epool[entity_traits::to_entity(curr)];
         }
 
         return sz;
@@ -482,7 +477,7 @@ public:
      * @param cap Desired capacity.
      */
     void reserve(const size_type cap) {
-        entities.reserve(cap);
+        epool.reserve(cap);
     }
 
     /**
@@ -491,7 +486,7 @@ public:
      * @return Capacity of the registry.
      */
     [[nodiscard]] size_type capacity() const ENTT_NOEXCEPT {
-        return entities.capacity();
+        return epool.capacity();
     }
 
     /**
@@ -515,7 +510,7 @@ public:
      * @return A pointer to the array of entities.
      */
     [[nodiscard]] const entity_type *data() const ENTT_NOEXCEPT {
-        return entities.data();
+        return epool.data();
     }
 
     /**
@@ -537,7 +532,7 @@ public:
      */
     [[nodiscard]] bool valid(const entity_type entity) const {
         const auto pos = size_type(entity_traits::to_entity(entity));
-        return (pos < entities.size() && entities[pos] == entity);
+        return (pos < epool.size() && epool[pos] == entity);
     }
 
     /**
@@ -548,7 +543,7 @@ public:
      */
     [[nodiscard]] version_type current(const entity_type entity) const {
         const auto pos = size_type(entity_traits::to_entity(entity));
-        return entity_traits::to_version(pos < entities.size() ? entities[pos] : tombstone);
+        return entity_traits::to_version(pos < epool.size() ? epool[pos] : tombstone);
     }
 
     /**
@@ -556,7 +551,7 @@ public:
      * @return A valid identifier.
      */
     [[nodiscard]] entity_type create() {
-        return (free_list == null) ? entities.emplace_back(generate_identifier(entities.size())) : recycle_identifier();
+        return (free_list == null) ? epool.emplace_back(generate_identifier(epool.size())) : recycle_identifier();
     }
 
     /**
@@ -569,25 +564,25 @@ public:
      * @return A valid identifier.
      */
     [[nodiscard]] entity_type create(const entity_type hint) {
-        const auto length = entities.size();
+        const auto length = epool.size();
 
         if(hint == null || hint == tombstone) {
             return create();
         } else if(const auto req = entity_traits::to_entity(hint); !(req < length)) {
-            entities.resize(size_type(req) + 1u, null);
+            epool.resize(size_type(req) + 1u, null);
 
             for(auto pos = length; pos < req; ++pos) {
                 release_entity(generate_identifier(pos), {});
             }
 
-            return (entities[req] = hint);
-        } else if(const auto curr = entity_traits::to_entity(entities[req]); req == curr) {
+            return (epool[req] = hint);
+        } else if(const auto curr = entity_traits::to_entity(epool[req]); req == curr) {
             return create();
         } else {
             auto *it = &free_list;
-            for(; entity_traits::to_entity(*it) != req; it = &entities[entity_traits::to_entity(*it)]) {}
+            for(; entity_traits::to_entity(*it) != req; it = &epool[entity_traits::to_entity(*it)]) {}
             *it = entity_traits::combine(curr, entity_traits::to_integral(*it));
-            return (entities[req] = hint);
+            return (epool[req] = hint);
         }
     }
 
@@ -606,11 +601,11 @@ public:
             *first = recycle_identifier();
         }
 
-        const auto length = entities.size();
-        entities.resize(length + std::distance(first, last), null);
+        const auto length = epool.size();
+        epool.resize(length + std::distance(first, last), null);
 
         for(auto pos = length; first != last; ++first, ++pos) {
-            *first = entities[pos] = generate_identifier(pos);
+            *first = epool[pos] = generate_identifier(pos);
         }
     }
 
@@ -634,7 +629,7 @@ public:
     template<typename It>
     void assign(It first, It last, const entity_type destroyed) {
         ENTT_ASSERT(!alive(), "Entities still alive");
-        entities.assign(first, last);
+        epool.assign(first, last);
         free_list = destroyed;
     }
 
@@ -866,8 +861,7 @@ public:
      */
     template<typename Component, typename... Args>
     decltype(auto) replace(const entity_type entity, Args &&...args) {
-        ENTT_ASSERT(valid(entity), "Invalid entity");
-        return assure<Component>().patch(entity, [&args...](auto &...curr) { ((curr = Component{std::forward<Args>(args)...}), ...); });
+        return patch<Component>(entity, [&args...](auto &...curr) { ((curr = Component{std::forward<Args>(args)...}), ...); });
     }
 
     /**
@@ -1121,12 +1115,12 @@ public:
     template<typename Func>
     void each(Func func) const {
         if(free_list == null) {
-            for(auto pos = entities.size(); pos; --pos) {
-                func(entities[pos - 1]);
+            for(auto pos = epool.size(); pos; --pos) {
+                func(epool[pos - 1]);
             }
         } else {
-            for(auto pos = entities.size(); pos; --pos) {
-                if(const auto entity = entities[pos - 1]; entity_traits::to_entity(entity) == (pos - 1)) {
+            for(auto pos = epool.size(); pos; --pos) {
+                if(const auto entity = epool[pos - 1]; entity_traits::to_entity(entity) == (pos - 1)) {
                     func(entity);
                 }
             }
@@ -1261,7 +1255,7 @@ public:
      * @return A newly created group.
      */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] basic_group<entity_type, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> group(get_t<Get...>, exclude_t<Exclude...> = {}) {
+    [[nodiscard]] basic_group<entity_type, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> group(get_t<Get...> = {}, exclude_t<Exclude...> = {}) {
         static_assert(sizeof...(Owned) + sizeof...(Get) > 0, "Exclusion-only groups are not supported");
         static_assert(sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude) > 1, "Single component groups are not allowed");
 
@@ -1343,7 +1337,7 @@ public:
 
     /*! @copydoc group */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] basic_group<entity_type, owned_t<std::add_const_t<Owned>...>, get_t<std::add_const_t<Get>...>, exclude_t<Exclude...>> group_if_exists(get_t<Get...>, exclude_t<Exclude...> = {}) const {
+    [[nodiscard]] basic_group<entity_type, owned_t<std::add_const_t<Owned>...>, get_t<std::add_const_t<Get>...>, exclude_t<Exclude...>> group_if_exists(get_t<Get...> = {}, exclude_t<Exclude...> = {}) const {
         auto it = std::find_if(groups.cbegin(), groups.cend(), [](const auto &gdata) {
             return gdata.size == (sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude))
                    && (gdata.owned(type_hash<std::remove_const_t<Owned>>::value()) && ...)
@@ -1357,18 +1351,6 @@ public:
             using handler_type = group_handler<exclude_t<std::remove_const_t<Exclude>...>, get_t<std::remove_const_t<Get>...>, std::remove_const_t<Owned>...>;
             return {static_cast<handler_type *>(it->group.get())->current, assure<std::remove_const_t<Owned>>()..., assure<std::remove_const_t<Get>>()...};
         }
-    }
-
-    /*! @copydoc group */
-    template<typename... Owned, typename... Exclude>
-    [[nodiscard]] basic_group<entity_type, owned_t<Owned...>, get_t<>, exclude_t<Exclude...>> group(exclude_t<Exclude...> = {}) {
-        return group<Owned...>(get_t<>{}, exclude<Exclude...>);
-    }
-
-    /*! @copydoc group */
-    template<typename... Owned, typename... Exclude>
-    [[nodiscard]] basic_group<entity_type, owned_t<std::add_const_t<Owned>...>, get_t<>, exclude_t<Exclude...>> group_if_exists(exclude_t<Exclude...> = {}) const {
-        return group_if_exists<std::add_const_t<Owned>...>(get_t<>{}, exclude<Exclude...>);
     }
 
     /**
@@ -1485,7 +1467,7 @@ public:
 private:
     dense_map<id_type, std::unique_ptr<base_type>, identity> pools;
     std::vector<group_data> groups;
-    std::vector<entity_type> entities;
+    std::vector<entity_type> epool;
     entity_type free_list;
     context vars;
 };

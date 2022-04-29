@@ -4,17 +4,20 @@
 #include "version.h"
 
 #if defined(__cpp_exceptions) && !defined(ENTT_NOEXCEPTION)
-#    define ENTT_NOEXCEPT noexcept
-#    define ENTT_NOEXCEPT_IF(expr) noexcept(expr)
 #    define ENTT_THROW throw
 #    define ENTT_TRY try
 #    define ENTT_CATCH catch(...)
 #else
-#    define ENTT_NOEXCEPT
-#    define ENTT_NOEXCEPT_IF(...)
 #    define ENTT_THROW
 #    define ENTT_TRY if(true)
 #    define ENTT_CATCH if(false)
+#endif
+
+#ifndef ENTT_NOEXCEPT
+#    define ENTT_NOEXCEPT noexcept
+#    define ENTT_NOEXCEPT_IF(expr) noexcept(expr)
+#else
+#    define ENTT_NOEXCEPT_IF(...)
 #endif
 
 #ifdef ENTT_USE_ATOMIC
@@ -46,9 +49,9 @@
 #endif
 
 #ifdef ENTT_NO_ETO
-#    define ENTT_IGNORE_IF_EMPTY false
+#    define ENTT_ETO_TYPE(Type) void
 #else
-#    define ENTT_IGNORE_IF_EMPTY true
+#    define ENTT_ETO_TYPE(Type) Type
 #endif
 
 #ifdef ENTT_STANDARD_CPP

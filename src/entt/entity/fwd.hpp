@@ -7,13 +7,25 @@
 
 namespace entt {
 
-template<typename Entity, typename = std::allocator<Entity>>
+/*! @brief Default entity identifier. */
+enum class entity : id_type {};
+
+template<typename Entity = entity, typename = std::allocator<Entity>>
 class basic_sparse_set;
 
-template<typename, typename Type, typename = std::allocator<Type>, typename = void>
+template<typename Type, typename = entity, typename = std::allocator<Type>, typename = void>
 class basic_storage;
 
-template<typename>
+template<typename, typename = entity, typename = void>
+struct storage_type;
+
+template<typename, typename = entity>
+struct storage_for;
+
+template<typename Type>
+class sigh_storage_mixin;
+
+template<typename = entity>
 class basic_registry;
 
 template<typename, typename, typename, typename = void>
@@ -85,56 +97,53 @@ using owned_t = type_list<Type...>;
 template<typename... Type>
 inline constexpr owned_t<Type...> owned{};
 
-/*! @brief Default entity identifier. */
-enum class entity : id_type {};
+/*! @brief Alias declaration for the most common use case. */
+using sparse_set = basic_sparse_set<>;
+
+/**
+ * @brief Alias declaration for the most common use case.
+ * @tparam Type Type of objects assigned to the entities.
+ */
+template<typename Type>
+using storage = basic_storage<Type>;
 
 /*! @brief Alias declaration for the most common use case. */
-using sparse_set = basic_sparse_set<entity>;
+using registry = basic_registry<>;
+
+/*! @brief Alias declaration for the most common use case. */
+using observer = basic_observer<registry>;
+
+/*! @brief Alias declaration for the most common use case. */
+using organizer = basic_organizer<registry>;
+
+/*! @brief Alias declaration for the most common use case. */
+using handle = basic_handle<registry>;
+
+/*! @brief Alias declaration for the most common use case. */
+using const_handle = basic_handle<const registry>;
 
 /**
  * @brief Alias declaration for the most common use case.
  * @tparam Args Other template parameters.
  */
 template<typename... Args>
-using storage = basic_storage<entity, Args...>;
-
-/*! @brief Alias declaration for the most common use case. */
-using registry = basic_registry<entity>;
-
-/*! @brief Alias declaration for the most common use case. */
-using observer = basic_observer<entity>;
-
-/*! @brief Alias declaration for the most common use case. */
-using organizer = basic_organizer<entity>;
-
-/*! @brief Alias declaration for the most common use case. */
-using handle = basic_handle<entity>;
-
-/*! @brief Alias declaration for the most common use case. */
-using const_handle = basic_handle<const entity>;
+using handle_view = basic_handle<registry, Args...>;
 
 /**
  * @brief Alias declaration for the most common use case.
  * @tparam Args Other template parameters.
  */
 template<typename... Args>
-using handle_view = basic_handle<entity, Args...>;
-
-/**
- * @brief Alias declaration for the most common use case.
- * @tparam Args Other template parameters.
- */
-template<typename... Args>
-using const_handle_view = basic_handle<const entity, Args...>;
+using const_handle_view = basic_handle<const registry, Args...>;
 
 /*! @brief Alias declaration for the most common use case. */
-using snapshot = basic_snapshot<entity>;
+using snapshot = basic_snapshot<registry>;
 
 /*! @brief Alias declaration for the most common use case. */
-using snapshot_loader = basic_snapshot_loader<entity>;
+using snapshot_loader = basic_snapshot_loader<registry>;
 
 /*! @brief Alias declaration for the most common use case. */
-using continuous_loader = basic_continuous_loader<entity>;
+using continuous_loader = basic_continuous_loader<registry>;
 
 /**
  * @brief Alias declaration for the most common use case.

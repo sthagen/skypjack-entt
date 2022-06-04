@@ -11,18 +11,17 @@ DOC:
 * examples (and credits) from @alanjfs :)
 
 WIP:
-* remove storage::base_type, make views extract the sparse set directly
-* make non-const registry::get use const assure or the like
+* add storage getter for filters to views and groups
+* exploit the tombstone mechanism to allow enabling/disabling entities (see bump, compact and clear for further details)
 * emitter: runtime handlers, allocator support (ready for both already)
-* view/group: no storage_traits dependency -> use storage instead of components for the definition
-* basic_storage::bind for cross-registry setups
+* view: no storage_traits dependency -> use storage instead of components for the definition
+* basic_storage::bind for cross-registry setups (see and remove todo from entity_copy.cpp)
 * uses-allocator construction: any (with allocator support), poly, ...
 * process scheduler: reviews, use free lists internally
 * iterator based try_emplace vs try_insert for perf reasons
 * dedicated entity storage, in-place O(1) release/destroy for non-orphaned entities, out-of-sync model
-* entity-only and exclude-only views
+* entity-only and exclude-only views (both solved with entity storage and storage<void>)
 * custom allocators all over (registry, ...)
-* consider removing ENTT_NOEXCEPT, use ENTT_NOEXCEPT_IF (or noexcept(...)) as appropriate in any case (ie make compressed_pair conditionally noexcept)
 * add test for maximum number of entities reached
 * add user data to type_info
 * make runtime views use opaque storage and therefore return also elements.

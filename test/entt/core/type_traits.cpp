@@ -20,6 +20,25 @@ struct nlohmann_json_like final {
     }
 };
 
+struct clazz {
+    char foo(int) {
+        return {};
+    }
+
+    int bar(double, float) const {
+        return {};
+    }
+
+    bool quux;
+};
+
+void free_function(int, const double &) {}
+
+template<typename, typename Type = void>
+struct multi_argument_operation {
+    using type = Type;
+};
+
 TEST(SizeOf, Functionalities) {
     static_assert(entt::size_of_v<void> == 0u);
     static_assert(entt::size_of_v<char> == sizeof(char));
@@ -78,11 +97,19 @@ TEST(TypeList, Functionalities) {
     static_assert(std::is_same_v<entt::type_list_element_t<1u, type>, char>);
     static_assert(std::is_same_v<entt::type_list_element_t<0u, other>, double>);
 
+    static_assert(entt::type_list_index_v<int, type> == 0u);
+    static_assert(entt::type_list_index_v<char, type> == 1u);
+    static_assert(entt::type_list_index_v<double, other> == 0u);
+
     static_assert(std::is_same_v<entt::type_list_diff_t<entt::type_list<int, char, double>, entt::type_list<float, bool>>, entt::type_list<int, char, double>>);
     static_assert(std::is_same_v<entt::type_list_diff_t<entt::type_list<int, char, double>, entt::type_list<int, char, double>>, entt::type_list<>>);
     static_assert(std::is_same_v<entt::type_list_diff_t<entt::type_list<int, char, double>, entt::type_list<int, char>>, entt::type_list<double>>);
     static_assert(std::is_same_v<entt::type_list_diff_t<entt::type_list<int, char, double>, entt::type_list<char, double>>, entt::type_list<int>>);
     static_assert(std::is_same_v<entt::type_list_diff_t<entt::type_list<int, char, double>, entt::type_list<char>>, entt::type_list<int, double>>);
+
+    static_assert(std::is_same_v<entt::type_list_transform_t<entt::type_list<int, char>, entt::type_identity>, entt::type_list<int, char>>);
+    static_assert(std::is_same_v<entt::type_list_transform_t<entt::type_list<int, char>, std::add_const>, entt::type_list<const int, const char>>);
+    static_assert(std::is_same_v<entt::type_list_transform_t<entt::type_list<int, char>, multi_argument_operation>, entt::type_list<void, void>>);
 }
 
 TEST(ValueList, Functionalities) {
@@ -173,21 +200,17 @@ TEST(ConstnessAs, Functionalities) {
 }
 
 TEST(MemberClass, Functionalities) {
-    struct clazz {
-        char foo(int) {
-            return {};
-        }
-
-        int bar(double, float) const {
-            return {};
-        }
-
-        bool quux;
-    };
-
     static_assert(std::is_same_v<clazz, entt::member_class_t<decltype(&clazz::foo)>>);
     static_assert(std::is_same_v<clazz, entt::member_class_t<decltype(&clazz::bar)>>);
     static_assert(std::is_same_v<clazz, entt::member_class_t<decltype(&clazz::quux)>>);
+}
+
+TEST(NthArgument, Functionalities) {
+    static_assert(std::is_same_v<entt::nth_argument_t<0u, free_function>, int>);
+    static_assert(std::is_same_v<entt::nth_argument_t<1u, free_function>, const double &>);
+    static_assert(std::is_same_v<entt::nth_argument_t<0u, &clazz::bar>, double>);
+    static_assert(std::is_same_v<entt::nth_argument_t<1u, &clazz::bar>, float>);
+    static_assert(std::is_same_v<entt::nth_argument_t<0u, &clazz::quux>, bool>);
 }
 
 TEST(Tag, Functionalities) {

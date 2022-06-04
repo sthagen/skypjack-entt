@@ -6,7 +6,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "../config/config.h"
 #include "delegate.hpp"
 #include "fwd.hpp"
 
@@ -68,21 +67,21 @@ public:
     using sink_type = sink<sigh<Ret(Args...), Allocator>>;
 
     /*! @brief Default constructor. */
-    sigh()
+    sigh() noexcept(std::is_nothrow_default_constructible_v<allocator_type> &&std::is_nothrow_constructible_v<container_type, const allocator_type &>)
         : sigh{allocator_type{}} {}
 
     /**
      * @brief Constructs a signal handler with a given allocator.
      * @param allocator The allocator to use.
      */
-    explicit sigh(const allocator_type &allocator)
+    explicit sigh(const allocator_type &allocator) noexcept(std::is_nothrow_constructible_v<container_type, const allocator_type &>)
         : calls{allocator} {}
 
     /**
      * @brief Copy constructor.
      * @param other The instance to copy from.
      */
-    sigh(const sigh &other)
+    sigh(const sigh &other) noexcept(std::is_nothrow_copy_constructible_v<container_type>)
         : calls{other.calls} {}
 
     /**
@@ -90,14 +89,14 @@ public:
      * @param other The instance to copy from.
      * @param allocator The allocator to use.
      */
-    sigh(const sigh &other, const allocator_type &allocator)
+    sigh(const sigh &other, const allocator_type &allocator) noexcept(std::is_nothrow_constructible_v<container_type, const container_type &, const allocator_type &>)
         : calls{other.calls, allocator} {}
 
     /**
      * @brief Move constructor.
      * @param other The instance to move from.
      */
-    sigh(sigh &&other) ENTT_NOEXCEPT
+    sigh(sigh &&other) noexcept(std::is_nothrow_move_constructible_v<container_type>)
         : calls{std::move(other.calls)} {}
 
     /**
@@ -105,7 +104,7 @@ public:
      * @param other The instance to move from.
      * @param allocator The allocator to use.
      */
-    sigh(sigh &&other, const allocator_type &allocator) ENTT_NOEXCEPT
+    sigh(sigh &&other, const allocator_type &allocator) noexcept(std::is_nothrow_constructible_v<container_type, container_type &&, const allocator_type &>)
         : calls{std::move(other.calls), allocator} {}
 
     /**
@@ -113,7 +112,7 @@ public:
      * @param other The instance to copy from.
      * @return This signal handler.
      */
-    sigh &operator=(const sigh &other) {
+    sigh &operator=(const sigh &other) noexcept(std::is_nothrow_copy_assignable_v<container_type>) {
         calls = other.calls;
         return *this;
     }
@@ -123,7 +122,7 @@ public:
      * @param other The instance to move from.
      * @return This signal handler.
      */
-    sigh &operator=(sigh &&other) ENTT_NOEXCEPT {
+    sigh &operator=(sigh &&other) noexcept(std::is_nothrow_move_assignable_v<container_type>) {
         calls = std::move(other.calls);
         return *this;
     }
@@ -132,7 +131,7 @@ public:
      * @brief Exchanges the contents with those of a given signal handler.
      * @param other Signal handler to exchange the content with.
      */
-    void swap(sigh &other) {
+    void swap(sigh &other) noexcept(std::is_nothrow_swappable_v<container_type>) {
         using std::swap;
         swap(calls, other.calls);
     }
@@ -141,22 +140,15 @@ public:
      * @brief Returns the associated allocator.
      * @return The associated allocator.
      */
-    [[nodiscard]] constexpr allocator_type get_allocator() const ENTT_NOEXCEPT {
+    [[nodiscard]] constexpr allocator_type get_allocator() const noexcept {
         return calls.get_allocator();
     }
-
-    /**
-     * @brief Instance type when it comes to connecting member functions.
-     * @tparam Class Type of class to which the member function belongs.
-     */
-    template<typename Class>
-    using instance_type = Class *;
 
     /**
      * @brief Number of listeners connected to the signal.
      * @return Number of listeners currently connected.
      */
-    [[nodiscard]] size_type size() const ENTT_NOEXCEPT {
+    [[nodiscard]] size_type size() const noexcept {
         return calls.size();
     }
 
@@ -164,7 +156,7 @@ public:
      * @brief Returns false if at least a listener is connected to the signal.
      * @return True if the signal has no listeners connected, false otherwise.
      */
-    [[nodiscard]] bool empty() const ENTT_NOEXCEPT {
+    [[nodiscard]] bool empty() const noexcept {
         return calls.empty();
     }
 
@@ -237,13 +229,15 @@ class connection {
 
 public:
     /*! @brief Default constructor. */
-    connection() = default;
+    connection()
+        : disconnect{},
+          signal{} {}
 
     /**
      * @brief Checks whether a connection is properly initialized.
      * @return True if the connection is properly initialized, false otherwise.
      */
-    [[nodiscard]] explicit operator bool() const ENTT_NOEXCEPT {
+    [[nodiscard]] explicit operator bool() const noexcept {
         return static_cast<bool>(disconnect);
     }
 
@@ -257,7 +251,7 @@ public:
 
 private:
     delegate<void(void *)> disconnect;
-    void *signal{};
+    void *signal;
 };
 
 /**
@@ -287,7 +281,7 @@ struct scoped_connection {
      * @brief Move constructor.
      * @param other The scoped connection to move from.
      */
-    scoped_connection(scoped_connection &&other) ENTT_NOEXCEPT
+    scoped_connection(scoped_connection &&other) noexcept
         : conn{std::exchange(other.conn, {})} {}
 
     /*! @brief Automatically breaks the link on destruction. */
@@ -306,7 +300,7 @@ struct scoped_connection {
      * @param other The scoped connection to move from.
      * @return This scoped connection.
      */
-    scoped_connection &operator=(scoped_connection &&other) ENTT_NOEXCEPT {
+    scoped_connection &operator=(scoped_connection &&other) noexcept {
         conn = std::exchange(other.conn, {});
         return *this;
     }
@@ -325,7 +319,7 @@ struct scoped_connection {
      * @brief Checks whether a scoped connection is properly initialized.
      * @return True if the connection is properly initialized, false otherwise.
      */
-    [[nodiscard]] explicit operator bool() const ENTT_NOEXCEPT {
+    [[nodiscard]] explicit operator bool() const noexcept {
         return static_cast<bool>(conn);
     }
 
@@ -377,7 +371,7 @@ public:
      * @brief Constructs a sink that is allowed to modify a given signal.
      * @param ref A valid reference to a signal object.
      */
-    sink(sigh<Ret(Args...), Allocator> &ref) ENTT_NOEXCEPT
+    sink(sigh<Ret(Args...), Allocator> &ref) noexcept
         : offset{},
           signal{&ref} {}
 
@@ -385,7 +379,7 @@ public:
      * @brief Returns false if at least a listener is connected to the sink.
      * @return True if the sink has no listeners connected, false otherwise.
      */
-    [[nodiscard]] bool empty() const ENTT_NOEXCEPT {
+    [[nodiscard]] bool empty() const noexcept {
         return signal->calls.empty();
     }
 

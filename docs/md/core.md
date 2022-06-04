@@ -27,6 +27,7 @@
     * [Is applicable](#is-applicable)
     * [Constness as](#constness-as)
     * [Member class type](#member-class-type)
+    * [N-th argument](#n-th-argument)
     * [Integral constant](#integral-constant)
     * [Tag](#tag)
     * [Type list and value list](#type-list-and-value-list)
@@ -483,7 +484,7 @@ Basically, the whole system relies on a handful of classes. In particular:
   ```cpp
   template<typename Type>
   struct entt::type_index<Type, std::void_d<decltype(Type::index())>> {
-      static entt::id_type value() ENTT_NOEXCEPT {
+      static entt::id_type value() noexcept {
           return Type::index();
       }
   };
@@ -715,6 +716,18 @@ template<typename Member>
 using clazz = entt::member_class_t<Member>;
 ```
 
+### N-th argument
+
+An utility to quickly find the n-th argument of a function, member function or
+data member (for blind operations on opaque types):
+
+```cpp
+using type = entt::nt_argument_t<1u, &clazz::member>;
+```
+
+Disambiguation of overloaded functions is the responsibility of the user, should
+it be needed.
+
 ### Integral constant
 
 Since `std::integral_constant` may be annoying because of its form that requires
@@ -762,10 +775,12 @@ Here is a (possibly incomplete) list of the functionalities that come with a
 type list:
 
 * `type_list_element[_t]` to get the N-th element of a type list.
+* `type_list_index[_v]` to get the index of a given element of a type list.
 * `type_list_cat[_t]` and a handy `operator+` to concatenate type lists.
 * `type_list_unique[_t]` to remove duplicate types from a type list.
 * `type_list_contains[_v]` to know if a type list contains a given type.
 * `type_list_diff[_t]` to remove types from type lists.
+* `type_list_transform[_t]` to _transform_ a range and create another type list.
 
 I'm also pretty sure that more and more utilities will be added over time as
 needs become apparent.<br/>
@@ -784,19 +799,19 @@ that fully embraces what the modern C++ has to offer.
 ## Compile-time generator
 
 To generate sequential numeric identifiers at compile-time, `EnTT` offers the
-`identifier` class template:
+`ident` class template:
 
 ```cpp
 // defines the identifiers for the given types
-using id = entt::identifier<a_type, another_type>;
+using id = entt::ident<a_type, another_type>;
 
 // ...
 
 switch(a_type_identifier) {
-case id::type<a_type>:
+case id::value<a_type>:
     // ...
     break;
-case id::type<another_type>:
+case id::value<another_type>:
     // ...
     break;
 default:
@@ -804,7 +819,7 @@ default:
 }
 ```
 
-This is all what this class template has to offer: a `type` inline variable that
+This is what this class template has to offer: a `value` inline variable that
 contains a numeric identifier for the given type. It can be used in any context
 where constant expressions are required.
 
@@ -816,9 +831,9 @@ the other identifiers unchanged:
 ```cpp
 template<typename> struct ignore_type {};
 
-using id = entt::identifier<
+using id = entt::ident<
     a_type_still_valid,
-    ignore_type<a_type_no_longer_valid>,
+    ignore_type<no_longer_valid_type>,
     another_type_still_valid
 >;
 ```
@@ -836,12 +851,12 @@ using id = entt::family<struct my_tag>;
 
 // ...
 
-const auto a_type_id = id::type<a_type>;
-const auto another_type_id = id::type<another_type>;
+const auto a_type_id = id::value<a_type>;
+const auto another_type_id = id::value<another_type>;
 ```
 
-This is all what a _family_ has to offer: a `type` inline variable that contains
-a numeric identifier for the given type.<br/>
+This is what a _family_ has to offer: a `value` inline variable that contains a
+numeric identifier for the given type.<br/>
 The generator is customizable, so as to get different _sequences_ for different
 purposes if needed.
 

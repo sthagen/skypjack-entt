@@ -2,14 +2,12 @@
 #define ENTT_ENTITY_RUNTIME_VIEW_HPP
 
 #include <algorithm>
+#include <cstddef>
 #include <iterator>
-#include <type_traits>
 #include <utility>
 #include <vector>
-#include "../config/config.h"
 #include "entity.hpp"
 #include "fwd.hpp"
-#include "sparse_set.hpp"
 
 namespace entt {
 
@@ -37,13 +35,13 @@ public:
     using reference = typename iterator_type::reference;
     using iterator_category = std::bidirectional_iterator_tag;
 
-    runtime_view_iterator() ENTT_NOEXCEPT
+    constexpr runtime_view_iterator() noexcept
         : pools{},
           filter{},
           it{},
           tombstone_check{} {}
 
-    runtime_view_iterator(const std::vector<const Set *> &cpools, const std::vector<const Set *> &ignore, iterator_type curr) ENTT_NOEXCEPT
+    runtime_view_iterator(const std::vector<const Set *> &cpools, const std::vector<const Set *> &ignore, iterator_type curr) noexcept
         : pools{&cpools},
           filter{&ignore},
           it{curr},
@@ -73,19 +71,19 @@ public:
         return operator--(), orig;
     }
 
-    [[nodiscard]] pointer operator->() const ENTT_NOEXCEPT {
+    [[nodiscard]] pointer operator->() const noexcept {
         return it.operator->();
     }
 
-    [[nodiscard]] reference operator*() const ENTT_NOEXCEPT {
+    [[nodiscard]] reference operator*() const noexcept {
         return *operator->();
     }
 
-    [[nodiscard]] bool operator==(const runtime_view_iterator &other) const ENTT_NOEXCEPT {
+    [[nodiscard]] constexpr bool operator==(const runtime_view_iterator &other) const noexcept {
         return it == other.it;
     }
 
-    [[nodiscard]] bool operator!=(const runtime_view_iterator &other) const ENTT_NOEXCEPT {
+    [[nodiscard]] constexpr bool operator!=(const runtime_view_iterator &other) const noexcept {
         return !(*this == other);
     }
 
@@ -102,15 +100,6 @@ private:
  * Internal details not to be documented.
  * @endcond
  */
-
-/**
- * @brief Runtime view implementation.
- *
- * Primary template isn't defined on purpose. All the specializations give a
- * compile-time error, but for a few reasonable cases.
- */
-template<typename>
-struct basic_runtime_view;
 
 /**
  * @brief Generic runtime view.
@@ -148,22 +137,21 @@ struct basic_runtime_view;
  * Lifetime of a view must not overcome that of the registry that generated it.
  * In any other case, attempting to use a view results in undefined behavior.
  *
- * @tparam Entity A valid entity type (see entt_traits for more details).
- * @tparam Allocator Type of allocator used to manage memory and elements.
+ * @tparam Type Common base type.
  */
-template<typename Entity, typename Allocator>
-struct basic_runtime_view<basic_sparse_set<Entity, Allocator>> {
+template<typename Type>
+struct basic_runtime_view {
     /*! @brief Underlying entity identifier. */
-    using entity_type = Entity;
+    using entity_type = typename Type::entity_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Common type among all storage types. */
-    using base_type = basic_sparse_set<Entity, Allocator>;
+    using base_type = Type;
     /*! @brief Bidirectional iterator type. */
     using iterator = internal::runtime_view_iterator<base_type>;
 
     /*! @brief Default constructor to use to create empty, invalid views. */
-    basic_runtime_view() ENTT_NOEXCEPT
+    basic_runtime_view() noexcept
         : pools{},
           filter{} {}
 

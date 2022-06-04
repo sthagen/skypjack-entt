@@ -2,10 +2,10 @@
 #define ENTT_ENTITY_HELPER_HPP
 
 #include <type_traits>
-#include "../config/config.h"
 #include "../core/fwd.hpp"
 #include "../core/type_traits.hpp"
 #include "../signal/delegate.hpp"
+#include "component.hpp"
 #include "fwd.hpp"
 #include "registry.hpp"
 
@@ -13,20 +13,21 @@ namespace entt {
 
 /**
  * @brief Converts a registry to a view.
- * @tparam Entity A valid entity type (see entt_traits for more details).
+ * @tparam Registry Basic registry type.
  */
-template<typename Entity>
+template<typename Registry>
 struct as_view {
-    /*! @brief Underlying entity identifier. */
-    using entity_type = std::remove_const_t<Entity>;
     /*! @brief Type of registry to convert. */
-    using registry_type = constness_as_t<basic_registry<entity_type>, Entity>;
+    using registry_type = Registry;
+    /*! @brief Underlying entity identifier. */
+    using entity_type = std::remove_const_t<typename registry_type::entity_type>;
 
     /**
      * @brief Constructs a converter for a given registry.
      * @param source A valid reference to a registry.
      */
-    as_view(registry_type &source) ENTT_NOEXCEPT: reg{source} {}
+    as_view(registry_type &source) noexcept
+        : reg{source} {}
 
     /**
      * @brief Conversion function from a registry to a view.
@@ -44,35 +45,22 @@ private:
 };
 
 /**
- * @brief Deduction guide.
- * @tparam Entity A valid entity type (see entt_traits for more details).
- */
-template<typename Entity>
-as_view(basic_registry<Entity> &) -> as_view<Entity>;
-
-/**
- * @brief Deduction guide.
- * @tparam Entity A valid entity type (see entt_traits for more details).
- */
-template<typename Entity>
-as_view(const basic_registry<Entity> &) -> as_view<const Entity>;
-
-/**
  * @brief Converts a registry to a group.
- * @tparam Entity A valid entity type (see entt_traits for more details).
+ * @tparam Registry Basic registry type.
  */
-template<typename Entity>
+template<typename Registry>
 struct as_group {
-    /*! @brief Underlying entity identifier. */
-    using entity_type = std::remove_const_t<Entity>;
     /*! @brief Type of registry to convert. */
-    using registry_type = constness_as_t<basic_registry<entity_type>, Entity>;
+    using registry_type = Registry;
+    /*! @brief Underlying entity identifier. */
+    using entity_type = std::remove_const_t<typename registry_type::entity_type>;
 
     /**
      * @brief Constructs a converter for a given registry.
      * @param source A valid reference to a registry.
      */
-    as_group(registry_type &source) ENTT_NOEXCEPT: reg{source} {}
+    as_group(registry_type &source) noexcept
+        : reg{source} {}
 
     /**
      * @brief Conversion function from a registry to a group.
@@ -95,30 +83,16 @@ private:
 };
 
 /**
- * @brief Deduction guide.
- * @tparam Entity A valid entity type (see entt_traits for more details).
- */
-template<typename Entity>
-as_group(basic_registry<Entity> &) -> as_group<Entity>;
-
-/**
- * @brief Deduction guide.
- * @tparam Entity A valid entity type (see entt_traits for more details).
- */
-template<typename Entity>
-as_group(const basic_registry<Entity> &) -> as_group<const Entity>;
-
-/**
  * @brief Helper to create a listener that directly invokes a member function.
  * @tparam Member Member function to invoke on a component of the given type.
- * @tparam Entity A valid entity type (see entt_traits for more details).
+ * @tparam Registry Basic registry type.
  * @param reg A registry that contains the given entity and its components.
  * @param entt Entity from which to get the component.
  */
-template<auto Member, typename Entity = entity>
-void invoke(basic_registry<Entity> &reg, const Entity entt) {
+template<auto Member, typename Registry = std::remove_const_t<std::remove_reference_t<nth_argument_t<0u, Member>>>>
+void invoke(Registry &reg, const typename Registry::entity_type entt) {
     static_assert(std::is_member_function_pointer_v<decltype(Member)>, "Invalid pointer to non-static member function");
-    delegate<void(basic_registry<Entity> &, const Entity)> func;
+    delegate<void(Registry &, const typename Registry::entity_type)> func;
     func.template connect<Member>(reg.template get<member_class_t<decltype(Member)>>(entt));
     func(reg, entt);
 }
@@ -130,20 +104,20 @@ void invoke(basic_registry<Entity> &reg, const Entity entt) {
  * Currently, this function only works correctly with the default pool as it
  * makes assumptions about how the components are laid out.
  *
- * @tparam Entity A valid entity type (see entt_traits for more details).
+ * @tparam Registry Basic registry type.
  * @tparam Component Type of component.
  * @param reg A registry that contains the given entity and its components.
  * @param instance A valid component instance.
  * @return The entity associated with the given component.
  */
-template<typename Entity, typename Component>
-Entity to_entity(const basic_registry<Entity> &reg, const Component &instance) {
+template<typename Registry, typename Component>
+typename Registry::entity_type to_entity(const Registry &reg, const Component &instance) {
     const auto &storage = reg.template storage<Component>();
-    const typename basic_registry<Entity>::base_type &base = storage;
+    const typename Registry::base_type &base = storage;
     const auto *addr = std::addressof(instance);
 
-    for(auto it = base.rbegin(), last = base.rend(); it < last; it += ENTT_PACKED_PAGE) {
-        if(const auto dist = (addr - std::addressof(storage.get(*it))); dist >= 0 && dist < ENTT_PACKED_PAGE) {
+    for(auto it = base.rbegin(), last = base.rend(); it < last; it += component_traits<Component>::page_size) {
+        if(const auto dist = (addr - std::addressof(storage.get(*it))); dist >= 0 && dist < static_cast<decltype(dist)>(component_traits<Component>::page_size)) {
             return *(it + dist);
         }
     }

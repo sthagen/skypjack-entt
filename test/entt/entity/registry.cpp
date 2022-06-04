@@ -7,7 +7,6 @@
 #include <unordered_set>
 #include <utility>
 #include <gtest/gtest.h>
-#include <entt/config/config.h>
 #include <entt/core/hashed_string.hpp>
 #include <entt/core/type_info.hpp>
 #include <entt/entity/entity.hpp>
@@ -16,7 +15,7 @@
 struct empty_type {};
 
 struct no_eto_type {
-    static constexpr std::size_t page_size = ENTT_PACKED_PAGE;
+    static constexpr std::size_t page_size = 1024u;
 };
 
 bool operator==(const no_eto_type &lhs, const no_eto_type &rhs) {
@@ -1944,13 +1943,11 @@ TEST(Registry, RuntimePools) {
     auto &storage = registry.storage<empty_type>("other"_hs);
     const auto entity = registry.create();
 
-    static_assert(std::is_same_v<decltype(registry.storage<empty_type>()), typename entt::storage_traits<entt::entity, empty_type>::storage_type &>);
-    static_assert(std::is_same_v<decltype(registry.storage<const empty_type>()), const typename entt::storage_traits<entt::entity, empty_type>::storage_type &>);
-    static_assert(std::is_same_v<decltype(std::as_const(registry).storage<empty_type>()), const typename entt::storage_traits<entt::entity, empty_type>::storage_type &>);
-    static_assert(std::is_same_v<decltype(std::as_const(registry).storage<const empty_type>()), const typename entt::storage_traits<entt::entity, empty_type>::storage_type &>);
+    static_assert(std::is_same_v<decltype(registry.storage<empty_type>()), entt::storage_type_t<empty_type> &>);
+    static_assert(std::is_same_v<decltype(std::as_const(registry).storage<empty_type>()), const entt::storage_type_t<empty_type> &>);
 
-    static_assert(std::is_same_v<decltype(registry.storage("other"_hs)->second), typename entt::storage_traits<entt::entity, empty_type>::storage_type::base_type &>);
-    static_assert(std::is_same_v<decltype(std::as_const(registry).storage("other"_hs)->second), const typename entt::storage_traits<entt::entity, empty_type>::storage_type::base_type &>);
+    static_assert(std::is_same_v<decltype(registry.storage("other"_hs)->second), entt::storage_type_t<empty_type>::base_type &>);
+    static_assert(std::is_same_v<decltype(std::as_const(registry).storage("other"_hs)->second), const entt::storage_type_t<empty_type>::base_type &>);
 
     ASSERT_NE(registry.storage("other"_hs), registry.storage().end());
     ASSERT_EQ(std::as_const(registry).storage("rehto"_hs), registry.storage().end());

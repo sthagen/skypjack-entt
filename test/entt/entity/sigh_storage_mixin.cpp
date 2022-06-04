@@ -464,9 +464,9 @@ TEST(SighStorageMixin, CustomAllocator) {
 
     test::throwing_allocator<entt::entity> allocator{};
 
-    test(entt::sigh_storage_mixin<entt::storage<int, test::throwing_allocator<int>>>{allocator}, allocator);
-    test(entt::sigh_storage_mixin<entt::storage<std::true_type, test::throwing_allocator<std::true_type>>>{allocator}, allocator);
-    test(entt::sigh_storage_mixin<entt::storage<stable_type, test::throwing_allocator<stable_type>>>{allocator}, allocator);
+    test(entt::sigh_storage_mixin<entt::basic_storage<int, entt::entity, test::throwing_allocator<int>>>{allocator}, allocator);
+    test(entt::sigh_storage_mixin<entt::basic_storage<std::true_type, entt::entity, test::throwing_allocator<std::true_type>>>{allocator}, allocator);
+    test(entt::sigh_storage_mixin<entt::basic_storage<stable_type, entt::entity, test::throwing_allocator<stable_type>>>{allocator}, allocator);
 }
 
 TEST(SighStorageMixin, ThrowingAllocator) {
@@ -475,6 +475,8 @@ TEST(SighStorageMixin, ThrowingAllocator) {
         using value_type = typename decltype(pool)::value_type;
 
         typename std::decay_t<decltype(pool)>::base_type &base = pool;
+        constexpr auto packed_page_size = entt::component_traits<typename decltype(pool)::value_type>::page_size;
+        constexpr auto sparse_page_size = entt::entt_traits<typename decltype(pool)::entity_type>::page_size;
         entt::registry registry;
 
         counter on_construct{};
@@ -491,8 +493,8 @@ TEST(SighStorageMixin, ThrowingAllocator) {
 
         pool_allocator_type::trigger_after_allocate = true;
 
-        ASSERT_THROW(pool.reserve(2 * ENTT_PACKED_PAGE), typename pool_allocator_type::exception_type);
-        ASSERT_EQ(pool.capacity(), ENTT_PACKED_PAGE);
+        ASSERT_THROW(pool.reserve(2 * packed_page_size), typename pool_allocator_type::exception_type);
+        ASSERT_EQ(pool.capacity(), packed_page_size);
 
         pool.shrink_to_fit();
 
@@ -518,28 +520,28 @@ TEST(SighStorageMixin, ThrowingAllocator) {
         ASSERT_TRUE(pool.empty());
 
         pool.emplace(entt::entity{0}, 0);
-        const entt::entity entities[2u]{entt::entity{1}, entt::entity{ENTT_SPARSE_PAGE}};
+        const entt::entity entities[2u]{entt::entity{1}, entt::entity{sparse_page_size}};
         test::throwing_allocator<entt::entity>::trigger_after_allocate = true;
 
         ASSERT_THROW(pool.insert(std::begin(entities), std::end(entities), value_type{0}), test::throwing_allocator<entt::entity>::exception_type);
         ASSERT_TRUE(pool.contains(entt::entity{1}));
-        ASSERT_FALSE(pool.contains(entt::entity{ENTT_SPARSE_PAGE}));
+        ASSERT_FALSE(pool.contains(entt::entity{sparse_page_size}));
 
         pool.erase(entt::entity{1});
-        const value_type components[2u]{value_type{1}, value_type{ENTT_SPARSE_PAGE}};
+        const value_type components[2u]{value_type{1}, value_type{sparse_page_size}};
         test::throwing_allocator<entt::entity>::trigger_on_allocate = true;
         pool.compact();
 
         ASSERT_THROW(pool.insert(std::begin(entities), std::end(entities), std::begin(components)), test::throwing_allocator<entt::entity>::exception_type);
         ASSERT_TRUE(pool.contains(entt::entity{1}));
-        ASSERT_FALSE(pool.contains(entt::entity{ENTT_SPARSE_PAGE}));
+        ASSERT_FALSE(pool.contains(entt::entity{sparse_page_size}));
 
         ASSERT_EQ(on_construct.value, 1);
         ASSERT_EQ(on_destroy.value, 1);
     };
 
-    test(entt::sigh_storage_mixin<entt::basic_storage<entt::entity, int, test::throwing_allocator<int>>>{});
-    test(entt::sigh_storage_mixin<entt::basic_storage<entt::entity, stable_type, test::throwing_allocator<stable_type>>>{});
+    test(entt::sigh_storage_mixin<entt::basic_storage<int, entt::entity, test::throwing_allocator<int>>>{});
+    test(entt::sigh_storage_mixin<entt::basic_storage<stable_type, entt::entity, test::throwing_allocator<stable_type>>>{});
 }
 
 TEST(SighStorageMixin, ThrowingComponent) {

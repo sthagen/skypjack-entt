@@ -37,9 +37,9 @@ namespace entt {
 namespace internal {
 
 template<typename It>
-class storage_proxy_iterator final {
+class registry_storage_iterator final {
     template<typename Other>
-    friend class storage_proxy_iterator;
+    friend class registry_storage_iterator;
 
     using mapped_type = std::remove_reference_t<decltype(std::declval<It>()->second)>;
 
@@ -50,49 +50,49 @@ public:
     using difference_type = std::ptrdiff_t;
     using iterator_category = std::input_iterator_tag;
 
-    constexpr storage_proxy_iterator() noexcept
+    constexpr registry_storage_iterator() noexcept
         : it{} {}
 
-    constexpr storage_proxy_iterator(const It iter) noexcept
+    constexpr registry_storage_iterator(It iter) noexcept
         : it{iter} {}
 
     template<typename Other, typename = std::enable_if_t<!std::is_same_v<It, Other> && std::is_constructible_v<It, Other>>>
-    constexpr storage_proxy_iterator(const storage_proxy_iterator<Other> &other) noexcept
-        : it{other.it} {}
+    constexpr registry_storage_iterator(const registry_storage_iterator<Other> &other) noexcept
+        : registry_storage_iterator{other.it} {}
 
-    constexpr storage_proxy_iterator &operator++() noexcept {
+    constexpr registry_storage_iterator &operator++() noexcept {
         return ++it, *this;
     }
 
-    constexpr storage_proxy_iterator operator++(int) noexcept {
-        storage_proxy_iterator orig = *this;
+    constexpr registry_storage_iterator operator++(int) noexcept {
+        registry_storage_iterator orig = *this;
         return ++(*this), orig;
     }
 
-    constexpr storage_proxy_iterator &operator--() noexcept {
+    constexpr registry_storage_iterator &operator--() noexcept {
         return --it, *this;
     }
 
-    constexpr storage_proxy_iterator operator--(int) noexcept {
-        storage_proxy_iterator orig = *this;
+    constexpr registry_storage_iterator operator--(int) noexcept {
+        registry_storage_iterator orig = *this;
         return operator--(), orig;
     }
 
-    constexpr storage_proxy_iterator &operator+=(const difference_type value) noexcept {
+    constexpr registry_storage_iterator &operator+=(const difference_type value) noexcept {
         it += value;
         return *this;
     }
 
-    constexpr storage_proxy_iterator operator+(const difference_type value) const noexcept {
-        storage_proxy_iterator copy = *this;
+    constexpr registry_storage_iterator operator+(const difference_type value) const noexcept {
+        registry_storage_iterator copy = *this;
         return (copy += value);
     }
 
-    constexpr storage_proxy_iterator &operator-=(const difference_type value) noexcept {
+    constexpr registry_storage_iterator &operator-=(const difference_type value) noexcept {
         return (*this += -value);
     }
 
-    constexpr storage_proxy_iterator operator-(const difference_type value) const noexcept {
+    constexpr registry_storage_iterator operator-(const difference_type value) const noexcept {
         return (*this + -value);
     }
 
@@ -109,50 +109,50 @@ public:
     }
 
     template<typename ILhs, typename IRhs>
-    friend constexpr std::ptrdiff_t operator-(const storage_proxy_iterator<ILhs> &, const storage_proxy_iterator<IRhs> &) noexcept;
+    friend constexpr std::ptrdiff_t operator-(const registry_storage_iterator<ILhs> &, const registry_storage_iterator<IRhs> &) noexcept;
 
     template<typename ILhs, typename IRhs>
-    friend constexpr bool operator==(const storage_proxy_iterator<ILhs> &, const storage_proxy_iterator<IRhs> &) noexcept;
+    friend constexpr bool operator==(const registry_storage_iterator<ILhs> &, const registry_storage_iterator<IRhs> &) noexcept;
 
     template<typename ILhs, typename IRhs>
-    friend constexpr bool operator<(const storage_proxy_iterator<ILhs> &, const storage_proxy_iterator<IRhs> &) noexcept;
+    friend constexpr bool operator<(const registry_storage_iterator<ILhs> &, const registry_storage_iterator<IRhs> &) noexcept;
 
 private:
     It it;
 };
 
 template<typename ILhs, typename IRhs>
-[[nodiscard]] constexpr std::ptrdiff_t operator-(const storage_proxy_iterator<ILhs> &lhs, const storage_proxy_iterator<IRhs> &rhs) noexcept {
+[[nodiscard]] constexpr std::ptrdiff_t operator-(const registry_storage_iterator<ILhs> &lhs, const registry_storage_iterator<IRhs> &rhs) noexcept {
     return lhs.it - rhs.it;
 }
 
 template<typename ILhs, typename IRhs>
-[[nodiscard]] constexpr bool operator==(const storage_proxy_iterator<ILhs> &lhs, const storage_proxy_iterator<IRhs> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator==(const registry_storage_iterator<ILhs> &lhs, const registry_storage_iterator<IRhs> &rhs) noexcept {
     return lhs.it == rhs.it;
 }
 
 template<typename ILhs, typename IRhs>
-[[nodiscard]] constexpr bool operator!=(const storage_proxy_iterator<ILhs> &lhs, const storage_proxy_iterator<IRhs> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator!=(const registry_storage_iterator<ILhs> &lhs, const registry_storage_iterator<IRhs> &rhs) noexcept {
     return !(lhs == rhs);
 }
 
 template<typename ILhs, typename IRhs>
-[[nodiscard]] constexpr bool operator<(const storage_proxy_iterator<ILhs> &lhs, const storage_proxy_iterator<IRhs> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator<(const registry_storage_iterator<ILhs> &lhs, const registry_storage_iterator<IRhs> &rhs) noexcept {
     return lhs.it < rhs.it;
 }
 
 template<typename ILhs, typename IRhs>
-[[nodiscard]] constexpr bool operator>(const storage_proxy_iterator<ILhs> &lhs, const storage_proxy_iterator<IRhs> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator>(const registry_storage_iterator<ILhs> &lhs, const registry_storage_iterator<IRhs> &rhs) noexcept {
     return rhs < lhs;
 }
 
 template<typename ILhs, typename IRhs>
-[[nodiscard]] constexpr bool operator<=(const storage_proxy_iterator<ILhs> &lhs, const storage_proxy_iterator<IRhs> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator<=(const registry_storage_iterator<ILhs> &lhs, const registry_storage_iterator<IRhs> &rhs) noexcept {
     return !(lhs > rhs);
 }
 
 template<typename ILhs, typename IRhs>
-[[nodiscard]] constexpr bool operator>=(const storage_proxy_iterator<ILhs> &lhs, const storage_proxy_iterator<IRhs> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator>=(const registry_storage_iterator<ILhs> &lhs, const registry_storage_iterator<IRhs> &rhs) noexcept {
     return !(lhs < rhs);
 }
 
@@ -220,6 +220,9 @@ template<typename Entity>
 class basic_registry {
     using entity_traits = entt_traits<Entity>;
     using basic_common_type = basic_sparse_set<Entity>;
+
+    template<typename Type>
+    using storage_for_type = typename storage_for<Type, Entity>::type;
 
     template<typename...>
     struct group_handler;
@@ -388,12 +391,12 @@ public:
      * @return An iterable object to use to _visit_ the registry.
      */
     [[nodiscard]] auto storage() noexcept {
-        return iterable_adaptor{internal::storage_proxy_iterator{pools.begin()}, internal::storage_proxy_iterator{pools.end()}};
+        return iterable_adaptor{internal::registry_storage_iterator{pools.begin()}, internal::registry_storage_iterator{pools.end()}};
     }
 
     /*! @copydoc storage */
     [[nodiscard]] auto storage() const noexcept {
-        return iterable_adaptor{internal::storage_proxy_iterator{pools.cbegin()}, internal::storage_proxy_iterator{pools.cend()}};
+        return iterable_adaptor{internal::registry_storage_iterator{pools.cbegin()}, internal::registry_storage_iterator{pools.cend()}};
     }
 
     /**
@@ -403,7 +406,7 @@ public:
      * iterator otherwise.
      */
     [[nodiscard]] auto storage(const id_type id) {
-        return internal::storage_proxy_iterator{pools.find(id)};
+        return internal::registry_storage_iterator{pools.find(id)};
     }
 
     /**
@@ -413,7 +416,7 @@ public:
      * iterator otherwise.
      */
     [[nodiscard]] auto storage(const id_type id) const {
-        return internal::storage_proxy_iterator{pools.find(id)};
+        return internal::registry_storage_iterator{pools.find(id)};
     }
 
     /**
@@ -1213,16 +1216,16 @@ public:
      * @return A newly created view.
      */
     template<typename Component, typename... Other, typename... Exclude>
-    [[nodiscard]] auto view(exclude_t<Exclude...> = {}) const {
-        using view_type = basic_view<Entity, get_t<const Component, const Other...>, exclude_t<const Exclude...>>;
-        return view_type{assure<std::remove_const_t<Component>>(), assure<std::remove_const_t<Other>>()..., assure<std::remove_const_t<Exclude>>()...};
+    [[nodiscard]] basic_view<get_t<storage_for_type<const Component>, storage_for_type<const Other>...>, exclude_t<storage_for_type<const Exclude>...>>
+    view(exclude_t<Exclude...> = {}) const {
+        return {assure<std::remove_const_t<Component>>(), assure<std::remove_const_t<Other>>()..., assure<std::remove_const_t<Exclude>>()...};
     }
 
     /*! @copydoc view */
     template<typename Component, typename... Other, typename... Exclude>
-    [[nodiscard]] auto view(exclude_t<Exclude...> = {}) {
-        using view_type = basic_view<Entity, get_t<Component, Other...>, exclude_t<Exclude...>>;
-        return view_type{assure<std::remove_const_t<Component>>(), assure<std::remove_const_t<Other>>()..., assure<std::remove_const_t<Exclude>>()...};
+    [[nodiscard]] basic_view<get_t<storage_for_type<Component>, storage_for_type<Other>...>, exclude_t<storage_for_type<Exclude>...>>
+    view(exclude_t<Exclude...> = {}) {
+        return {assure<std::remove_const_t<Component>>(), assure<std::remove_const_t<Other>>()..., assure<std::remove_const_t<Exclude>>()...};
     }
 
     /**
@@ -1244,13 +1247,14 @@ public:
      * The group takes the ownership of the pools and arrange components so as
      * to iterate them as fast as possible.
      *
-     * @tparam Owned Types of components owned by the group.
-     * @tparam Get Types of components observed by the group.
-     * @tparam Exclude Types of components used to filter the group.
+     * @tparam Owned Type of storage _owned_ by the group.
+     * @tparam Get Type of storage _observed_ by the group.
+     * @tparam Exclude Type of storage used to filter the group.
      * @return A newly created group.
      */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] basic_group<entity_type, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> group(get_t<Get...> = {}, exclude_t<Exclude...> = {}) {
+    [[nodiscard]] basic_group<owned_t<storage_for_type<Owned>...>, get_t<storage_for_type<Get>...>, exclude_t<storage_for_type<Exclude>...>>
+    group(get_t<Get...> = {}, exclude_t<Exclude...> = {}) {
         static_assert(sizeof...(Owned) + sizeof...(Get) > 0, "Exclusion-only groups are not supported");
         static_assert(sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude) > 1, "Single component groups are not allowed");
 
@@ -1332,7 +1336,8 @@ public:
 
     /*! @copydoc group */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] basic_group<entity_type, owned_t<const Owned...>, get_t<const Get...>, exclude_t<const Exclude...>> group_if_exists(get_t<Get...> = {}, exclude_t<Exclude...> = {}) const {
+    [[nodiscard]] basic_group<owned_t<storage_for_type<const Owned>...>, get_t<storage_for_type<const Get>...>, exclude_t<storage_for_type<const Exclude>...>>
+    group_if_exists(get_t<Get...> = {}, exclude_t<Exclude...> = {}) const {
         auto it = std::find_if(groups.cbegin(), groups.cend(), [](const auto &gdata) {
             return gdata.size == (sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude))
                    && (gdata.owned(type_hash<std::remove_const_t<Owned>>::value()) && ...)
@@ -1361,15 +1366,15 @@ public:
 
     /**
      * @brief Checks whether a group can be sorted.
-     * @tparam Owned Types of components owned by the group.
-     * @tparam Get Types of components observed by the group.
-     * @tparam Exclude Types of components used to filter the group.
+     * @tparam Owned Type of storage _owned_ by the group.
+     * @tparam Get Type of storage _observed_ by the group.
+     * @tparam Exclude Type of storage used to filter the group.
      * @return True if the group can be sorted, false otherwise.
      */
     template<typename... Owned, typename... Get, typename... Exclude>
-    [[nodiscard]] bool sortable(const basic_group<entity_type, owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> &) noexcept {
+    [[nodiscard]] bool sortable(const basic_group<owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> &) noexcept {
         constexpr auto size = sizeof...(Owned) + sizeof...(Get) + sizeof...(Exclude);
-        auto pred = [size](const auto &gdata) { return (0u + ... + gdata.owned(type_hash<std::remove_const_t<Owned>>::value())) && (size < gdata.size); };
+        auto pred = [size](const auto &gdata) { return (0u + ... + gdata.owned(type_hash<typename Owned::value_type>::value())) && (size < gdata.size); };
         return std::find_if(groups.cbegin(), groups.cend(), std::move(pred)) == groups.cend();
     }
 

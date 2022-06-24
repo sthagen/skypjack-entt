@@ -147,6 +147,10 @@ if(ENTT_INCLUDE_HEADERS)
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/sparse_set.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/storage.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/entity/view.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/graph/adjacency_matrix.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/graph/dot.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/graph/flow.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/graph/fwd.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/locator/locator.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/meta/adl_pointer.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/meta/container.hpp>
@@ -165,6 +169,7 @@ if(ENTT_INCLUDE_HEADERS)
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/platform/android-ndk-r17.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/poly/fwd.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/poly/poly.hpp>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/process/fwd.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/process/process.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/process/scheduler.hpp>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/resource/cache.hpp>
@@ -189,6 +194,7 @@ if(ENTT_HAS_NATVIS)
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/container.natvis>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/core.natvis>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/entity.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/graph.natvis>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/locator.natvis>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/meta.natvis>
             $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/platform.natvis>

@@ -16,7 +16,13 @@ namespace entt {
  * @tparam Registry Basic registry type.
  */
 template<typename Registry>
-struct as_view {
+class as_view {
+    template<typename... Get, typename... Exclude>
+    auto dispatch(get_t<Get...>, exclude_t<Exclude...>) const {
+        return reg.template view<constness_as_t<typename Get::value_type, Get>...>(exclude_t<constness_as_t<typename Exclude::value_type, Exclude>...>{});
+    }
+
+public:
     /*! @brief Type of registry to convert. */
     using registry_type = Registry;
     /*! @brief Underlying entity identifier. */
@@ -31,13 +37,13 @@ struct as_view {
 
     /**
      * @brief Conversion function from a registry to a view.
-     * @tparam Exclude Types of components used to filter the view.
-     * @tparam Component Type of components used to construct the view.
+     * @tparam Get Type of storage used to construct the view.
+     * @tparam Exclude Types of storage used to filter the view.
      * @return A newly created view.
      */
-    template<typename Exclude, typename... Component>
-    operator basic_view<entity_type, get_t<Component...>, Exclude>() const {
-        return reg.template view<Component...>(Exclude{});
+    template<typename Get, typename Exclude>
+    operator basic_view<Get, Exclude>() const {
+        return dispatch(Get{}, Exclude{});
     }
 
 private:
@@ -49,7 +55,17 @@ private:
  * @tparam Registry Basic registry type.
  */
 template<typename Registry>
-struct as_group {
+class as_group {
+    template<typename... Owned, typename... Get, typename... Exclude>
+    auto dispatch(owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>) const {
+        if constexpr(std::is_const_v<registry_type>) {
+            return reg.template group_if_exists<typename Owned::value_type...>(get_t<typename Get::value_type...>{}, exclude_t<typename Exclude::value_type...>{});
+        } else {
+            return reg.template group<constness_as_t<typename Owned::value_type, Owned>...>(get_t<constness_as_t<typename Get::value_type, Get>...>{}, exclude_t<constness_as_t<typename Exclude::value_type, Exclude>...>{});
+        }
+    }
+
+public:
     /*! @brief Type of registry to convert. */
     using registry_type = Registry;
     /*! @brief Underlying entity identifier. */
@@ -64,18 +80,14 @@ struct as_group {
 
     /**
      * @brief Conversion function from a registry to a group.
-     * @tparam Get Types of components observed by the group.
-     * @tparam Exclude Types of components used to filter the group.
-     * @tparam Owned Types of components owned by the group.
+     * @tparam Owned Types of _owned_ by the group.
+     * @tparam Get Types of storage _observed_ by the group.
+     * @tparam Exclude Types of storage used to filter the group.
      * @return A newly created group.
      */
-    template<typename Get, typename Exclude, typename... Owned>
-    operator basic_group<entity_type, owned_t<Owned...>, Get, Exclude>() const {
-        if constexpr(std::is_const_v<registry_type>) {
-            return reg.template group_if_exists<Owned...>(Get{}, Exclude{});
-        } else {
-            return reg.template group<Owned...>(Get{}, Exclude{});
-        }
+    template<typename Owned, typename Get, typename Exclude>
+    operator basic_group<Owned, Get, Exclude>() const {
+        return dispatch(Owned{}, Get{}, Exclude{});
     }
 
 private:

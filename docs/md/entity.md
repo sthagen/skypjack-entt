@@ -738,8 +738,8 @@ using my_const_handle = entt::basic_handle<const my_identifier>;
 Handles are also implicitly convertible to const handles out of the box but not
 the other way around.<br/>
 A handle stores a non-const pointer to a registry and therefore it can do all
-the things that can be done with a non-const registry. On the other hand, a
-const handles store const pointers to registries and offer a restricted set of
+the things that can be done with a non-const registry. On the other hand, const
+handles store const pointers to registries and offer a restricted set of
 functionalities.
 
 This class is intended to simplify function signatures. In case of functions
@@ -921,13 +921,13 @@ lvalue is necessarily provided as an argument:
 
 ```cpp
 time clock;
-registry.ctx().emplace<my_type &>(clock);
+registry.ctx().emplace<time &>(clock);
 ```
 
 Read-only aliased properties are created using const types instead:
 
 ```cpp
-registry.ctx().emplace<const my_type &>(clock);
+registry.ctx().emplace<const time &>(clock);
 ```
 
 From the point of view of the user, there are no differences between a variable
@@ -1634,8 +1634,8 @@ useful in this regard.
 Groups are meant to iterate multiple components at once and to offer a faster
 alternative to multi type views.<br/>
 Groups overcome the performance of the other tools available but require to get
-the ownership of components and this sets some constraints on pools. On the
-other side, groups aren't an automatism that increases memory consumption,
+the ownership of components. This sets some constraints on the pools. On the
+other hand, groups aren't an automatism that increases memory consumption,
 affects functionalities and tries to optimize iterations for all the possible
 combinations of components. Users can decide when to pay for groups and to what
 extent.<br/>

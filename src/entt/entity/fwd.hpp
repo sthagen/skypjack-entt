@@ -28,13 +28,13 @@ class sigh_storage_mixin;
 template<typename = entity>
 class basic_registry;
 
-template<typename, typename, typename, typename = void>
+template<typename, typename, typename = void>
 class basic_view;
 
 template<typename>
 struct basic_runtime_view;
 
-template<typename, typename, typename, typename>
+template<typename, typename, typename>
 class basic_group;
 
 template<typename>
@@ -147,21 +147,23 @@ using continuous_loader = basic_continuous_loader<registry>;
 
 /**
  * @brief Alias declaration for the most common use case.
- * @tparam Get Types of components iterated by the view.
- * @tparam Exclude Types of components used to filter the view.
+ * @tparam Get Types of storage iterated by the view.
+ * @tparam Exclude Types of storage used to filter the view.
  */
 template<typename Get, typename Exclude = exclude_t<>>
-using view = basic_view<entity, Get, Exclude>;
+using view = basic_view<type_list_transform_t<Get, storage_for>, type_list_transform_t<Exclude, storage_for>>;
 
 /*! @brief Alias declaration for the most common use case. */
 using runtime_view = basic_runtime_view<sparse_set>;
 
 /**
  * @brief Alias declaration for the most common use case.
- * @tparam Args Other template parameters.
+ * @tparam Owned Types of storage _owned_ by the group.
+ * @tparam Get Types of storage _observed_ by the group.
+ * @tparam Exclude Types of storage used to filter the group.
  */
-template<typename... Args>
-using group = basic_group<entity, Args...>;
+template<typename Owned, typename Get, typename Exclude>
+using group = basic_group<type_list_transform_t<Owned, storage_for>, type_list_transform_t<Get, storage_for>, type_list_transform_t<Exclude, storage_for>>;
 
 } // namespace entt
 

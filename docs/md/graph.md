@@ -8,7 +8,7 @@
 * [Introduction](#introduction)
 * [Data structures](#data-structures)
   * [Adjacency matrix](#adjacency-matrix)
-  * [Dot](#dot)
+  * [Graphviz dot language](#graphviz-dot-language)
 * [Flow builder](#flow-builder)
   * [Tasks and resources](#tasks-and-resources)
   * [Fake resources and order of execution](#fake-resources-and-order-of-execution)
@@ -54,9 +54,9 @@ and modification of an element will take place via the `contains`, `insert` and
 
 ```cpp
 if(adjacency_matrix.contains(0u, 1u)) {
-	adjacency_matrix.erase(0u, 1u);
+    adjacency_matrix.erase(0u, 1u);
 } else {
-	adjacency_matrix.insert(0u, 1u);
+    adjacency_matrix.insert(0u, 1u);
 }
 ```
 
@@ -78,7 +78,7 @@ an iterable object suitable for the purpose:
 
 ```cpp
 for(auto &&vertex: adjacency_matrix.vertices()) {
-	// ...
+    // ...
 }
 ```
 
@@ -87,7 +87,7 @@ vertices are unsigned integral values:
 
 ```cpp
 for(auto last = adjacency_matrix.size(), pos = {}; pos < last; ++pos) {
-	// ...
+    // ...
 }
 ```
 
@@ -98,7 +98,7 @@ pairs of vertices:
 
 ```cpp
 for(auto [lhs, rhs]: adjacency_matrix.edges()) {
-	// ...
+    // ...
 }
 ```
 
@@ -107,7 +107,7 @@ vertex, the `in_edges` and `out_edges` functions are meant for that:
 
 ```cpp
 for(auto [lhs, rhs]: adjacency_matrix.out_edges(3u)) {
-	// ...
+    // ...
 }
 ```
 
@@ -117,10 +117,10 @@ Finally, the adjacency matrix is an allocator-aware container and offers most of
 the functionality one would expect from this type of containers, such as `clear`
 or 'get_allocator` and so on.
 
-## Dot
+## Graphviz dot language
 
 As it's one of the most popular formats, the library offers minimal support for
-converting a graph to a dot plot.<br/>
+converting a graph to a Graphviz dot snippet.<br/>
 The simplest way is to pass both an output stream and a graph to the `dot`
 function:
 
@@ -130,13 +130,13 @@ entt::dot(output, adjacency_matrix);
 ```
 
 However, there is also the option of providing a callback to which the vertices
-are passed and which can be used to add (dot) properties to the output from time
-to time:
+are passed and which can be used to add (`dot`) properties to the output from
+time to time:
 
 ```cpp
 std::ostringstream output{};
 entt::dot(output, adjacency_matrix, [](auto &output, auto vertex) {
-	out << "label=\"v\"" << vertex << ",shape=\"box\"";
+    out << "label=\"v\"" << vertex << ",shape=\"box\"";
 });
 ```
 
@@ -195,10 +195,10 @@ read-only or read-write resources, as appropriate:
 ```cpp
 builder
     .bind("task_1"_hs)
-		.ro("resource_1"_hs)
-		.ro("resource_2"_hs)
+        .ro("resource_1"_hs)
+        .ro("resource_2"_hs)
     .bind("task_2"_hs)
-		.rw("resource_2"_hs)
+        .rw("resource_2"_hs)
 ```
 
 As mentioned, many functions return the builder itself and it's therefore easy
@@ -225,14 +225,14 @@ the order execution:
 ```cpp
 builder
     .bind("task_1"_hs)
-		.ro("resource_1"_hs)
-		.rw("fake"_hs)
+        .ro("resource_1"_hs)
+        .rw("fake"_hs)
     .bind("task_2"_hs)
-		.ro("resource_2"_hs)
-		.ro("fake"_hs)
+        .ro("resource_2"_hs)
+        .ro("fake"_hs)
     .bind("task_3"_hs)
-		.ro("resource_2"_hs)
-		.ro("fake"_hs)
+        .ro("resource_2"_hs)
+        .ro("fake"_hs)
 ```
 
 This snippet forces the execution of `task_2` and `task_3` **after** `task_1`.
@@ -243,14 +243,14 @@ Similarly, it's possible to force a task to run after a certain group:
 ```cpp
 builder
     .bind("task_1"_hs)
-		.ro("resource_1"_hs)
-		.ro("fake"_hs)
+        .ro("resource_1"_hs)
+        .ro("fake"_hs)
     .bind("task_2"_hs)
-		.ro("resource_1"_hs)
-		.ro("fake"_hs)
+        .ro("resource_1"_hs)
+        .ro("fake"_hs)
     .bind("task_3"_hs)
-		.ro("resource_2"_hs)
-		.rw("fake"_hs)
+        .ro("resource_2"_hs)
+        .rw("fake"_hs)
 ```
 
 In this case, since there are a number of processes that want to read a specific
@@ -265,7 +265,7 @@ assigning this role to a vertex is always the same: first it's tied to the flow
 builder, then the `sync` function is invoked:
 
 ```cpp
-builder.bind("sync_point").sync();
+builder.bind("sync_point"_hs).sync();
 ```
 
 The choice to assign an _identity_ to this type of nodes lies in the fact that,
@@ -288,9 +288,9 @@ first thing required:
 
 ```cpp
 for(auto &&vertex: graph) {
-	if(auto in_edges = graph.in_edges(vertex); in_edges.begin() == in_edges.end()) {
-		// ...
-	}
+    if(auto in_edges = graph.in_edges(vertex); in_edges.begin() == in_edges.end()) {
+        // ...
+    }
 }
 ```
 

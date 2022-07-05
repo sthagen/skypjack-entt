@@ -119,7 +119,7 @@ public:
     [[nodiscard]] inline iterator begin();
     [[nodiscard]] inline iterator end();
     inline bool insert(meta_any, meta_any);
-    inline bool erase(meta_any);
+    inline size_type erase(meta_any);
     [[nodiscard]] inline iterator find(meta_any);
     [[nodiscard]] inline explicit operator bool() const noexcept;
 
@@ -132,7 +132,7 @@ private:
     bool (*clear_fn)(any &) = nullptr;
     iterator (*iter_fn)(any &, const bool) = nullptr;
     bool (*insert_fn)(any &, meta_any &, meta_any &) = nullptr;
-    bool (*erase_fn)(any &, meta_any &) = nullptr;
+    size_type (*erase_fn)(any &, meta_any &) = nullptr;
     iterator (*find_fn)(any &, meta_any &) = nullptr;
     any storage{};
 };
@@ -934,14 +934,14 @@ private:
 
 /*! @brief Opaque wrapper for types. */
 class meta_type {
-    template<auto Member, typename Pred>
-    [[nodiscard]] std::decay_t<decltype(std::declval<internal::meta_type_node>().*Member)> lookup(meta_any *const args, const typename internal::meta_type_node::size_type sz, Pred pred) const {
+    template<auto Member, typename... Check>
+    [[nodiscard]] std::decay_t<decltype(std::declval<internal::meta_type_node>().*Member)> lookup(meta_any *const args, const typename internal::meta_type_node::size_type sz, Check... check) const {
         std::decay_t<decltype(node->*Member)> candidate{};
         size_type extent{sz + 1u};
         bool ambiguous{};
 
         for(auto *curr = (node->*Member); curr; curr = curr->next) {
-            if(pred(curr) && curr->arity == sz) {
+            if(((curr->id == check) && ... && (curr->arity == sz))) {
                 size_type direct{};
                 size_type ext{};
 
@@ -1216,7 +1216,7 @@ public:
      * @return A wrapper containing the new instance, if any.
      */
     [[nodiscard]] meta_any construct(meta_any *const args, const size_type sz) const {
-        const auto *candidate = lookup<&node_type::ctor>(args, sz, [](const auto *) { return true; });
+        const auto *candidate = lookup<&node_type::ctor>(args, sz);
         return candidate ? candidate->invoke(args) : ((!sz && node->default_constructor) ? node->default_constructor() : meta_any{});
     }
 
@@ -1250,10 +1250,10 @@ public:
      * @return A wrapper containing the returned value, if any.
      */
     meta_any invoke(const id_type id, meta_handle instance, meta_any *const args, const size_type sz) const {
-        const auto *candidate = lookup<&node_type::func>(args, sz, [id](const auto *curr) { return curr->id == id; });
+        const auto *candidate = lookup<&node_type::func>(args, sz, id);
 
         for(auto it = base().begin(), last = base().end(); it != last && !candidate; ++it) {
-            candidate = it->lookup<&node_type::func>(args, sz, [id](const auto *curr) { return curr->id == id; });
+            candidate = it->lookup<&node_type::func>(args, sz, id);
         }
 
         return candidate ? candidate->invoke(std::move(instance), args) : meta_any{};
@@ -1764,7 +1764,7 @@ inline bool meta_associative_container::insert(meta_any key, meta_any value = {}
  * @param key The key of the element to remove.
  * @return A bool denoting whether the removal took place.
  */
-inline bool meta_associative_container::erase(meta_any key) {
+inline meta_associative_container::size_type meta_associative_container::erase(meta_any key) {
     return erase_fn(storage, key);
 }
 

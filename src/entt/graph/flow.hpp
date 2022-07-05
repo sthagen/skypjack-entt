@@ -117,7 +117,7 @@ public:
      * @param pos Position of the identifier to return.
      * @return The requested identifier.
      */
-    id_type operator[](const size_type pos) const {
+    [[nodiscard]] id_type operator[](const size_type pos) const {
         return vertices.cbegin()[pos];
     }
 
@@ -164,7 +164,7 @@ public:
      * @brief Turns the current task into a sync point.
      * @return This flow builder.
      */
-    basic_flow& sync() {
+    basic_flow &sync() {
         ENTT_ASSERT(index.first() < vertices.size(), "Invalid node");
         sync_on = index.first();
 
@@ -172,6 +172,17 @@ public:
             elem.second.emplace_back(sync_on, true);
         }
 
+        return *this;
+    }
+
+    /**
+     * @brief Assigns a resource to the current task with a given access mode.
+     * @param res Resource identifier.
+     * @param is_rw Access mode.
+     * @return This flow builder.
+     */
+    basic_flow &set(const id_type res, bool is_rw = false) {
+        emplace(res, is_rw);
         return *this;
     }
 
@@ -233,7 +244,7 @@ public:
      * @brief Generates a task graph for the current content.
      * @return The adjacency matrix of the task graph.
      */
-    adjacency_matrix<directed_tag> graph() const {
+    [[nodiscard]] adjacency_matrix<directed_tag> graph() const {
         const auto length = vertices.size();
         adjacency_matrix<directed_tag> matrix{length};
 

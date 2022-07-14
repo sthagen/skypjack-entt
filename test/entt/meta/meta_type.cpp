@@ -8,7 +8,7 @@
 #include <entt/core/type_info.hpp>
 #include <entt/core/utility.hpp>
 #include <entt/meta/container.hpp>
-#include <entt/meta/ctx.hpp>
+#include <entt/meta/context.hpp>
 #include <entt/meta/factory.hpp>
 #include <entt/meta/meta.hpp>
 #include <entt/meta/pointer.hpp>
@@ -463,6 +463,37 @@ TEST_F(MetaType, ConstructArithmeticConversion) {
 
     ASSERT_TRUE(any);
     ASSERT_EQ(any.cast<clazz_t>().value, 1);
+}
+
+TEST_F(MetaType, FromVoid) {
+    using namespace entt::literals;
+
+    ASSERT_FALSE(entt::resolve<double>().from_void(static_cast<double *>(nullptr)));
+    ASSERT_FALSE(entt::resolve<double>().from_void(static_cast<const double *>(nullptr)));
+
+    auto type = entt::resolve<double>();
+    double value = 4.2;
+
+    ASSERT_FALSE(entt::resolve<void>().from_void(static_cast<void *>(&value)));
+    ASSERT_FALSE(entt::resolve<void>().from_void(static_cast<const void *>(&value)));
+
+    auto as_void = type.from_void(static_cast<void *>(&value));
+    auto as_const_void = type.from_void(static_cast<const void *>(&value));
+
+    ASSERT_TRUE(as_void);
+    ASSERT_TRUE(as_const_void);
+
+    ASSERT_EQ(as_void.type(), entt::resolve<double>());
+    ASSERT_NE(as_void.try_cast<double>(), nullptr);
+
+    ASSERT_EQ(as_const_void.type(), entt::resolve<double>());
+    ASSERT_EQ(as_const_void.try_cast<double>(), nullptr);
+    ASSERT_NE(as_const_void.try_cast<const double>(), nullptr);
+
+    value = 1.2;
+
+    ASSERT_EQ(as_void.cast<double>(), as_const_void.cast<double>());
+    ASSERT_EQ(as_void.cast<double>(), 1.2);
 }
 
 TEST_F(MetaType, Reset) {

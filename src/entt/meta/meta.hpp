@@ -14,7 +14,7 @@
 #include "../core/type_traits.hpp"
 #include "../core/utility.hpp"
 #include "adl_pointer.hpp"
-#include "ctx.hpp"
+#include "context.hpp"
 #include "fwd.hpp"
 #include "node.hpp"
 #include "range.hpp"
@@ -1229,6 +1229,20 @@ public:
     [[nodiscard]] meta_any construct(Args &&...args) const {
         meta_any arguments[sizeof...(Args) + 1u]{std::forward<Args>(args)...};
         return construct(arguments, sizeof...(Args));
+    }
+
+    /**
+     * @brief Wraps an opaque element of the underlying type.
+     * @param element A valid pointer to an element of the underlying type.
+     * @return A wrapper that references the given instance.
+     */
+    meta_any from_void(void *element) const {
+        return (element && node->from_void) ? node->from_void(element, nullptr) : meta_any{};
+    }
+
+    /*! @copydoc from_void */
+    meta_any from_void(const void *element) const {
+        return (element && node->from_void) ? node->from_void(nullptr, element) : meta_any{};
     }
 
     /**

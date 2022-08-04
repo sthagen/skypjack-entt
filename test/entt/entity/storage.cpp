@@ -9,9 +9,14 @@
 #include <gtest/gtest.h>
 #include <entt/entity/component.hpp>
 #include <entt/entity/storage.hpp>
+#include "../common/config.h"
 #include "../common/throwing_allocator.hpp"
 #include "../common/throwing_type.hpp"
 #include "../common/tracked_memory_resource.hpp"
+
+struct pinned_type {
+    const int value{42};
+};
 
 struct empty_stable_type {
     static constexpr auto in_place_delete = true;
@@ -364,6 +369,21 @@ TEST(Storage, Erase) {
     ASSERT_EQ(*pool.begin(), 1);
 }
 
+TEST(Storage, CrossErase) {
+    entt::sparse_set set;
+    entt::storage<int> pool;
+    entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
+
+    pool.emplace(entities[0u], 3);
+    pool.emplace(entities[1u], 42);
+    set.emplace(entities[1u]);
+    pool.erase(set.begin(), set.end());
+
+    ASSERT_TRUE(pool.contains(entities[0u]));
+    ASSERT_FALSE(pool.contains(entities[1u]));
+    ASSERT_EQ(pool.raw()[0u][0u], 3);
+}
+
 TEST(Storage, StableErase) {
     entt::storage<stable_type> pool;
     entt::entity entities[3u]{entt::entity{3}, entt::entity{42}, entt::entity{9}};
@@ -458,6 +478,21 @@ TEST(Storage, StableErase) {
     ASSERT_EQ(pool.get(entities[2u]).value, 1);
 }
 
+TEST(Storage, CrossStableErase) {
+    entt::sparse_set set;
+    entt::storage<stable_type> pool;
+    entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
+
+    pool.emplace(entities[0u], 3);
+    pool.emplace(entities[1u], 42);
+    set.emplace(entities[1u]);
+    pool.erase(set.begin(), set.end());
+
+    ASSERT_TRUE(pool.contains(entities[0u]));
+    ASSERT_FALSE(pool.contains(entities[1u]));
+    ASSERT_EQ(pool.raw()[0u][0u].value, 3);
+}
+
 TEST(Storage, Remove) {
     entt::storage<int> pool;
     entt::entity entities[3u]{entt::entity{3}, entt::entity{42}, entt::entity{9}};
@@ -490,6 +525,21 @@ TEST(Storage, Remove) {
     ASSERT_EQ(pool.remove(entities, entities + 2u), 2u);
     ASSERT_FALSE(pool.empty());
     ASSERT_EQ(*pool.begin(), 1);
+}
+
+TEST(Storage, CrossRemove) {
+    entt::sparse_set set;
+    entt::storage<int> pool;
+    entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
+
+    pool.emplace(entities[0u], 3);
+    pool.emplace(entities[1u], 42);
+    set.emplace(entities[1u]);
+    pool.remove(set.begin(), set.end());
+
+    ASSERT_TRUE(pool.contains(entities[0u]));
+    ASSERT_FALSE(pool.contains(entities[1u]));
+    ASSERT_EQ(pool.raw()[0u][0u], 3);
 }
 
 TEST(Storage, StableRemove) {
@@ -587,6 +637,21 @@ TEST(Storage, StableRemove) {
     ASSERT_EQ(pool.get(entities[0u]).value, 99);
     ASSERT_EQ(pool.get(entities[1u]).value, 2);
     ASSERT_EQ(pool.get(entities[2u]).value, 1);
+}
+
+TEST(Storage, CrossStableRemove) {
+    entt::sparse_set set;
+    entt::storage<stable_type> pool;
+    entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
+
+    pool.emplace(entities[0u], 3);
+    pool.emplace(entities[1u], 42);
+    set.emplace(entities[1u]);
+    pool.remove(set.begin(), set.end());
+
+    ASSERT_TRUE(pool.contains(entities[0u]));
+    ASSERT_FALSE(pool.contains(entities[1u]));
+    ASSERT_EQ(pool.raw()[0u][0u].value, 3);
 }
 
 TEST(Storage, TypeFromBase) {
@@ -1573,6 +1638,28 @@ TEST(Storage, ReferencesGuaranteed) {
 TEST(Storage, MoveOnlyComponent) {
     // the purpose is to ensure that move only components are always accepted
     [[maybe_unused]] entt::storage<std::unique_ptr<int>> pool;
+}
+
+TEST(Storage, PinnedComponent) {
+    // the purpose is to ensure that non-movable components are always accepted
+    [[maybe_unused]] entt::storage<pinned_type> pool;
+}
+
+ENTT_DEBUG_TEST(StorageDeathTest, PinnedComponent) {
+    entt::storage<pinned_type> pool;
+    const entt::entity entity{0};
+    const entt::entity destroy{1};
+    const entt::entity other{2};
+
+    pool.emplace(entity);
+    pool.emplace(destroy);
+    pool.emplace(other);
+
+    pool.erase(destroy);
+
+    ASSERT_DEATH(pool.swap_elements(entity, other), "");
+    ASSERT_DEATH(pool.compact(), "");
+    ASSERT_DEATH(pool.sort([&pool](auto &&lhs, auto &&rhs) { return lhs < rhs; }), "");
 }
 
 TEST(Storage, UpdateFromDestructor) {

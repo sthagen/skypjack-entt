@@ -2,7 +2,7 @@
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 	<Type Name="entt::basic_registry&lt;*&gt;">
 		<Intrinsic Name="pools_size" Expression="pools.packed.first_base::value.size()"/>
-		<Intrinsic Name="vars_size" Expression="vars.data.packed.first_base::value.size()"/>
+		<Intrinsic Name="vars_size" Expression="vars.ctx.packed.first_base::value.size()"/>
 		<Intrinsic Name="to_entity" Expression="*((entity_traits::entity_type *)&amp;entity) &amp; entity_traits::entity_mask">
 			<Parameter Name="entity" Type="entity_traits::value_type &amp;"/>
 		</Intrinsic>
@@ -57,7 +57,7 @@
 				<Expand>
 					<IndexListItems>
 						<Size>vars_size()</Size>
-						<ValueNode>vars.data.packed.first_base::value[$i].element.second</ValueNode>
+						<ValueNode>vars.ctx.packed.first_base::value[$i].element.second</ValueNode>
 					</IndexListItems>
 				</Expand>
 			</Synthetic>
@@ -131,6 +131,14 @@
 	</Type>
 	<Type Name="entt::basic_view&lt;*&gt;">
 		<DisplayString>{{ size_hint={ view->packed.size() } }}</DisplayString>
+		<Expand>
+			<Item Name="[pools]">pools,na</Item>
+			<Item Name="[filter]">filter,na</Item>
+		</Expand>
+	</Type>
+	<Type Name="entt::basic_runtime_view&lt;*&gt;">
+		<DisplayString Condition="pools.size() != 0u">{{ size_hint={ pools[0]->packed.size() } }}</DisplayString>
+		<DisplayString>{{ size_hint=0 }}</DisplayString>
 		<Expand>
 			<Item Name="[pools]">pools,na</Item>
 			<Item Name="[filter]">filter,na</Item>

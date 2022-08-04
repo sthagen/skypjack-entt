@@ -35,6 +35,12 @@ message(VERBOSE "* Copyright (c) 2017-2022 Michele Caini <michele.caini@gmail.co
 message(VERBOSE "*")
 
 #
+# CMake stuff
+#
+
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
+
+#
 # Compiler stuff
 #
 
@@ -218,7 +224,11 @@ endif()
 # Install pkg-config file
 #
 
+include(JoinPaths)
+
 set(EnTT_PKGCONFIG ${CMAKE_CURRENT_BINARY_DIR}/entt.pc)
+
+join_paths(EnTT_PKGCONFIG_INCLUDEDIR "\${prefix}" "${CMAKE_INSTALL_INCLUDEDIR}")
 
 configure_file(
     ${EnTT_SOURCE_DIR}/cmake/in/entt.pc.in
@@ -313,22 +323,3 @@ if(ENTT_BUILD_DOCS)
         add_subdirectory(docs)
     endif()
 endif()
-
-#
-# AOB
-#
-
-add_custom_target(
-    aob
-    SOURCES
-        .github/workflows/build.yml
-        .github/workflows/coverage.yml
-        .github/workflows/deploy.yml
-        .github/workflows/sanitizer.yml
-        .github/FUNDING.yml
-        AUTHORS
-        CONTRIBUTING.md
-        LICENSE
-        README.md
-        TODO
-)

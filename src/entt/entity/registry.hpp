@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <tuple>
@@ -249,12 +250,13 @@ private:
  */
 template<typename Entity, typename Allocator>
 class basic_registry {
-    using entity_traits = entt_traits<Entity>;
-    using basic_common_type = basic_sparse_set<Entity, Allocator>;
     using alloc_traits = typename std::allocator_traits<Allocator>;
+    static_assert(std::is_same_v<typename alloc_traits::value_type, Entity>, "Invalid value type");
+    using basic_common_type = basic_sparse_set<Entity, Allocator>;
+    using entity_traits = entt_traits<Entity>;
 
     template<typename Type>
-    using storage_for_type = typename storage_for<Type, Entity>::type;
+    using storage_for_type = typename storage_for<Type, Entity, typename alloc_traits::template rebind_alloc<std::remove_const_t<Type>>>::type;
 
     template<typename...>
     struct group_handler;
@@ -311,7 +313,7 @@ class basic_registry {
         auto &cpool = pools[id];
 
         if(!cpool) {
-            cpool.reset(new storage_for_type<Type>{});
+            cpool = std::allocate_shared<storage_for_type<std::remove_const_t<Type>>>(get_allocator(), get_allocator());
             cpool->bind(forward_as_any(*this));
         }
 
@@ -388,11 +390,11 @@ public:
      * @param allocator The allocator to use.
      */
     basic_registry(const size_type count, const allocator_type &allocator = allocator_type{})
-        : free_list{tombstone},
-          pools{},
-          groups{},
+        : vars{},
+          free_list{tombstone},
           epool{allocator},
-          vars{} {
+          pools{allocator},
+          groups{allocator} {
         pools.reserve(count);
     }
 
@@ -401,11 +403,11 @@ public:
      * @param other The instance to move from.
      */
     basic_registry(basic_registry &&other) noexcept
-        : free_list{std::move(other.free_list)},
-          pools{std::move(other.pools)},
-          groups{std::move(other.groups)},
+        : vars{std::move(other.vars)},
+          free_list{std::move(other.free_list)},
           epool{std::move(other.epool)},
-          vars{std::move(other.vars)} {
+          pools{std::move(other.pools)},
+          groups{std::move(other.groups)} {
         rebind();
     }
 
@@ -415,11 +417,11 @@ public:
      * @return This registry.
      */
     basic_registry &operator=(basic_registry &&other) noexcept {
+        vars = std::move(other.vars);
         free_list = std::move(other.free_list);
+        epool = std::move(other.epool);
         pools = std::move(other.pools);
         groups = std::move(other.groups);
-        epool = std::move(other.epool);
-        vars = std::move(other.vars);
 
         rebind();
 
@@ -432,11 +434,11 @@ public:
      */
     void swap(basic_registry &other) {
         using std::swap;
+        swap(vars, other.vars);
         swap(free_list, other.free_list);
+        swap(epool, other.epool);
         swap(pools, other.pools);
         swap(groups, other.groups);
-        swap(epool, other.epool);
-        swap(vars, other.vars);
 
         rebind();
         other.rebind();
@@ -470,21 +472,20 @@ public:
     /**
      * @brief Finds the storage associated with a given name, if any.
      * @param id Name used to map the storage within the registry.
-     * @return An iterator to the given storage if it's found, past the end
-     * iterator otherwise.
+     * @return A pointer to the storage if it exists, a null pointer otherwise.
      */
-    [[nodiscard]] auto storage(const id_type id) {
-        return internal::registry_storage_iterator{pools.find(id)};
+    [[nodiscard]] base_type *storage(const id_type id) {
+        return const_cast<base_type *>(std::as_const(*this).storage(id));
     }
 
     /**
      * @brief Finds the storage associated with a given name, if any.
      * @param id Name used to map the storage within the registry.
-     * @return An iterator to the given storage if it's found, past the end
-     * iterator otherwise.
+     * @return A pointer to the storage if it exists, a null pointer otherwise.
      */
-    [[nodiscard]] auto storage(const id_type id) const {
-        return internal::registry_storage_iterator{pools.find(id)};
+    [[nodiscard]] const base_type *storage(const id_type id) const {
+        const auto it = pools.find(id);
+        return it == pools.cend() ? nullptr : it->second.get();
     }
 
     /**
@@ -1052,13 +1053,21 @@ public:
      */
     template<typename... Type>
     [[nodiscard]] decltype(auto) get([[maybe_unused]] const entity_type entt) const {
-        return view<Type...>().template get<const Type...>(entt);
+        if constexpr(sizeof...(Type) == 1u) {
+            return (assure<std::remove_const_t<Type>>().get(entt), ...);
+        } else {
+            return std::forward_as_tuple(get<Type>(entt)...);
+        }
     }
 
     /*! @copydoc get */
     template<typename... Type>
     [[nodiscard]] decltype(auto) get([[maybe_unused]] const entity_type entt) {
-        return view<Type...>().template get<Type...>(entt);
+        if constexpr(sizeof...(Type) == 1u) {
+            return (const_cast<Type &>(std::as_const(*this).template get<Type>(entt)), ...);
+        } else {
+            return std::forward_as_tuple(get<Type>(entt)...);
+        }
     }
 
     /**
@@ -1502,11 +1511,12 @@ public:
     }
 
 private:
-    entity_type free_list;
-    dense_map<id_type, std::unique_ptr<base_type>, identity> pools;
-    std::vector<group_data> groups;
-    std::vector<entity_type, allocator_type> epool;
     context vars;
+    entity_type free_list;
+    std::vector<entity_type, allocator_type> epool;
+    // std::shared_ptr because of its type erased allocator which is useful here
+    dense_map<id_type, std::shared_ptr<base_type>, identity, std::equal_to<id_type>, typename alloc_traits::template rebind_alloc<std::pair<const id_type, std::shared_ptr<base_type>>>> pools;
+    std::vector<group_data, typename alloc_traits::template rebind_alloc<group_data>> groups;
 };
 
 } // namespace entt

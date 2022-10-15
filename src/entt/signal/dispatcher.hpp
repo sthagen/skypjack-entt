@@ -118,7 +118,7 @@ class basic_dispatcher {
     using handler_type = internal::dispatcher_handler<Type, Allocator>;
 
     using key_type = id_type;
-    // std::shared_ptr because of its type erased allocator which is pretty useful here
+    // std::shared_ptr because of its type erased allocator which is useful here
     using mapped_type = std::shared_ptr<internal::basic_dispatcher_handler>;
 
     using alloc_traits = std::allocator_traits<Allocator>;
@@ -136,6 +136,17 @@ class basic_dispatcher {
         }
 
         return static_cast<handler_type<Type> &>(*ptr);
+    }
+
+    template<typename Type>
+    [[nodiscard]] const handler_type<Type> *assure(const id_type id) const {
+        static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
+
+        if(auto it = pools.first().find(id); it != pools.first().cend()) {
+            return static_cast<const handler_type<Type> *>(it->second.get());
+        }
+
+        return nullptr;
     }
 
 public:
@@ -205,11 +216,8 @@ public:
      */
     template<typename Type>
     size_type size(const id_type id = type_hash<Type>::value()) const noexcept {
-        if(auto it = pools.first().find(id); it != pools.first().cend()) {
-            return it->second->size();
-        }
-
-        return 0u;
+        const auto *cpool = assure<std::decay_t<Type>>(id);
+        return cpool ? cpool->size() : 0u;
     }
 
     /**

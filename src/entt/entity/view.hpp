@@ -52,7 +52,9 @@ public:
           last{to},
           pools{all_of},
           filter{none_of} {
-        while(it != last && !valid()) { ++it; }
+        while(it != last && !valid()) {
+            ++it;
+        }
     }
 
     view_iterator &operator++() noexcept {
@@ -209,18 +211,18 @@ class basic_view<get_t<Get...>, exclude_t<Exclude...>> {
         if constexpr(Curr == Other) {
             return std::forward_as_tuple(std::get<Args>(curr)...);
         } else {
-            return std::get<Other>(pools)->get_as_tuple(std::get<0>(curr));
+            return storage<Other>().get_as_tuple(std::get<0>(curr));
         }
     }
 
-    template<std::size_t Curr, typename Func, std::size_t... Index>
-    void each(Func func, std::index_sequence<Index...>) const {
-        for(const auto curr: std::get<Curr>(pools)->each()) {
-            const auto entt = std::get<0>(curr);
+    [[nodiscard]] auto reject(const underlying_type entt) const noexcept {
+        return std::apply([entt](const auto *...curr) { return (curr->contains(entt) || ...); }, filter);
+    }
 
-            if(((sizeof...(Get) != 1u) || (entt != tombstone))
-               && ((Curr == Index || std::get<Index>(pools)->contains(entt)) && ...)
-               && std::apply([entt](const auto *...epool) { return (!epool->contains(entt) && ...); }, filter)) {
+    template<std::size_t Curr, typename Func, std::size_t... Index>
+    void each(Func &func, std::index_sequence<Index...>) const {
+        for(const auto curr: storage<Curr>().each()) {
+            if(const auto entt = std::get<0>(curr); ((sizeof...(Get) != 1u) || (entt != tombstone)) && ((Curr == Index || storage<Index>().contains(entt)) && ...) && !reject(entt)) {
                 if constexpr(is_applicable_v<Func, decltype(std::tuple_cat(std::tuple<entity_type>{}, std::declval<basic_view>().get({})))>) {
                     std::apply(func, std::tuple_cat(std::make_tuple(entt), dispatch_get<Curr, Index>(curr)...));
                 } else {
@@ -231,8 +233,8 @@ class basic_view<get_t<Get...>, exclude_t<Exclude...>> {
     }
 
     template<typename Func, std::size_t... Index>
-    void pick_and_each(Func func, std::index_sequence<Index...> seq) const {
-        ((std::get<Index>(pools) == view ? each<Index>(std::move(func), seq) : void()), ...);
+    void pick_and_each(Func &func, std::index_sequence<Index...> seq) const {
+        ((&storage<Index>() == view ? each<Index>(func, seq) : void()), ...);
     }
 
 public:
@@ -291,15 +293,23 @@ public:
     template<std::size_t Index>
     [[nodiscard]] basic_view use() const noexcept {
         basic_view other{*this};
-        other.view = std::get<Index>(pools);
+        other.view = &storage<Index>();
         return other;
+    }
+
+    /**
+     * @brief Updates the internal leading view if required.
+     * @return A newly created and internally optimized view.
+     */
+    [[nodiscard]] basic_view refresh() const noexcept {
+        return std::apply([](auto *...elem) { return basic_view{*elem...}; }, std::tuple_cat(pools, filter));
     }
 
     /**
      * @brief Returns the leading storage of a view.
      * @return The leading storage of the view.
      */
-    const base_type &handle() const noexcept {
+    [[nodiscard]] const base_type &handle() const noexcept {
         return *view;
     }
 
@@ -430,9 +440,9 @@ public:
         if constexpr(sizeof...(Type) == 0) {
             return std::apply([entt](auto *...curr) { return std::tuple_cat(curr->get_as_tuple(entt)...); }, pools);
         } else if constexpr(sizeof...(Type) == 1) {
-            return (std::get<index_of<Type>>(pools)->get(entt), ...);
+            return (storage<index_of<Type>>().get(entt), ...);
         } else {
-            return std::tuple_cat(std::get<index_of<Type>>(pools)->get_as_tuple(entt)...);
+            return std::tuple_cat(storage<index_of<Type>>().get_as_tuple(entt)...);
         }
     }
 
@@ -451,9 +461,9 @@ public:
     template<std::size_t First, std::size_t... Other>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
         if constexpr(sizeof...(Other) == 0) {
-            return std::get<First>(pools)->get(entt);
+            return storage<First>().get(entt);
         } else {
-            return std::tuple_cat(std::get<First>(pools)->get_as_tuple(entt), std::get<Other>(pools)->get_as_tuple(entt)...);
+            return std::tuple_cat(storage<First>().get_as_tuple(entt), storage<Other>().get_as_tuple(entt)...);
         }
     }
 
@@ -477,7 +487,7 @@ public:
      */
     template<typename Func>
     void each(Func func) const {
-        pick_and_each(std::move(func), std::index_sequence_for<Get...>{});
+        pick_and_each(func, std::index_sequence_for<Get...>{});
     }
 
     /**
@@ -570,14 +580,15 @@ public:
      * @param ref The storage for the type to iterate.
      */
     basic_view(std::tuple<Get &> ref, std::tuple<> = {}) noexcept
-        : basic_view{std::get<0>(ref)} {}
+        : pools{&std::get<0>(ref)},
+          filter{} {}
 
     /**
      * @brief Returns the leading storage of a view.
      * @return The leading storage of the view.
      */
-    const base_type &handle() const noexcept {
-        return *std::get<0>(pools);
+    [[nodiscard]] const base_type &handle() const noexcept {
+        return storage();
     }
 
     /**
@@ -588,7 +599,7 @@ public:
     template<typename Type = typename Get::value_type>
     [[nodiscard]] decltype(auto) storage() const noexcept {
         static_assert(std::is_same_v<std::remove_const_t<Type>, typename Get::value_type>, "Invalid component type");
-        return *std::get<0>(pools);
+        return storage<0>();
     }
 
     /**
@@ -712,7 +723,7 @@ public:
      * @return The component assigned to the given entity.
      */
     [[nodiscard]] decltype(auto) operator[](const entity_type entt) const {
-        return get<0u>(entt);
+        return storage().get(entt);
     }
 
     /**
@@ -746,17 +757,17 @@ public:
     template<typename... Type>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
         if constexpr(sizeof...(Type) == 0) {
-            return std::get<0>(pools)->get_as_tuple(entt);
+            return storage().get_as_tuple(entt);
         } else {
             static_assert((std::is_same_v<std::remove_const_t<Type>, typename Get::value_type> && ...), "Invalid component type");
-            return std::get<0>(pools)->get(entt);
+            return storage().get(entt);
         }
     }
 
     /*! @copydoc get */
     template<std::size_t Index>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
-        return std::get<0>(pools)->get(entt);
+        return storage().get(entt);
     }
 
     /**
@@ -787,17 +798,13 @@ public:
             for(const auto pack: each()) {
                 std::apply(func, pack);
             }
-        } else if constexpr(std::is_invocable_v<Func, constness_as_t<typename Get::value_type, Get> &>) {
-            for(auto &&component: *std::get<0>(pools)) {
-                func(component);
-            }
-        } else if constexpr(std::is_invocable_v<Func, entity_type>) {
-            for(auto entity: *this) {
-                func(entity);
-            }
-        } else {
+        } else if constexpr(ignore_as_empty_v<typename Get::value_type>) {
             for(size_type pos{}, last = size(); pos < last; ++pos) {
                 func();
+            }
+        } else {
+            for(auto &&component: storage()) {
+                func(component);
             }
         }
     }
@@ -812,7 +819,7 @@ public:
      * @return An iterable object to use to _visit_ the view.
      */
     [[nodiscard]] iterable each() const noexcept {
-        return std::get<0>(pools)->each();
+        return storage().each();
     }
 
     /**

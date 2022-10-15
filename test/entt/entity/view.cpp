@@ -193,7 +193,7 @@ TEST(SingleComponentView, Each) {
     auto citerable = cview.each();
 
     ASSERT_NE(citerable.begin(), citerable.end());
-    ASSERT_NO_THROW(iterable.begin()->operator=(*iterable.begin()));
+    ASSERT_NO_FATAL_FAILURE(iterable.begin()->operator=(*iterable.begin()));
     ASSERT_EQ(decltype(iterable.end()){}, iterable.end());
 
     auto it = iterable.begin();
@@ -563,7 +563,7 @@ TEST(MultiComponentView, Handle) {
     ASSERT_TRUE(handle.contains(entity));
     ASSERT_EQ(&handle, &view.handle());
 
-    view = registry.view<int, char>();
+    view = view.refresh();
     auto &&other = view.handle();
 
     ASSERT_TRUE(other.empty());
@@ -714,7 +714,7 @@ TEST(MultiComponentView, Each) {
     auto citerable = cview.each();
 
     ASSERT_NE(citerable.begin(), citerable.end());
-    ASSERT_NO_THROW(iterable.begin()->operator=(*iterable.begin()));
+    ASSERT_NO_FATAL_FAILURE(iterable.begin()->operator=(*iterable.begin()));
     ASSERT_EQ(decltype(iterable.end()){}, iterable.end());
 
     auto it = iterable.begin();

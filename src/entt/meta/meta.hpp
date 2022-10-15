@@ -641,9 +641,6 @@ private:
 
 /*! @brief Opaque wrapper for properties of any type. */
 struct meta_prop {
-    /*! @brief Node type. */
-    using node_type = internal::meta_prop_node;
-
     /*! @brief Default constructor. */
     meta_prop() noexcept
         : node{} {}
@@ -652,7 +649,7 @@ struct meta_prop {
      * @brief Constructs an instance from a given node.
      * @param curr The underlying node with which to construct the instance.
      */
-    meta_prop(const node_type &curr) noexcept
+    meta_prop(const internal::meta_prop_node &curr) noexcept
         : node{&curr} {}
 
     /**
@@ -672,15 +669,13 @@ struct meta_prop {
     }
 
 private:
-    const node_type *node;
+    const internal::meta_prop_node *node;
 };
 
 /*! @brief Opaque wrapper for data members. */
 struct meta_data {
-    /*! @brief Node type. */
-    using node_type = internal::meta_data_node;
     /*! @brief Unsigned integer type. */
-    using size_type = typename node_type::size_type;
+    using size_type = typename internal::meta_data_node::size_type;
 
     /*! @brief Default constructor. */
     meta_data() noexcept
@@ -690,7 +685,7 @@ struct meta_data {
      * @brief Constructs an instance from a given node.
      * @param curr The underlying node with which to construct the instance.
      */
-    meta_data(const node_type &curr) noexcept
+    meta_data(const internal::meta_data_node &curr) noexcept
         : node{&curr} {}
 
     /**
@@ -785,15 +780,13 @@ struct meta_data {
     }
 
 private:
-    const node_type *node;
+    const internal::meta_data_node *node;
 };
 
 /*! @brief Opaque wrapper for member functions. */
 struct meta_func {
-    /*! @brief Node type. */
-    using node_type = internal::meta_func_node;
     /*! @brief Unsigned integer type. */
-    using size_type = typename node_type::size_type;
+    using size_type = typename internal::meta_func_node::size_type;
 
     /*! @brief Default constructor. */
     meta_func() noexcept
@@ -803,7 +796,7 @@ struct meta_func {
      * @brief Constructs an instance from a given node.
      * @param curr The underlying node with which to construct the instance.
      */
-    meta_func(const node_type &curr) noexcept
+    meta_func(const internal::meta_func_node &curr) noexcept
         : node{&curr} {}
 
     /**
@@ -909,40 +902,54 @@ struct meta_func {
     }
 
 private:
-    const node_type *node;
+    const internal::meta_func_node *node;
 };
 
 /*! @brief Opaque wrapper for types. */
 class meta_type {
     template<typename Func>
-    [[nodiscard]] auto lookup(meta_any *const args, const typename internal::meta_type_node::size_type sz, Func next) const {
+    [[nodiscard]] auto lookup(meta_any *const args, const typename internal::meta_type_node::size_type sz, [[maybe_unused]] bool constness, Func next) const {
         decltype(next()) candidate = nullptr;
-        size_type extent{sz + 1u};
+        size_type same{};
         bool ambiguous{};
 
         for(auto curr = next(); curr; curr = next()) {
-            if(curr->arity == sz) {
-                size_type direct{};
-                size_type ext{};
+            if constexpr(std::is_same_v<std::decay_t<decltype(*curr)>, internal::meta_func_node>) {
+                if(constness && !static_cast<bool>(curr->traits & internal::meta_traits::is_const)) {
+                    continue;
+                }
+            }
 
-                for(size_type pos{}; pos < sz && pos == (direct + ext) && args[pos]; ++pos) {
+            if(curr->arity == sz) {
+                size_type match{};
+                size_type pos{};
+
+                for(; pos < sz && args[pos]; ++pos) {
                     const auto type = args[pos].type();
                     const auto other = curr->arg(pos);
 
                     if(const auto &info = other.info(); info == type.info()) {
-                        ++direct;
-                    } else {
-                        ext += (type.node.details && (type.node.details->base.contains(info.hash()) || type.node.details->conv.contains(info.hash())))
-                               || (type.node.conversion_helper && other.node.conversion_helper);
+                        ++match;
+                    } else if(!((type.node.details && (type.node.details->base.contains(info.hash()) || type.node.details->conv.contains(info.hash())))
+                                || (type.node.conversion_helper && other.node.conversion_helper))) {
+                        break;
                     }
                 }
 
-                if((direct + ext) == sz) {
-                    if(ext < extent) {
+                if(pos == sz) {
+                    if(!candidate || match > same) {
                         candidate = curr;
-                        extent = ext;
+                        same = match;
                         ambiguous = false;
-                    } else if(ext == extent) {
+                    } else if(match == same) {
+                        if constexpr(std::is_same_v<std::decay_t<decltype(*curr)>, internal::meta_func_node>) {
+                            if(static_cast<bool>(curr->traits & internal::meta_traits::is_const) != static_cast<bool>(candidate->traits & internal::meta_traits::is_const)) {
+                                candidate = static_cast<bool>(candidate->traits & internal::meta_traits::is_const) ? curr : candidate;
+                                ambiguous = false;
+                                continue;
+                            }
+                        }
+
                         ambiguous = true;
                     }
                 }
@@ -964,25 +971,21 @@ class meta_type {
     }
 
 public:
-    /*! @brief Node type. */
-    using node_type = internal::meta_type_node;
-    /*! @brief Node type. */
-    using base_node_type = internal::meta_base_node;
     /*! @brief Unsigned integer type. */
-    using size_type = typename node_type::size_type;
+    using size_type = typename internal::meta_type_node::size_type;
 
     /**
      * @brief Constructs an instance from a given node.
      * @param curr The underlying node with which to construct the instance.
      */
-    meta_type(const node_type &curr = {}) noexcept
+    meta_type(const internal::meta_type_node &curr = {}) noexcept
         : node{curr} {}
 
     /**
      * @brief Constructs an instance from a given base node.
      * @param curr The base node with which to construct the instance.
      */
-    meta_type(const base_node_type &curr) noexcept
+    meta_type(const internal::meta_base_node &curr) noexcept
         : meta_type{curr.type ? curr.type() : meta_type{}} {}
 
     /**
@@ -1216,7 +1219,7 @@ public:
      */
     [[nodiscard]] meta_any construct(meta_any *const args, const size_type sz) const {
         if(node.details) {
-            const auto *candidate = lookup(args, sz, [first = node.details->ctor.cbegin(), last = node.details->ctor.cend()]() mutable {
+            const auto *candidate = lookup(args, sz, false, [first = node.details->ctor.cbegin(), last = node.details->ctor.cend()]() mutable {
                 return first == last ? nullptr : &(first++)->second;
             });
 
@@ -1278,7 +1281,7 @@ public:
     meta_any invoke(const id_type id, meta_handle instance, meta_any *const args, const size_type sz) const {
         if(node.details) {
             if(auto it = node.details->func.find(id); it != node.details->func.cend()) {
-                const auto *candidate = lookup(args, sz, [curr = &it->second]() mutable {
+                const auto *candidate = lookup(args, sz, (instance->data() == nullptr), [curr = &it->second]() mutable {
                     return curr ? std::exchange(curr, curr->next.get()) : nullptr;
                 });
 
@@ -1388,7 +1391,7 @@ public:
     }
 
 private:
-    node_type node;
+    internal::meta_type_node node;
 };
 
 /**

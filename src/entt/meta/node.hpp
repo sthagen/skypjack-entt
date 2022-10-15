@@ -135,22 +135,12 @@ template<typename Type>
 meta_type_node resolve() noexcept;
 
 template<typename... Args>
-[[nodiscard]] auto *meta_arg_node(type_list<Args...>, [[maybe_unused]] const std::size_t index) noexcept {
-    using element_type = meta_type_node (*)() noexcept;
-
-    if constexpr(sizeof...(Args) == 0u) {
-        return static_cast<element_type>(nullptr);
-    } else {
-        const element_type args[sizeof...(Args)]{&internal::resolve<std::remove_cv_t<std::remove_reference_t<Args>>>...};
-        ENTT_ASSERT(index < sizeof...(Args), "Out of bounds");
-        return args[index];
-    }
-}
-
-[[nodiscard]] inline meta_type_node *try_resolve(const type_info &info) noexcept {
-    auto &&context = meta_context::from(locator<meta_ctx>::value_or());
-    const auto it = context.value.find(info.hash());
-    return it != context.value.end() ? &it->second : nullptr;
+[[nodiscard]] auto meta_arg_node(type_list<Args...>, [[maybe_unused]] const std::size_t index) noexcept {
+    std::size_t pos{};
+    meta_type_node (*value)() noexcept = nullptr;
+    ((value = (pos++ == index ? &resolve<std::remove_cv_t<std::remove_reference_t<Args>>> : value)), ...);
+    ENTT_ASSERT(value != nullptr, "Out of bounds");
+    return value();
 }
 
 [[nodiscard]] inline const void *try_cast(const meta_type_node &from, const meta_type_node &to, const void *instance) noexcept {
@@ -169,6 +159,12 @@ template<typename... Args>
     return nullptr;
 }
 
+[[nodiscard]] inline meta_type_node *try_resolve(const type_info &info) noexcept {
+    auto &&context = meta_context::from(locator<meta_ctx>::value_or());
+    const auto it = context.value.find(info.hash());
+    return it != context.value.end() ? &it->second : nullptr;
+}
+
 template<typename Type>
 [[nodiscard]] meta_type_node resolve() noexcept {
     static_assert(std::is_same_v<Type, std::remove_const_t<std::remove_reference_t<Type>>>, "Invalid type");
@@ -180,15 +176,15 @@ template<typename Type>
     meta_type_node node{
         &type_id<Type>(),
         type_id<Type>().hash(),
-        (std::is_arithmetic_v<Type> ? internal::meta_traits::is_arithmetic : internal::meta_traits::is_none)
-            | (std::is_integral_v<Type> ? internal::meta_traits::is_integral : internal::meta_traits::is_none)
-            | (std::is_signed_v<Type> ? internal::meta_traits::is_signed : internal::meta_traits::is_none)
-            | (std::is_array_v<Type> ? internal::meta_traits::is_array : internal::meta_traits::is_none)
-            | (std::is_enum_v<Type> ? internal::meta_traits::is_enum : internal::meta_traits::is_none)
-            | (std::is_class_v<Type> ? internal::meta_traits::is_class : internal::meta_traits::is_none)
-            | (is_meta_pointer_like_v<Type> ? internal::meta_traits::is_meta_pointer_like : internal::meta_traits::is_none)
-            | (is_complete_v<meta_sequence_container_traits<Type>> ? internal::meta_traits::is_meta_sequence_container : internal::meta_traits::is_none)
-            | (is_complete_v<meta_associative_container_traits<Type>> ? internal::meta_traits::is_meta_associative_container : internal::meta_traits::is_none),
+        (std::is_arithmetic_v<Type> ? meta_traits::is_arithmetic : meta_traits::is_none)
+            | (std::is_integral_v<Type> ? meta_traits::is_integral : meta_traits::is_none)
+            | (std::is_signed_v<Type> ? meta_traits::is_signed : meta_traits::is_none)
+            | (std::is_array_v<Type> ? meta_traits::is_array : meta_traits::is_none)
+            | (std::is_enum_v<Type> ? meta_traits::is_enum : meta_traits::is_none)
+            | (std::is_class_v<Type> ? meta_traits::is_class : meta_traits::is_none)
+            | (is_meta_pointer_like_v<Type> ? meta_traits::is_meta_pointer_like : meta_traits::is_none)
+            | (is_complete_v<meta_sequence_container_traits<Type>> ? meta_traits::is_meta_sequence_container : meta_traits::is_none)
+            | (is_complete_v<meta_associative_container_traits<Type>> ? meta_traits::is_meta_associative_container : meta_traits::is_none),
         size_of_v<Type>,
         &resolve<std::remove_cv_t<std::remove_pointer_t<Type>>>};
 
@@ -220,7 +216,7 @@ template<typename Type>
         node.templ = meta_template_node{
             meta_template_traits<Type>::args_type::size,
             &resolve<typename meta_template_traits<Type>::class_type>,
-            +[](const std::size_t index) noexcept { return meta_arg_node(typename meta_template_traits<Type>::args_type{}, index)(); }};
+            +[](const std::size_t index) noexcept { return meta_arg_node(typename meta_template_traits<Type>::args_type{}, index); }};
     }
 
     return node;

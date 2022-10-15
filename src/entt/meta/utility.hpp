@@ -176,7 +176,7 @@ meta_any meta_dispatch([[maybe_unused]] Type &&value) {
  */
 template<typename Type>
 [[nodiscard]] static meta_type meta_arg(const std::size_t index) noexcept {
-    return internal::meta_arg_node(Type{}, index)();
+    return internal::meta_arg_node(Type{}, index);
 }
 
 /**
@@ -324,7 +324,7 @@ template<typename Type, typename... Args, std::size_t... Index>
  * @return A meta any containing the returned value, if any.
  */
 template<typename Type, typename Policy = as_is_t, typename Candidate>
-[[nodiscard]] meta_any meta_invoke([[maybe_unused]] meta_handle instance, Candidate &&candidate, [[maybe_unused]] meta_any *const args) {
+[[nodiscard]] meta_any meta_invoke(meta_handle instance, Candidate &&candidate, meta_any *const args) {
     return internal::meta_invoke<Type, Policy>(std::move(instance), std::forward<Candidate>(candidate), args, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<Candidate>>::args_type::size>{});
 }
 

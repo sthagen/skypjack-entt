@@ -49,14 +49,6 @@ template<typename... Class, typename Ret, typename... Args>
  * @endcond
  */
 
-/*! @brief Used to wrap a function or a member of a specified type. */
-template<auto>
-struct connect_arg_t {};
-
-/*! @brief Constant of type connect_arg_t used to disambiguate calls. */
-template<auto Func>
-inline constexpr connect_arg_t<Func> connect_arg{};
-
 /**
  * @brief Basic delegate implementation.
  *
@@ -226,6 +218,7 @@ public:
      * @param payload User defined arbitrary data.
      */
     void connect(function_type *function, const void *payload = nullptr) noexcept {
+        ENTT_ASSERT(function != nullptr, "Uninitialized function pointer");
         instance = payload;
         fn = function;
     }

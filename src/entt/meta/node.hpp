@@ -13,7 +13,6 @@
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
 #include "../core/utility.hpp"
-#include "../locator/locator.hpp"
 #include "context.hpp"
 #include "type_traits.hpp"
 
@@ -49,25 +48,25 @@ enum class meta_traits : std::uint32_t {
 struct meta_type_node;
 
 struct meta_prop_node {
-    meta_type_node (*type)() noexcept {};
+    meta_type_node (*type)(const meta_context &) noexcept {};
     std::shared_ptr<void> value{};
 };
 
 struct meta_base_node {
-    meta_type_node (*type)() noexcept {};
+    meta_type_node (*type)(const meta_context &) noexcept {};
     const void *(*cast)(const void *) noexcept {};
 };
 
 struct meta_conv_node {
-    meta_any (*conv)(const void *){};
+    meta_any (*conv)(const meta_ctx &, const void *){};
 };
 
 struct meta_ctor_node {
     using size_type = std::size_t;
 
     size_type arity{0u};
-    meta_type (*arg)(const size_type) noexcept {};
-    meta_any (*invoke)(meta_any *const){};
+    meta_type (*arg)(const meta_ctx &, const size_type) noexcept {};
+    meta_any (*invoke)(const meta_ctx &, meta_any *const){};
 };
 
 struct meta_dtor_node {
@@ -79,10 +78,10 @@ struct meta_data_node {
 
     meta_traits traits{meta_traits::is_none};
     size_type arity{0u};
-    meta_type_node (*type)() noexcept {};
-    meta_type (*arg)(const size_type) noexcept {};
+    meta_type_node (*type)(const meta_context &) noexcept {};
+    meta_type (*arg)(const meta_ctx &, const size_type) noexcept {};
     bool (*set)(meta_handle, meta_any){};
-    meta_any (*get)(meta_handle){};
+    meta_any (*get)(const meta_ctx &, meta_handle){};
     dense_map<id_type, meta_prop_node, identity> prop{};
 };
 
@@ -91,9 +90,9 @@ struct meta_func_node {
 
     meta_traits traits{meta_traits::is_none};
     size_type arity{0u};
-    meta_type_node (*ret)() noexcept {};
-    meta_type (*arg)(const size_type) noexcept {};
-    meta_any (*invoke)(meta_handle, meta_any *const){};
+    meta_type_node (*ret)(const meta_context &) noexcept {};
+    meta_type (*arg)(const meta_ctx &, const size_type) noexcept {};
+    meta_any (*invoke)(const meta_ctx &, meta_handle, meta_any *const){};
     std::shared_ptr<meta_func_node> next{};
     dense_map<id_type, meta_prop_node, identity> prop{};
 };
@@ -102,8 +101,8 @@ struct meta_template_node {
     using size_type = std::size_t;
 
     size_type arity{0u};
-    meta_type_node (*type)() noexcept {};
-    meta_type_node (*arg)(const size_type) noexcept {};
+    meta_type_node (*type)(const meta_context &) noexcept {};
+    meta_type_node (*arg)(const meta_context &, const size_type) noexcept {};
 };
 
 struct meta_type_descriptor {
@@ -122,35 +121,36 @@ struct meta_type_node {
     id_type id{};
     meta_traits traits{meta_traits::is_none};
     size_type size_of{0u};
-    meta_type_node (*remove_pointer)() noexcept {};
-    meta_any (*default_constructor)(){};
+    meta_type_node (*resolve)(const meta_context &) noexcept {};
+    meta_type_node (*remove_pointer)(const meta_context &) noexcept {};
+    meta_any (*default_constructor)(const meta_ctx &){};
     double (*conversion_helper)(void *, const void *){};
-    meta_any (*from_void)(void *, const void *){};
+    meta_any (*from_void)(const meta_ctx &, void *, const void *){};
     meta_template_node templ{};
     meta_dtor_node dtor{};
     std::shared_ptr<meta_type_descriptor> details{};
 };
 
 template<typename Type>
-meta_type_node resolve() noexcept;
+meta_type_node resolve(const meta_context &) noexcept;
 
 template<typename... Args>
-[[nodiscard]] auto meta_arg_node(type_list<Args...>, [[maybe_unused]] const std::size_t index) noexcept {
+[[nodiscard]] auto meta_arg_node(const meta_context &context, type_list<Args...>, [[maybe_unused]] const std::size_t index) noexcept {
     std::size_t pos{};
-    meta_type_node (*value)() noexcept = nullptr;
+    meta_type_node (*value)(const meta_context &) noexcept = nullptr;
     ((value = (pos++ == index ? &resolve<std::remove_cv_t<std::remove_reference_t<Args>>> : value)), ...);
     ENTT_ASSERT(value != nullptr, "Out of bounds");
-    return value();
+    return value(context);
 }
 
-[[nodiscard]] inline const void *try_cast(const meta_type_node &from, const meta_type_node &to, const void *instance) noexcept {
+[[nodiscard]] inline const void *try_cast(const meta_context &context, const meta_type_node &from, const meta_type_node &to, const void *instance) noexcept {
     if(from.info && to.info && *from.info == *to.info) {
         return instance;
     }
 
     if(from.details) {
         for(auto &&curr: from.details->base) {
-            if(const void *elem = try_cast(curr.second.type(), to, curr.second.cast(instance)); elem) {
+            if(const void *elem = try_cast(context, curr.second.type(context), to, curr.second.cast(instance)); elem) {
                 return elem;
             }
         }
@@ -159,17 +159,16 @@ template<typename... Args>
     return nullptr;
 }
 
-[[nodiscard]] inline meta_type_node *try_resolve(const type_info &info) noexcept {
-    auto &&context = meta_context::from(locator<meta_ctx>::value_or());
+[[nodiscard]] inline const meta_type_node *try_resolve(const meta_context &context, const type_info &info) noexcept {
     const auto it = context.value.find(info.hash());
     return it != context.value.end() ? &it->second : nullptr;
 }
 
 template<typename Type>
-[[nodiscard]] meta_type_node resolve() noexcept {
+[[nodiscard]] meta_type_node resolve(const meta_context &context) noexcept {
     static_assert(std::is_same_v<Type, std::remove_const_t<std::remove_reference_t<Type>>>, "Invalid type");
 
-    if(auto *elem = try_resolve(type_id<Type>()); elem) {
+    if(auto *elem = try_resolve(context, type_id<Type>()); elem) {
         return *elem;
     }
 
@@ -186,10 +185,13 @@ template<typename Type>
             | (is_complete_v<meta_sequence_container_traits<Type>> ? meta_traits::is_meta_sequence_container : meta_traits::is_none)
             | (is_complete_v<meta_associative_container_traits<Type>> ? meta_traits::is_meta_associative_container : meta_traits::is_none),
         size_of_v<Type>,
+        &resolve<Type>,
         &resolve<std::remove_cv_t<std::remove_pointer_t<Type>>>};
 
     if constexpr(std::is_default_constructible_v<Type>) {
-        node.default_constructor = +[]() { return meta_any{std::in_place_type<Type>}; };
+        node.default_constructor = +[](const meta_ctx &ctx) {
+            return meta_any{ctx, std::in_place_type<Type>};
+        };
     }
 
     if constexpr(std::is_arithmetic_v<Type>) {
@@ -203,12 +205,12 @@ template<typename Type>
     }
 
     if constexpr(!std::is_same_v<Type, void> && !std::is_function_v<Type>) {
-        node.from_void = +[](void *element, const void *as_const) {
+        node.from_void = +[](const meta_ctx &ctx, void *element, const void *as_const) {
             if(element) {
-                return meta_any{std::in_place_type<std::decay_t<Type> &>, *static_cast<std::decay_t<Type> *>(element)};
+                return meta_any{ctx, std::in_place_type<std::decay_t<Type> &>, *static_cast<std::decay_t<Type> *>(element)};
             }
 
-            return meta_any{std::in_place_type<const std::decay_t<Type> &>, *static_cast<const std::decay_t<Type> *>(as_const)};
+            return meta_any{ctx, std::in_place_type<const std::decay_t<Type> &>, *static_cast<const std::decay_t<Type> *>(as_const)};
         };
     }
 
@@ -216,7 +218,7 @@ template<typename Type>
         node.templ = meta_template_node{
             meta_template_traits<Type>::args_type::size,
             &resolve<typename meta_template_traits<Type>::class_type>,
-            +[](const std::size_t index) noexcept { return meta_arg_node(typename meta_template_traits<Type>::args_type{}, index); }};
+            +[](const meta_context &area, const std::size_t index) noexcept { return meta_arg_node(area, typename meta_template_traits<Type>::args_type{}, index); }};
     }
 
     return node;

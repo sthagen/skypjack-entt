@@ -13,6 +13,7 @@
 #include <vector>
 #include "../container/dense_map.hpp"
 #include "../container/dense_set.hpp"
+#include "context.hpp"
 #include "meta.hpp"
 #include "type_traits.hpp"
 
@@ -57,16 +58,16 @@ struct basic_meta_sequence_container_traits {
         return false;
     }
 
-    [[nodiscard]] static iterator iter(any &container, const bool as_end) {
+    [[nodiscard]] static iterator iter(const meta_ctx &ctx, any &container, const bool as_end) {
         if(auto *const cont = any_cast<Type>(&container); cont) {
-            return iterator{as_end ? cont->end() : cont->begin()};
+            return iterator{ctx, as_end ? cont->end() : cont->begin()};
         }
 
         const Type &as_const = any_cast<const Type &>(container);
-        return iterator{as_end ? as_const.end() : as_const.begin()};
+        return iterator{ctx, as_end ? as_const.end() : as_const.begin()};
     }
 
-    [[nodiscard]] static iterator insert_or_erase([[maybe_unused]] any &container, [[maybe_unused]] const any &handle, [[maybe_unused]] meta_any &value) {
+    [[nodiscard]] static iterator insert_or_erase([[maybe_unused]] const meta_ctx &ctx, [[maybe_unused]] any &container, [[maybe_unused]] const any &handle, [[maybe_unused]] meta_any &value) {
         if constexpr(is_dynamic_sequence_container<Type>::value) {
             if(auto *const cont = any_cast<Type>(&container); cont) {
                 typename Type::const_iterator it{};
@@ -81,15 +82,15 @@ struct basic_meta_sequence_container_traits {
                     // this abomination is necessary because only on macos value_type and const_reference are different types for std::vector<bool>
                     if(value.allow_cast<typename Type::const_reference>() || value.allow_cast<typename Type::value_type>()) {
                         const auto *element = value.try_cast<std::remove_reference_t<typename Type::const_reference>>();
-                        return iterator{cont->insert(it, element ? *element : value.cast<typename Type::value_type>())};
+                        return iterator{ctx, cont->insert(it, element ? *element : value.cast<typename Type::value_type>())};
                     }
                 } else {
-                    return iterator{cont->erase(it)};
+                    return iterator{ctx, cont->erase(it)};
                 }
             }
         }
 
-        return {};
+        return iterator{};
     }
 };
 
@@ -113,13 +114,13 @@ struct basic_meta_associative_container_traits {
         return false;
     }
 
-    [[nodiscard]] static iterator iter(any &container, const bool as_end) {
+    [[nodiscard]] static iterator iter(const meta_ctx &ctx, any &container, const bool as_end) {
         if(auto *const cont = any_cast<Type>(&container); cont) {
-            return iterator{std::bool_constant<key_only>{}, as_end ? cont->end() : cont->begin()};
+            return iterator{ctx, std::bool_constant<key_only>{}, as_end ? cont->end() : cont->begin()};
         }
 
         const auto &as_const = any_cast<const Type &>(container);
-        return iterator{std::bool_constant<key_only>{}, as_end ? as_const.end() : as_const.begin()};
+        return iterator{ctx, std::bool_constant<key_only>{}, as_end ? as_const.end() : as_const.begin()};
     }
 
     [[nodiscard]] static size_type insert_or_erase(any &container, meta_any &key, meta_any &value) {
@@ -138,16 +139,16 @@ struct basic_meta_associative_container_traits {
         return 0u;
     }
 
-    [[nodiscard]] static iterator find(any &container, meta_any &key) {
+    [[nodiscard]] static iterator find(const meta_ctx &ctx, any &container, meta_any &key) {
         if(key.allow_cast<const typename Type::key_type &>()) {
             if(auto *const cont = any_cast<Type>(&container); cont) {
-                return iterator{std::bool_constant<key_only>{}, cont->find(key.cast<const typename Type::key_type &>())};
+                return iterator{ctx, std::bool_constant<key_only>{}, cont->find(key.cast<const typename Type::key_type &>())};
             }
 
-            return iterator{std::bool_constant<key_only>{}, any_cast<const Type &>(container).find(key.cast<const typename Type::key_type &>())};
+            return iterator{ctx, std::bool_constant<key_only>{}, any_cast<const Type &>(container).find(key.cast<const typename Type::key_type &>())};
         }
 
-        return {};
+        return iterator{};
     }
 };
 

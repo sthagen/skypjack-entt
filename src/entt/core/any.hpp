@@ -122,25 +122,26 @@ class basic_any {
 
     template<typename Type, typename... Args>
     void initialize([[maybe_unused]] Args &&...args) {
+        info = &type_id<std::remove_cv_t<std::remove_reference_t<Type>>>();
+
         if constexpr(!std::is_void_v<Type>) {
-            info = &type_id<std::remove_cv_t<std::remove_reference_t<Type>>>();
             vtable = basic_vtable<std::remove_cv_t<std::remove_reference_t<Type>>>;
 
             if constexpr(std::is_lvalue_reference_v<Type>) {
                 static_assert(sizeof...(Args) == 1u && (std::is_lvalue_reference_v<Args> && ...), "Invalid arguments");
                 mode = std::is_const_v<std::remove_reference_t<Type>> ? policy::cref : policy::ref;
                 instance = (std::addressof(args), ...);
-            } else if constexpr(in_situ<Type>) {
-                if constexpr(sizeof...(Args) != 0u && std::is_aggregate_v<Type>) {
-                    new(&storage) Type{std::forward<Args>(args)...};
+            } else if constexpr(in_situ<std::remove_cv_t<std::remove_reference_t<Type>>>) {
+                if constexpr(sizeof...(Args) != 0u && std::is_aggregate_v<std::remove_cv_t<std::remove_reference_t<Type>>>) {
+                    new(&storage) std::remove_cv_t<std::remove_reference_t<Type>>{std::forward<Args>(args)...};
                 } else {
-                    new(&storage) Type(std::forward<Args>(args)...);
+                    new(&storage) std::remove_cv_t<std::remove_reference_t<Type>>(std::forward<Args>(args)...);
                 }
             } else {
-                if constexpr(sizeof...(Args) != 0u && std::is_aggregate_v<Type>) {
-                    instance = new Type{std::forward<Args>(args)...};
+                if constexpr(sizeof...(Args) != 0u && std::is_aggregate_v<std::remove_cv_t<std::remove_reference_t<Type>>>) {
+                    instance = new std::remove_cv_t<std::remove_reference_t<Type>>{std::forward<Args>(args)...};
                 } else {
-                    instance = new Type(std::forward<Args>(args)...);
+                    instance = new std::remove_cv_t<std::remove_reference_t<Type>>(std::forward<Args>(args)...);
                 }
             }
         }
@@ -160,10 +161,7 @@ public:
 
     /*! @brief Default constructor. */
     constexpr basic_any() noexcept
-        : instance{},
-          info{&type_id<void>()},
-          vtable{},
-          mode{policy::owner} {}
+        : basic_any{std::in_place_type<void>} {}
 
     /**
      * @brief Constructs a wrapper by directly initializing the new object.
@@ -173,7 +171,10 @@ public:
      */
     template<typename Type, typename... Args>
     explicit basic_any(std::in_place_type_t<Type>, Args &&...args)
-        : basic_any{} {
+        : instance{},
+          info{},
+          vtable{},
+          mode{policy::owner} {
         initialize<Type>(std::forward<Args>(args)...);
     }
 
@@ -184,9 +185,7 @@ public:
      */
     template<typename Type, typename = std::enable_if_t<!std::is_same_v<std::decay_t<Type>, basic_any>>>
     basic_any(Type &&value)
-        : basic_any{} {
-        initialize<std::decay_t<Type>>(std::forward<Type>(value));
-    }
+        : basic_any{std::in_place_type<std::decay_t<Type>>, std::forward<Type>(value)} {}
 
     /**
      * @brief Copy constructor.
@@ -296,7 +295,7 @@ public:
      * @return An opaque pointer the contained instance, if any.
      */
     [[nodiscard]] void *data() noexcept {
-        return (!vtable || mode == policy::cref) ? nullptr : const_cast<void *>(vtable(operation::get, *this, nullptr));
+        return mode == policy::cref ? nullptr : const_cast<void *>(std::as_const(*this).data());
     }
 
     /**
@@ -305,7 +304,7 @@ public:
      * @return An opaque pointer the contained instance, if any.
      */
     [[nodiscard]] void *data(const type_info &req) noexcept {
-        return *info == req ? data() : nullptr;
+        return mode == policy::cref ? nullptr : const_cast<void *>(std::as_const(*this).data(req));
     }
 
     /**
@@ -352,6 +351,8 @@ public:
             vtable(operation::destroy, *this, nullptr);
         }
 
+        // unnecessary but it helps to detect nasty bugs
+        ENTT_ASSERT((instance = nullptr) == nullptr, "");
         info = &type_id<void>();
         vtable = nullptr;
         mode = policy::owner;
@@ -501,7 +502,7 @@ basic_any<Len, Align> make_any(Args &&...args) {
  */
 template<std::size_t Len = basic_any<>::length, std::size_t Align = basic_any<Len>::alignment, typename Type>
 basic_any<Len, Align> forward_as_any(Type &&value) {
-    return basic_any<Len, Align>{std::in_place_type<std::conditional_t<std::is_rvalue_reference_v<Type>, std::decay_t<Type>, Type>>, std::forward<Type>(value)};
+    return basic_any<Len, Align>{std::in_place_type<Type &&>, std::forward<Type>(value)};
 }
 
 } // namespace entt

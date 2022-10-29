@@ -6,6 +6,7 @@
 #include <utility>
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
+#include "context.hpp"
 
 namespace entt {
 
@@ -25,10 +26,12 @@ struct meta_range_iterator final {
     using iterator_category = std::input_iterator_tag;
 
     meta_range_iterator() noexcept
-        : it{} {}
+        : it{},
+          ctx{} {}
 
-    meta_range_iterator(const It iter) noexcept
-        : it{iter} {}
+    meta_range_iterator(const meta_ctx &area, const It iter) noexcept
+        : it{iter},
+          ctx{&area} {}
 
     meta_range_iterator &operator++() noexcept {
         return ++it, *this;
@@ -67,7 +70,7 @@ struct meta_range_iterator final {
     }
 
     [[nodiscard]] constexpr reference operator[](const difference_type value) const noexcept {
-        return {it[value].first, it[value].second};
+        return {it[value].first, Type{*ctx, it[value].second}};
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
@@ -75,7 +78,7 @@ struct meta_range_iterator final {
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
-        return {it->first, it->second};
+        return {it->first, Type{*ctx, it->second}};
     }
 
     template<typename... Args>
@@ -89,6 +92,7 @@ struct meta_range_iterator final {
 
 private:
     It it;
+    const meta_ctx *ctx;
 };
 
 template<typename... Args>

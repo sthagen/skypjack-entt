@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <entt/core/hashed_string.hpp>
 #include <entt/core/type_traits.hpp>
+#include <entt/locator/locator.hpp>
 #include <entt/meta/factory.hpp>
 #include <entt/meta/meta.hpp>
 #include <entt/meta/node.hpp>
@@ -341,11 +342,11 @@ TEST_F(MetaData, SetByRef) {
     int value{42};
 
     ASSERT_EQ(any.cast<clazz_t>().i, 0);
-    ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, entt::make_meta<int &>(value)));
+    ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, entt::forward_as_meta(value)));
     ASSERT_EQ(any.cast<clazz_t>().i, 42);
 
     value = 3;
-    auto wrapper = entt::make_meta<int &>(value);
+    auto wrapper = entt::forward_as_meta(value);
 
     ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, wrapper.as_ref()));
     ASSERT_EQ(any.cast<clazz_t>().i, 3);
@@ -358,11 +359,11 @@ TEST_F(MetaData, SetByConstRef) {
     int value{42};
 
     ASSERT_EQ(any.cast<clazz_t>().i, 0);
-    ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, entt::make_meta<const int &>(value)));
+    ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, entt::forward_as_meta(std::as_const(value))));
     ASSERT_EQ(any.cast<clazz_t>().i, 42);
 
     value = 3;
-    auto wrapper = entt::make_meta<const int &>(value);
+    auto wrapper = entt::forward_as_meta(std::as_const(value));
 
     ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, wrapper.as_ref()));
     ASSERT_EQ(any.cast<clazz_t>().i, 3);
@@ -645,7 +646,7 @@ TEST_F(MetaData, ReRegistration) {
 
     SetUp();
 
-    auto &&node = entt::internal::resolve<base_t>();
+    auto &&node = entt::internal::resolve<base_t>(entt::internal::meta_context::from(entt::locator<entt::meta_ctx>::value_or()));
     auto type = entt::resolve<base_t>();
 
     ASSERT_TRUE(node.details);

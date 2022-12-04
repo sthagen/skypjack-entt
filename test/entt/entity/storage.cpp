@@ -92,7 +92,7 @@ inline bool operator==(const boxed_int &lhs, const boxed_int &rhs) {
 
 TEST(Storage, Functionalities) {
     entt::storage<int> pool;
-    constexpr auto page_size = entt::component_traits<int>::page_size;
+    constexpr auto page_size = decltype(pool)::traits_type::page_size;
 
     ASSERT_NO_FATAL_FAILURE([[maybe_unused]] auto alloc = pool.get_allocator());
     ASSERT_EQ(pool.type(), entt::type_id<int>());
@@ -513,8 +513,8 @@ TEST(Storage, Remove) {
     ASSERT_FALSE(pool.empty());
     ASSERT_EQ(*pool.begin(), 2);
 
-    ASSERT_EQ(pool.remove(entities[2u]), 1u);
-    ASSERT_EQ(pool.remove(entities[2u]), 0u);
+    ASSERT_TRUE(pool.remove(entities[2u]));
+    ASSERT_FALSE(pool.remove(entities[2u]));
     ASSERT_TRUE(pool.empty());
 
     pool.emplace(entities[0u], 0);
@@ -575,9 +575,9 @@ TEST(Storage, StableRemove) {
     ASSERT_EQ(pool.begin()->value, 2);
     ASSERT_EQ(pool.index(entities[2u]), 2u);
 
-    ASSERT_EQ(pool.remove(entities[2u]), 1u);
-    ASSERT_EQ(pool.remove(entities[2u]), 0u);
-    ASSERT_EQ(pool.remove(entities[2u]), 0u);
+    ASSERT_TRUE(pool.remove(entities[2u]));
+    ASSERT_FALSE(pool.remove(entities[2u]));
+    ASSERT_FALSE(pool.remove(entities[2u]));
     ASSERT_FALSE(pool.empty());
     ASSERT_EQ(pool.size(), 3u);
     ASSERT_FALSE(pool.contains(entities[0u]));
@@ -610,11 +610,11 @@ TEST(Storage, StableRemove) {
     pool.emplace(entities[1u], stable_type{2});
     pool.emplace(entities[2u], stable_type{1});
 
-    ASSERT_EQ(pool.remove(entities[2u]), 1u);
-    ASSERT_EQ(pool.remove(entities[2u]), 0u);
+    ASSERT_TRUE(pool.remove(entities[2u]));
+    ASSERT_FALSE(pool.remove(entities[2u]));
 
-    ASSERT_EQ(pool.remove(entities[0u]), 1u);
-    ASSERT_EQ(pool.remove(entities[1u]), 1u);
+    ASSERT_TRUE(pool.remove(entities[0u]));
+    ASSERT_TRUE(pool.remove(entities[1u]));
     ASSERT_EQ(pool.remove(entities, entities + 2u), 0u);
 
     ASSERT_EQ(pool.size(), 3u);
@@ -865,7 +865,7 @@ TEST(Storage, Compact) {
 
 TEST(Storage, ShrinkToFit) {
     entt::storage<int> pool;
-    constexpr auto page_size = entt::component_traits<int>::page_size;
+    constexpr auto page_size = decltype(pool)::traits_type::page_size;
 
     for(std::size_t next{}; next < page_size; ++next) {
         pool.emplace(entt::entity(next));
@@ -1201,7 +1201,7 @@ TEST(Storage, IteratorConversion) {
 
 TEST(Storage, IteratorPageSizeAwareness) {
     entt::storage<std::unordered_set<char>> pool;
-    constexpr auto page_size = entt::component_traits<std::unordered_set<char>>::page_size;
+    constexpr auto page_size = decltype(pool)::traits_type::page_size;
     const std::unordered_set<char> check{'c'};
 
     for(unsigned int next{}; next < page_size; ++next) {
@@ -1608,7 +1608,7 @@ TEST(Storage, RespectUnordered) {
 TEST(Storage, CanModifyDuringIteration) {
     entt::storage<int> pool;
     auto *ptr = &pool.emplace(entt::entity{0}, 42);
-    constexpr auto page_size = entt::component_traits<int>::page_size;
+    constexpr auto page_size = decltype(pool)::traits_type::page_size;
 
     ASSERT_EQ(pool.capacity(), page_size);
 
@@ -1678,9 +1678,9 @@ ENTT_DEBUG_TEST(StorageDeathTest, PinnedComponent) {
 }
 
 TEST(Storage, UpdateFromDestructor) {
-    static constexpr auto size = 10u;
-
     auto test = [](const auto target) {
+        constexpr auto size = 10u;
+
         entt::storage<update_from_destructor> pool;
 
         for(std::size_t next{}; next < size; ++next) {
@@ -1703,8 +1703,8 @@ TEST(Storage, UpdateFromDestructor) {
         }
     };
 
-    test(entt::entity(size - 1u));
-    test(entt::entity(size - 2u));
+    test(entt::entity{9u});
+    test(entt::entity{8u});
     test(entt::entity{0u});
 }
 
@@ -1772,8 +1772,8 @@ TEST(Storage, ThrowingAllocator) {
         using value_type = typename decltype(pool)::value_type;
 
         typename std::decay_t<decltype(pool)>::base_type &base = pool;
-        constexpr auto packed_page_size = entt::component_traits<typename decltype(pool)::value_type>::page_size;
-        constexpr auto sparse_page_size = entt::entt_traits<typename decltype(pool)::entity_type>::page_size;
+        constexpr auto packed_page_size = decltype(pool)::traits_type::page_size;
+        constexpr auto sparse_page_size = std::remove_reference_t<decltype(base)>::traits_type::page_size;
 
         pool_allocator_type::trigger_on_allocate = true;
 

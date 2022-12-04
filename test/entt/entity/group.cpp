@@ -187,10 +187,10 @@ TEST(NonOwningGroup, Each) {
     auto cgroup = std::as_const(registry).group_if_exists(entt::get<const int, const char>);
 
     registry.emplace<int>(entity[0u], 0);
-    registry.emplace<char>(entity[0u], 0);
+    registry.emplace<char>(entity[0u], static_cast<char>(0));
 
     registry.emplace<int>(entity[1u], 1);
-    registry.emplace<char>(entity[1u], 1);
+    registry.emplace<char>(entity[1u], static_cast<char>(1));
 
     auto iterable = group.each();
     auto citerable = cgroup.each();
@@ -203,14 +203,14 @@ TEST(NonOwningGroup, Each) {
 
     ASSERT_EQ((it++, ++it), iterable.end());
 
-    group.each([expected = 1u](auto entt, int &ivalue, char &cvalue) mutable {
-        ASSERT_EQ(entt::to_integral(entt), expected);
+    group.each([expected = 1](auto entt, int &ivalue, char &cvalue) mutable {
+        ASSERT_EQ(static_cast<int>(entt::to_integral(entt)), expected);
         ASSERT_EQ(ivalue, expected);
         ASSERT_EQ(cvalue, expected);
         --expected;
     });
 
-    cgroup.each([expected = 1u](const int &ivalue, const char &cvalue) mutable {
+    cgroup.each([expected = 1](const int &ivalue, const char &cvalue) mutable {
         ASSERT_EQ(ivalue, expected);
         ASSERT_EQ(cvalue, expected);
         --expected;
@@ -224,8 +224,8 @@ TEST(NonOwningGroup, Each) {
 
     // do not use iterable, make sure an iterable group works when created from a temporary
     for(auto [entt, ivalue, cvalue]: registry.group(entt::get<int, char>).each()) {
-        ASSERT_EQ(entt::to_integral(entt), ivalue);
-        ASSERT_EQ(entt::to_integral(entt), cvalue);
+        ASSERT_EQ(static_cast<int>(entt::to_integral(entt)), ivalue);
+        ASSERT_EQ(static_cast<char>(entt::to_integral(entt)), cvalue);
     }
 }
 
@@ -663,28 +663,58 @@ TEST(NonOwningGroup, IterableGroupAlgorithmCompatibility) {
 TEST(NonOwningGroup, Storage) {
     entt::registry registry;
     const auto entity = registry.create();
-    const auto group = registry.group(entt::get<int, const char>);
+    const auto group = registry.group(entt::get<int, const char>, entt::exclude<double, const float>);
 
     static_assert(std::is_same_v<decltype(group.storage<0u>()), entt::storage_type_t<int> &>);
     static_assert(std::is_same_v<decltype(group.storage<int>()), entt::storage_type_t<int> &>);
+    static_assert(std::is_same_v<decltype(group.storage<const int>()), entt::storage_type_t<int> &>);
     static_assert(std::is_same_v<decltype(group.storage<1u>()), const entt::storage_type_t<char> &>);
+    static_assert(std::is_same_v<decltype(group.storage<char>()), const entt::storage_type_t<char> &>);
     static_assert(std::is_same_v<decltype(group.storage<const char>()), const entt::storage_type_t<char> &>);
+    static_assert(std::is_same_v<decltype(group.storage<2u>()), entt::storage_type_t<double> &>);
+    static_assert(std::is_same_v<decltype(group.storage<double>()), entt::storage_type_t<double> &>);
+    static_assert(std::is_same_v<decltype(group.storage<const double>()), entt::storage_type_t<double> &>);
+    static_assert(std::is_same_v<decltype(group.storage<3u>()), const entt::storage_type_t<float> &>);
+    static_assert(std::is_same_v<decltype(group.storage<float>()), const entt::storage_type_t<float> &>);
+    static_assert(std::is_same_v<decltype(group.storage<const float>()), const entt::storage_type_t<float> &>);
 
     ASSERT_EQ(group.size(), 0u);
 
     group.storage<int>().emplace(entity);
+    group.storage<double>().emplace(entity);
     registry.emplace<char>(entity);
+    registry.emplace<float>(entity);
 
-    ASSERT_EQ(group.size(), 1u);
+    ASSERT_EQ(group.size(), 0u);
+    ASSERT_EQ(group.begin(), group.end());
     ASSERT_TRUE(group.storage<int>().contains(entity));
     ASSERT_TRUE(group.storage<const char>().contains(entity));
+    ASSERT_TRUE(group.storage<double>().contains(entity));
+    ASSERT_TRUE(group.storage<const float>().contains(entity));
+    ASSERT_TRUE((registry.all_of<int, char, double, float>(entity)));
+
+    group.storage<double>().erase(entity);
+    registry.erase<float>(entity);
+
+    ASSERT_EQ(group.size(), 1u);
+    ASSERT_NE(group.begin(), group.end());
+    ASSERT_TRUE(group.storage<const int>().contains(entity));
+    ASSERT_TRUE(group.storage<char>().contains(entity));
+    ASSERT_FALSE(group.storage<const double>().contains(entity));
+    ASSERT_FALSE(group.storage<float>().contains(entity));
     ASSERT_TRUE((registry.all_of<int, char>(entity)));
+    ASSERT_FALSE((registry.any_of<double, float>(entity)));
 
     group.storage<0u>().erase(entity);
 
     ASSERT_EQ(group.size(), 0u);
+    ASSERT_EQ(group.begin(), group.end());
+    ASSERT_FALSE(group.storage<0u>().contains(entity));
     ASSERT_TRUE(group.storage<1u>().contains(entity));
-    ASSERT_FALSE((registry.all_of<int, char>(entity)));
+    ASSERT_FALSE(group.storage<2u>().contains(entity));
+    ASSERT_FALSE(group.storage<3u>().contains(entity));
+    ASSERT_TRUE((registry.all_of<char>(entity)));
+    ASSERT_FALSE((registry.any_of<int, double, float>(entity)));
 }
 
 TEST(OwningGroup, Functionalities) {
@@ -831,10 +861,10 @@ TEST(OwningGroup, Each) {
     auto cgroup = std::as_const(registry).group_if_exists<const int>(entt::get<const char>);
 
     registry.emplace<int>(entity[0u], 0);
-    registry.emplace<char>(entity[0u], 0);
+    registry.emplace<char>(entity[0u], static_cast<char>(0));
 
     registry.emplace<int>(entity[1u], 1);
-    registry.emplace<char>(entity[1u], 1);
+    registry.emplace<char>(entity[1u], static_cast<char>(1));
 
     auto iterable = group.each();
     auto citerable = cgroup.each();
@@ -847,14 +877,14 @@ TEST(OwningGroup, Each) {
 
     ASSERT_EQ((it++, ++it), iterable.end());
 
-    group.each([expected = 1u](auto entt, int &ivalue, char &cvalue) mutable {
-        ASSERT_EQ(entt::to_integral(entt), expected);
+    group.each([expected = 1](auto entt, int &ivalue, char &cvalue) mutable {
+        ASSERT_EQ(static_cast<int>(entt::to_integral(entt)), expected);
         ASSERT_EQ(ivalue, expected);
         ASSERT_EQ(cvalue, expected);
         --expected;
     });
 
-    cgroup.each([expected = 1u](const int &ivalue, const char &cvalue) mutable {
+    cgroup.each([expected = 1](const int &ivalue, const char &cvalue) mutable {
         ASSERT_EQ(ivalue, expected);
         ASSERT_EQ(cvalue, expected);
         --expected;
@@ -868,8 +898,8 @@ TEST(OwningGroup, Each) {
 
     // do not use iterable, make sure an iterable group works when created from a temporary
     for(auto [entt, ivalue, cvalue]: registry.group<int>(entt::get<char>).each()) {
-        ASSERT_EQ(entt::to_integral(entt), ivalue);
-        ASSERT_EQ(entt::to_integral(entt), cvalue);
+        ASSERT_EQ(static_cast<int>(entt::to_integral(entt)), ivalue);
+        ASSERT_EQ(static_cast<char>(entt::to_integral(entt)), cvalue);
     }
 }
 
@@ -1403,7 +1433,7 @@ TEST(OwningGroup, SwappingValuesIsAllowed) {
 
     // thanks to @andranik3949 for pointing out this missing test
     registry.view<const boxed_int>().each([](const auto entity, const auto &value) {
-        ASSERT_EQ(entt::to_integral(entity), value.value);
+        ASSERT_EQ(static_cast<int>(entt::to_integral(entity)), value.value);
     });
 }
 
@@ -1443,26 +1473,56 @@ TEST(OwningGroup, IterableGroupAlgorithmCompatibility) {
 TEST(OwningGroup, Storage) {
     entt::registry registry;
     const auto entity = registry.create();
-    const auto group = registry.group<int>(entt::get<const char>);
+    const auto group = registry.group<int>(entt::get<const char>, entt::exclude<double, const float>);
 
     static_assert(std::is_same_v<decltype(group.storage<0u>()), entt::storage_type_t<int> &>);
     static_assert(std::is_same_v<decltype(group.storage<int>()), entt::storage_type_t<int> &>);
+    static_assert(std::is_same_v<decltype(group.storage<const int>()), entt::storage_type_t<int> &>);
     static_assert(std::is_same_v<decltype(group.storage<1u>()), const entt::storage_type_t<char> &>);
+    static_assert(std::is_same_v<decltype(group.storage<char>()), const entt::storage_type_t<char> &>);
     static_assert(std::is_same_v<decltype(group.storage<const char>()), const entt::storage_type_t<char> &>);
+    static_assert(std::is_same_v<decltype(group.storage<2u>()), entt::storage_type_t<double> &>);
+    static_assert(std::is_same_v<decltype(group.storage<double>()), entt::storage_type_t<double> &>);
+    static_assert(std::is_same_v<decltype(group.storage<const double>()), entt::storage_type_t<double> &>);
+    static_assert(std::is_same_v<decltype(group.storage<3u>()), const entt::storage_type_t<float> &>);
+    static_assert(std::is_same_v<decltype(group.storage<float>()), const entt::storage_type_t<float> &>);
+    static_assert(std::is_same_v<decltype(group.storage<const float>()), const entt::storage_type_t<float> &>);
 
     ASSERT_EQ(group.size(), 0u);
 
     group.storage<int>().emplace(entity);
+    group.storage<double>().emplace(entity);
     registry.emplace<char>(entity);
+    registry.emplace<float>(entity);
 
-    ASSERT_EQ(group.size(), 1u);
+    ASSERT_EQ(group.size(), 0u);
+    ASSERT_EQ(group.begin(), group.end());
     ASSERT_TRUE(group.storage<int>().contains(entity));
     ASSERT_TRUE(group.storage<const char>().contains(entity));
+    ASSERT_TRUE(group.storage<double>().contains(entity));
+    ASSERT_TRUE(group.storage<const float>().contains(entity));
+    ASSERT_TRUE((registry.all_of<int, char, double, float>(entity)));
+
+    group.storage<double>().erase(entity);
+    registry.erase<float>(entity);
+
+    ASSERT_EQ(group.size(), 1u);
+    ASSERT_NE(group.begin(), group.end());
+    ASSERT_TRUE(group.storage<const int>().contains(entity));
+    ASSERT_TRUE(group.storage<char>().contains(entity));
+    ASSERT_FALSE(group.storage<const double>().contains(entity));
+    ASSERT_FALSE(group.storage<float>().contains(entity));
     ASSERT_TRUE((registry.all_of<int, char>(entity)));
+    ASSERT_FALSE((registry.any_of<double, float>(entity)));
 
     group.storage<0u>().erase(entity);
 
     ASSERT_EQ(group.size(), 0u);
+    ASSERT_EQ(group.begin(), group.end());
+    ASSERT_FALSE(group.storage<0u>().contains(entity));
     ASSERT_TRUE(group.storage<1u>().contains(entity));
-    ASSERT_FALSE((registry.all_of<int, char>(entity)));
+    ASSERT_FALSE(group.storage<2u>().contains(entity));
+    ASSERT_FALSE(group.storage<3u>().contains(entity));
+    ASSERT_TRUE((registry.all_of<char>(entity)));
+    ASSERT_FALSE((registry.any_of<int, double, float>(entity)));
 }

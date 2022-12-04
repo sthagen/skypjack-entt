@@ -126,8 +126,8 @@ TEST(Registry, Context) {
 
     ASSERT_EQ(ctx.emplace<const int>(0), 42);
     ASSERT_EQ(ctx.find<const int>(), cctx.find<int>());
-    ASSERT_EQ(ctx.at<int>(), cctx.at<const int>());
-    ASSERT_EQ(ctx.at<int>(), 42);
+    ASSERT_EQ(ctx.get<int>(), cctx.get<const int>());
+    ASSERT_EQ(ctx.get<int>(), 42);
 
     ASSERT_EQ(ctx.find<double>(), nullptr);
     ASSERT_EQ(cctx.find<double>(), nullptr);
@@ -139,8 +139,8 @@ TEST(Registry, Context) {
 
     ASSERT_EQ(ctx.insert_or_assign<const int>(0), 0);
     ASSERT_EQ(ctx.find<const int>(), cctx.find<int>());
-    ASSERT_EQ(ctx.at<int>(), cctx.at<const int>());
-    ASSERT_EQ(ctx.at<int>(), 0);
+    ASSERT_EQ(ctx.get<int>(), cctx.get<const int>());
+    ASSERT_EQ(ctx.get<int>(), 0);
 }
 
 TEST(Registry, ContextHint) {
@@ -2009,7 +2009,7 @@ TEST(Registry, ScramblingPoolsIsAllowed) {
 
     // thanks to @andranik3949 for pointing out this missing test
     registry.view<const int>().each([](const auto entity, const auto &value) {
-        ASSERT_EQ(entt::to_integral(entity), value);
+        ASSERT_EQ(static_cast<int>(entt::to_integral(entity)), value);
     });
 }
 
@@ -2090,6 +2090,22 @@ TEST(Registry, Storage) {
         ASSERT_EQ(std::addressof(storage), std::addressof(curr.second));
         ASSERT_EQ(curr.first, "int"_hs);
     }
+}
+
+TEST(Registry, VoidType) {
+    using namespace entt::literals;
+
+    entt::registry registry;
+    const auto entity = registry.create();
+    auto &storage = registry.storage<void>("custom"_hs);
+    storage.emplace(entity);
+
+    ASSERT_TRUE(registry.storage<void>().empty());
+    ASSERT_FALSE(registry.storage<void>("custom"_hs).empty());
+    ASSERT_TRUE(registry.storage<void>("custom"_hs).contains(entity));
+
+    ASSERT_EQ(registry.storage<void>().type(), entt::type_id<void>());
+    ASSERT_EQ(registry.storage<void>("custom"_hs).type(), entt::type_id<void>());
 }
 
 TEST(Registry, RegistryStorageIterator) {

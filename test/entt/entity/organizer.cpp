@@ -20,7 +20,7 @@ struct clazz {
     static void ro_int_char_with_payload(clazz &, entt::view<entt::get_t<const int, const char>>) {}
 };
 
-void to_args_integrity(entt::view<entt::get_t<int>> view, std::size_t &value, entt::registry &registry) {
+void to_args_integrity(entt::view<entt::get_t<int>> view, std::size_t &value, entt::registry &) {
     value = view.size();
 }
 
@@ -428,5 +428,5 @@ TEST(Organizer, ToArgsIntegrity) {
     auto graph = organizer.graph();
     graph[0u].callback()(graph[0u].data(), registry);
 
-    ASSERT_EQ(registry.ctx().at<std::size_t>(), 0u);
+    ASSERT_EQ(registry.ctx().get<std::size_t>(), 0u);
 }

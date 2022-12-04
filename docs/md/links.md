@@ -168,6 +168,14 @@ I hope this list can grow much more in the future:
     engine based on `SDL2` and `EnTT`.
   * [Ducktape](https://github.com/DucktapeEngine/Ducktape): an open source C++
     2D & 3D game engine that focuses on being fast and powerful.
+  * [The Worst Engine](https://github.com/Parasik72/TWE): a game engine based on
+    OpenGL.
+  * [Ecsact](https://ecsact.dev/): a language aimed at describing ECS, with a
+    [runtime implementation](https://github.com/ecsact-dev/ecsact_rt_entt) based
+    on `EnTT`.
+  * [AGE (Arc Game Engine)](https://github.com/MohitSethi99/ArcGameEngine): an
+    open-source engine for building 2D & 3D real-time rendering and interactive
+    contents.
 
 * Articles, videos and blog posts:
   * [Some posts](https://skypjack.github.io/tags/#entt) on my personal

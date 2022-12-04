@@ -9,7 +9,6 @@
 #include "../config/config.h"
 #include "../core/iterator.hpp"
 #include "../core/type_traits.hpp"
-#include "component.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
 #include "sparse_set.hpp"
@@ -194,7 +193,7 @@ class basic_view<get_t<Get...>, exclude_t<Exclude...>> {
     friend class basic_view;
 
     template<typename Type>
-    static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Get::value_type...>>;
+    static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Get::value_type..., typename Exclude::value_type...>>;
 
     [[nodiscard]] auto opaque_check_set() const noexcept {
         std::array<const base_type *, sizeof...(Get) - 1u> other{};
@@ -268,11 +267,11 @@ public:
     /**
      * @brief Constructs a multi-type view from a set of storage classes.
      * @param value The storage for the types to iterate.
-     * @param exclude The storage for the types used to filter the view.
+     * @param excl The storage for the types used to filter the view.
      */
-    basic_view(std::tuple<Get &...> value, std::tuple<Exclude &...> exclude = {}) noexcept
+    basic_view(std::tuple<Get &...> value, std::tuple<Exclude &...> excl = {}) noexcept
         : pools{std::apply([](auto &...curr) { return std::make_tuple(&curr...); }, value)},
-          filter{std::apply([](auto &...curr) { return std::make_tuple(&curr...); }, exclude)},
+          filter{std::apply([](auto &...curr) { return std::make_tuple(&curr...); }, excl)},
           view{std::apply([](const base_type *first, const auto *...other) { ((first = other->size() < first->size() ? other : first), ...); return first; }, pools)} {}
 
     /**
@@ -315,7 +314,7 @@ public:
 
     /**
      * @brief Returns the storage for a given component type.
-     * @tparam Comp Type of component of which to return the storage.
+     * @tparam Type Type of component of which to return the storage.
      * @return The storage for the given component type.
      */
     template<typename Type>
@@ -330,7 +329,13 @@ public:
      */
     template<std::size_t Index>
     [[nodiscard]] decltype(auto) storage() const noexcept {
-        return *std::get<Index>(pools);
+        constexpr auto offset = sizeof...(Get);
+
+        if constexpr(Index < offset) {
+            return *std::get<Index>(pools);
+        } else {
+            return *std::get<Index - offset>(filter);
+        }
     }
 
     /**
@@ -544,7 +549,7 @@ private:
  * @tparam Get Type of storage iterated by the view.
  */
 template<typename Get>
-class basic_view<get_t<Get>, exclude_t<>, std::void_t<std::enable_if_t<!component_traits<typename Get::value_type>::in_place_delete>>> {
+class basic_view<get_t<Get>, exclude_t<>, std::void_t<std::enable_if_t<!Get::traits_type::in_place_delete>>> {
     template<typename, typename, typename>
     friend class basic_view;
 
@@ -798,7 +803,7 @@ public:
             for(const auto pack: each()) {
                 std::apply(func, pack);
             }
-        } else if constexpr(ignore_as_empty_v<typename Get::value_type>) {
+        } else if constexpr(Get::traits_type::page_size == 0u) {
             for(size_type pos{}, last = size(); pos < last; ++pos) {
                 func();
             }

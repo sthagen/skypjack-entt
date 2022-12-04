@@ -18,6 +18,8 @@ jobs:
             exe: g++-9
           - pkg: g++-10
             exe: g++-10
+          - pkg: g++-11
+            exe: g++-11
           - pkg: clang-8
             exe: clang++-8
           - pkg: clang-9
@@ -32,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install compiler
       run: |
         sudo apt update
@@ -62,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Compile tests
       working-directory: build
       env:
@@ -93,7 +95,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Compile tests
       working-directory: build
       run: |
@@ -116,7 +118,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Compile tests
       working-directory: build
       run: |
@@ -133,7 +135,7 @@ jobs:
     runs-on: macOS-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Compile tests
       working-directory: build
       run: |
@@ -156,7 +158,7 @@ jobs:
     runs-on: macOS-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Compile tests
       working-directory: build
       run: |

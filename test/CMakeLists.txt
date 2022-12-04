@@ -51,7 +51,20 @@ function(SETUP_TARGET TARGET_NAME)
         target_compile_options(
             ${TARGET_NAME}
             PRIVATE
-                /EHsc /W1 /wd4996 /w14800
+                # vs2017 emits too many false positives for my tastes
+                $<IF:$<EQUAL:${MSVC_TOOLSET_VERSION},141>, /W1, /W4>
+                # clang-cl goes a little wrong with some warnings instead
+                $<$<STREQUAL:"${CMAKE_CXX_COMPILER_ID}","Clang">:
+                    -Wno-deprecated-declarations
+                    -Wno-ignored-qualifiers
+                    -Wno-unknown-warning-option
+                    -Wno-exceptions
+                    -Wno-unused-local-typedef
+                    -Wno-unused-private-field
+                >
+                # documentation diagnostic turned on for clang-cl only
+                $<$<STREQUAL:"${CMAKE_CXX_COMPILER_ID}","Clang">:-Wdocumentation>
+                /EHsc /wd4324 /wd4996
                 $<$<CONFIG:Debug>:/Od>
                 $<$<CONFIG:Release>:/O2>
         )

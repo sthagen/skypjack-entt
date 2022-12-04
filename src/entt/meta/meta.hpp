@@ -613,7 +613,7 @@ private:
  * @return A properly initialized and not necessarily owning wrapper.
  */
 template<typename Type>
-meta_any forward_as_meta(const meta_ctx &ctx, Type &&value) {
+[[nodiscard]] meta_any forward_as_meta(const meta_ctx &ctx, Type &&value) {
     return meta_any{ctx, std::in_place_type<Type &&>, std::forward<Type>(value)};
 }
 
@@ -624,7 +624,7 @@ meta_any forward_as_meta(const meta_ctx &ctx, Type &&value) {
  * @return A properly initialized and not necessarily owning wrapper.
  */
 template<typename Type>
-meta_any forward_as_meta(Type &&value) {
+[[nodiscard]] meta_any forward_as_meta(Type &&value) {
     return forward_as_meta(locator<meta_ctx>::value_or(), std::forward<Type>(value));
 }
 
@@ -962,8 +962,12 @@ struct meta_func {
      */
     template<typename... Args>
     meta_any invoke(meta_handle instance, Args &&...args) const {
-        meta_any arguments[sizeof...(Args) + 1u]{{*ctx, std::forward<Args>(args)}...};
-        return invoke(meta_handle{*ctx, std::move(instance)}, arguments, sizeof...(Args));
+        if constexpr(sizeof...(Args) == 0u) {
+            return invoke(std::move(instance), static_cast<meta_any *>(nullptr), size_type{});
+        } else {
+            meta_any arguments[sizeof...(Args)]{{*ctx, std::forward<Args>(args)}...};
+            return invoke(std::move(instance), arguments, sizeof...(Args));
+        }
     }
 
     /*! @copydoc meta_data::prop */
@@ -1339,8 +1343,12 @@ public:
      */
     template<typename... Args>
     [[nodiscard]] meta_any construct(Args &&...args) const {
-        meta_any arguments[sizeof...(Args) + 1u]{{*ctx, std::forward<Args>(args)}...};
-        return construct(arguments, sizeof...(Args));
+        if constexpr(sizeof...(Args) == 0u) {
+            return construct(static_cast<meta_any *>(nullptr), size_type{});
+        } else {
+            meta_any arguments[sizeof...(Args)]{{*ctx, std::forward<Args>(args)}...};
+            return construct(arguments, sizeof...(Args));
+        }
     }
 
     /**
@@ -1348,12 +1356,12 @@ public:
      * @param element A valid pointer to an element of the underlying type.
      * @return A wrapper that references the given instance.
      */
-    meta_any from_void(void *element) const {
+    [[nodiscard]] meta_any from_void(void *element) const {
         return (element && node.from_void) ? node.from_void(*ctx, element, nullptr) : meta_any{meta_ctx_arg, *ctx};
     }
 
     /*! @copydoc from_void */
-    meta_any from_void(const void *element) const {
+    [[nodiscard]] meta_any from_void(const void *element) const {
         return (element && node.from_void) ? node.from_void(*ctx, nullptr, element) : meta_any{meta_ctx_arg, *ctx};
     }
 
@@ -1399,8 +1407,12 @@ public:
      */
     template<typename... Args>
     meta_any invoke(const id_type id, meta_handle instance, Args &&...args) const {
-        meta_any arguments[sizeof...(Args) + 1u]{{*ctx, std::forward<Args>(args)}...};
-        return invoke(id, meta_handle{*ctx, std::move(instance)}, arguments, sizeof...(Args));
+        if constexpr(sizeof...(Args) == 0u) {
+            return invoke(id, std::move(instance), static_cast<meta_any *>(nullptr), size_type{});
+        } else {
+            meta_any arguments[sizeof...(Args)]{{*ctx, std::forward<Args>(args)}...};
+            return invoke(id, std::move(instance), arguments, sizeof...(Args));
+        }
     }
 
     /**

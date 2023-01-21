@@ -1,5 +1,6 @@
 #include <iterator>
 #include <gtest/gtest.h>
+#include <entt/entity/mixin.hpp>
 #include <entt/entity/registry.hpp>
 #include <entt/entity/storage.hpp>
 #include "../common/throwing_allocator.hpp"
@@ -30,9 +31,9 @@ void listener(counter &counter, Registry &, typename Registry::entity_type) {
     ++counter.value;
 }
 
-TEST(SighStorageMixin, GenericType) {
+TEST(SighMixin, GenericType) {
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
-    entt::sigh_storage_mixin<entt::storage<int>> pool;
+    entt::sigh_mixin<entt::storage<int>> pool;
     entt::sparse_set &base = pool;
     entt::registry registry;
 
@@ -40,10 +41,21 @@ TEST(SighStorageMixin, GenericType) {
     counter on_destroy{};
 
     pool.bind(entt::forward_as_any(registry));
+
+    ASSERT_TRUE(pool.empty());
+
+    pool.insert(entities, entities + 1u);
+    pool.erase(entities[0u]);
+
+    ASSERT_TRUE(pool.empty());
+
+    ASSERT_EQ(on_construct.value, 0);
+    ASSERT_EQ(on_destroy.value, 0);
+
     pool.on_construct().connect<&listener<entt::registry>>(on_construct);
     pool.on_destroy().connect<&listener<entt::registry>>(on_destroy);
 
-    ASSERT_NE(base.emplace(entities[0u]), base.end());
+    ASSERT_NE(base.push(entities[0u]), base.end());
 
     pool.emplace(entities[1u]);
 
@@ -61,7 +73,7 @@ TEST(SighStorageMixin, GenericType) {
     ASSERT_EQ(on_destroy.value, 2);
     ASSERT_TRUE(pool.empty());
 
-    ASSERT_NE(base.insert(std::begin(entities), std::end(entities)), base.end());
+    ASSERT_NE(base.push(std::begin(entities), std::end(entities)), base.end());
 
     ASSERT_EQ(pool.get(entities[0u]), 0);
     ASSERT_EQ(pool.get(entities[1u]), 0);
@@ -95,9 +107,9 @@ TEST(SighStorageMixin, GenericType) {
     ASSERT_TRUE(pool.empty());
 }
 
-TEST(SighStorageMixin, StableType) {
+TEST(SighMixin, StableType) {
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
-    entt::sigh_storage_mixin<entt::storage<stable_type>> pool;
+    entt::sigh_mixin<entt::storage<stable_type>> pool;
     entt::sparse_set &base = pool;
     entt::registry registry;
 
@@ -108,7 +120,7 @@ TEST(SighStorageMixin, StableType) {
     pool.on_construct().connect<&listener<entt::registry>>(on_construct);
     pool.on_destroy().connect<&listener<entt::registry>>(on_destroy);
 
-    ASSERT_NE(base.emplace(entities[0u]), base.end());
+    ASSERT_NE(base.push(entities[0u]), base.end());
 
     pool.emplace(entities[1u]);
 
@@ -126,7 +138,7 @@ TEST(SighStorageMixin, StableType) {
     ASSERT_EQ(on_destroy.value, 2);
     ASSERT_FALSE(pool.empty());
 
-    ASSERT_NE(base.insert(std::begin(entities), std::end(entities)), base.end());
+    ASSERT_NE(base.push(std::begin(entities), std::end(entities)), base.end());
 
     ASSERT_EQ(pool.get(entities[0u]).value, 0);
     ASSERT_EQ(pool.get(entities[1u]).value, 0);
@@ -160,9 +172,9 @@ TEST(SighStorageMixin, StableType) {
     ASSERT_FALSE(pool.empty());
 }
 
-TEST(SighStorageMixin, EmptyType) {
+TEST(SighMixin, EmptyType) {
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
-    entt::sigh_storage_mixin<entt::storage<empty_type>> pool;
+    entt::sigh_mixin<entt::storage<empty_type>> pool;
     entt::sparse_set &base = pool;
     entt::registry registry;
 
@@ -173,7 +185,7 @@ TEST(SighStorageMixin, EmptyType) {
     pool.on_construct().connect<&listener<entt::registry>>(on_construct);
     pool.on_destroy().connect<&listener<entt::registry>>(on_destroy);
 
-    ASSERT_NE(base.emplace(entities[0u]), base.end());
+    ASSERT_NE(base.push(entities[0u]), base.end());
 
     pool.emplace(entities[1u]);
 
@@ -191,7 +203,7 @@ TEST(SighStorageMixin, EmptyType) {
     ASSERT_EQ(on_destroy.value, 2);
     ASSERT_TRUE(pool.empty());
 
-    ASSERT_NE(base.insert(std::begin(entities), std::end(entities)), base.end());
+    ASSERT_NE(base.push(std::begin(entities), std::end(entities)), base.end());
 
     ASSERT_TRUE(pool.contains(entities[0u]));
     ASSERT_TRUE(pool.contains(entities[1u]));
@@ -225,9 +237,9 @@ TEST(SighStorageMixin, EmptyType) {
     ASSERT_TRUE(pool.empty());
 }
 
-TEST(SighStorageMixin, NonDefaultConstructibleType) {
+TEST(SighMixin, NonDefaultConstructibleType) {
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
-    entt::sigh_storage_mixin<entt::storage<non_default_constructible>> pool;
+    entt::sigh_mixin<entt::storage<non_default_constructible>> pool;
     entt::sparse_set &base = pool;
     entt::registry registry;
 
@@ -238,12 +250,12 @@ TEST(SighStorageMixin, NonDefaultConstructibleType) {
     pool.on_construct().connect<&listener<entt::registry>>(on_construct);
     pool.on_destroy().connect<&listener<entt::registry>>(on_destroy);
 
-    ASSERT_EQ(base.emplace(entities[0u]), base.end());
+    ASSERT_EQ(base.push(entities[0u]), base.end());
 
     pool.emplace(entities[1u], 3);
 
     ASSERT_EQ(pool.size(), 1u);
-    ASSERT_EQ(on_construct.value, 2);
+    ASSERT_EQ(on_construct.value, 1);
     ASSERT_EQ(on_destroy.value, 0);
     ASSERT_FALSE(pool.empty());
 
@@ -253,11 +265,11 @@ TEST(SighStorageMixin, NonDefaultConstructibleType) {
     base.erase(entities[1u]);
 
     ASSERT_EQ(pool.size(), 0u);
-    ASSERT_EQ(on_construct.value, 2);
+    ASSERT_EQ(on_construct.value, 1);
     ASSERT_EQ(on_destroy.value, 1);
     ASSERT_TRUE(pool.empty());
 
-    ASSERT_EQ(base.insert(std::begin(entities), std::end(entities)), base.end());
+    ASSERT_EQ(base.push(std::begin(entities), std::end(entities)), base.end());
 
     ASSERT_FALSE(pool.contains(entities[0u]));
     ASSERT_FALSE(pool.contains(entities[1u]));
@@ -266,7 +278,7 @@ TEST(SighStorageMixin, NonDefaultConstructibleType) {
     pool.insert(std::begin(entities), std::end(entities), 3);
 
     ASSERT_EQ(pool.size(), 2u);
-    ASSERT_EQ(on_construct.value, 6);
+    ASSERT_EQ(on_construct.value, 3);
     ASSERT_EQ(on_destroy.value, 1);
     ASSERT_FALSE(pool.empty());
 
@@ -276,13 +288,13 @@ TEST(SighStorageMixin, NonDefaultConstructibleType) {
     pool.erase(std::begin(entities), std::end(entities));
 
     ASSERT_EQ(pool.size(), 0u);
-    ASSERT_EQ(on_construct.value, 6);
+    ASSERT_EQ(on_construct.value, 3);
     ASSERT_EQ(on_destroy.value, 3);
     ASSERT_TRUE(pool.empty());
 }
 
-TEST(SighStorageMixin, VoidType) {
-    entt::sigh_storage_mixin<entt::storage<void>> pool;
+TEST(SighMixin, VoidType) {
+    entt::sigh_mixin<entt::storage<void>> pool;
     entt::registry registry;
 
     counter on_construct{};
@@ -297,7 +309,7 @@ TEST(SighStorageMixin, VoidType) {
     ASSERT_EQ(pool.type(), entt::type_id<void>());
     ASSERT_TRUE(pool.contains(entt::entity{99}));
 
-    entt::sigh_storage_mixin<entt::storage<void>> other{std::move(pool)};
+    entt::sigh_mixin<entt::storage<void>> other{std::move(pool)};
 
     ASSERT_FALSE(pool.contains(entt::entity{99}));
     ASSERT_TRUE(other.contains(entt::entity{99}));
@@ -313,8 +325,8 @@ TEST(SighStorageMixin, VoidType) {
     ASSERT_EQ(on_destroy.value, 1);
 }
 
-TEST(SighStorageMixin, Move) {
-    entt::sigh_storage_mixin<entt::storage<int>> pool;
+TEST(SighMixin, Move) {
+    entt::sigh_mixin<entt::storage<int>> pool;
     entt::registry registry;
 
     counter on_construct{};
@@ -330,7 +342,7 @@ TEST(SighStorageMixin, Move) {
     ASSERT_TRUE(std::is_move_assignable_v<decltype(pool)>);
     ASSERT_EQ(pool.type(), entt::type_id<int>());
 
-    entt::sigh_storage_mixin<entt::storage<int>> other{std::move(pool)};
+    entt::sigh_mixin<entt::storage<int>> other{std::move(pool)};
 
     ASSERT_TRUE(pool.empty());
     ASSERT_FALSE(other.empty());
@@ -347,7 +359,7 @@ TEST(SighStorageMixin, Move) {
     ASSERT_EQ(pool.get(entt::entity{3}), 3);
     ASSERT_EQ(other.at(0u), static_cast<entt::entity>(entt::null));
 
-    other = entt::sigh_storage_mixin<entt::storage<int>>{};
+    other = entt::sigh_mixin<entt::storage<int>>{};
     other.bind(entt::forward_as_any(registry));
 
     other.emplace(entt::entity{42}, 42);
@@ -365,9 +377,9 @@ TEST(SighStorageMixin, Move) {
     ASSERT_EQ(on_destroy.value, 1);
 }
 
-TEST(SighStorageMixin, Swap) {
-    entt::sigh_storage_mixin<entt::storage<int>> pool;
-    entt::sigh_storage_mixin<entt::storage<int>> other;
+TEST(SighMixin, Swap) {
+    entt::sigh_mixin<entt::storage<int>> pool;
+    entt::sigh_mixin<entt::storage<int>> other;
     entt::registry registry;
 
     counter on_construct{};
@@ -411,7 +423,7 @@ TEST(SighStorageMixin, Swap) {
     ASSERT_EQ(on_destroy.value, 3);
 }
 
-TEST(SighStorageMixin, CustomAllocator) {
+TEST(SighMixin, CustomAllocator) {
     auto test = [](auto pool, auto alloc) {
         using registry_type = typename decltype(pool)::registry_type;
         registry_type registry;
@@ -466,12 +478,12 @@ TEST(SighStorageMixin, CustomAllocator) {
 
     test::throwing_allocator<entt::entity> allocator{};
 
-    test(entt::sigh_storage_mixin<entt::basic_storage<int, entt::entity, test::throwing_allocator<int>>>{allocator}, allocator);
-    test(entt::sigh_storage_mixin<entt::basic_storage<std::true_type, entt::entity, test::throwing_allocator<std::true_type>>>{allocator}, allocator);
-    test(entt::sigh_storage_mixin<entt::basic_storage<stable_type, entt::entity, test::throwing_allocator<stable_type>>>{allocator}, allocator);
+    test(entt::sigh_mixin<entt::basic_storage<int, entt::entity, test::throwing_allocator<int>>>{allocator}, allocator);
+    test(entt::sigh_mixin<entt::basic_storage<std::true_type, entt::entity, test::throwing_allocator<std::true_type>>>{allocator}, allocator);
+    test(entt::sigh_mixin<entt::basic_storage<stable_type, entt::entity, test::throwing_allocator<stable_type>>>{allocator}, allocator);
 }
 
-TEST(SighStorageMixin, ThrowingAllocator) {
+TEST(SighMixin, ThrowingAllocator) {
     auto test = [](auto pool) {
         using pool_allocator_type = typename decltype(pool)::allocator_type;
         using value_type = typename decltype(pool)::value_type;
@@ -511,7 +523,7 @@ TEST(SighStorageMixin, ThrowingAllocator) {
 
         test::throwing_allocator<entt::entity>::trigger_on_allocate = true;
 
-        ASSERT_THROW(base.emplace(entt::entity{0}), test::throwing_allocator<entt::entity>::exception_type);
+        ASSERT_THROW(base.push(entt::entity{0}), test::throwing_allocator<entt::entity>::exception_type);
         ASSERT_FALSE(base.contains(entt::entity{0}));
         ASSERT_TRUE(base.empty());
 
@@ -543,12 +555,12 @@ TEST(SighStorageMixin, ThrowingAllocator) {
         ASSERT_EQ(on_destroy.value, 1);
     };
 
-    test(entt::sigh_storage_mixin<entt::basic_storage<int, entt::entity, test::throwing_allocator<int>>>{});
-    test(entt::sigh_storage_mixin<entt::basic_storage<stable_type, entt::entity, test::throwing_allocator<stable_type>>>{});
+    test(entt::sigh_mixin<entt::basic_storage<int, entt::entity, test::throwing_allocator<int>>>{});
+    test(entt::sigh_mixin<entt::basic_storage<stable_type, entt::entity, test::throwing_allocator<stable_type>>>{});
 }
 
-TEST(SighStorageMixin, ThrowingComponent) {
-    entt::sigh_storage_mixin<entt::storage<test::throwing_type>> pool;
+TEST(SighMixin, ThrowingComponent) {
+    entt::sigh_mixin<entt::storage<test::throwing_type>> pool;
     using registry_type = typename decltype(pool)::registry_type;
     registry_type registry;
 

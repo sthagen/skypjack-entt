@@ -23,6 +23,7 @@
 #include "entity.hpp"
 #include "fwd.hpp"
 #include "group.hpp"
+#include "mixin.hpp"
 #include "sparse_set.hpp"
 #include "storage.hpp"
 #include "view.hpp"
@@ -158,7 +159,7 @@ template<typename Lhs, typename Rhs>
 
 template<typename Allocator>
 class registry_context {
-    using alloc_traits = typename std::allocator_traits<Allocator>;
+    using alloc_traits = std::allocator_traits<Allocator>;
     using allocator_type = typename alloc_traits::template rebind_alloc<std::pair<const id_type, basic_any<0u>>>;
 
 public:
@@ -237,7 +238,7 @@ private:
  */
 template<typename Entity, typename Allocator>
 class basic_registry {
-    using alloc_traits = typename std::allocator_traits<Allocator>;
+    using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(std::is_same_v<typename alloc_traits::value_type, Entity>, "Invalid value type");
     using basic_common_type = basic_sparse_set<Entity, Allocator>;
 
@@ -268,7 +269,7 @@ class basic_registry {
 
             if constexpr(sizeof...(Owned) == 0) {
                 if(is_valid && !current.contains(entt)) {
-                    current.emplace(entt);
+                    current.push(entt);
                 }
             } else {
                 if(is_valid && !(std::get<0>(cpools).index(entt) < current)) {
@@ -699,7 +700,7 @@ public:
     template<typename It>
     void assign(It first, It last, const entity_type destroyed) {
         ENTT_ASSERT(!alive(), "Entities still alive");
-        epool.assign(first, last);
+        epool.assign(std::move(first), std::move(last));
         free_list = destroyed;
     }
 
@@ -800,8 +801,31 @@ public:
      */
     template<typename It>
     void destroy(It first, It last) {
-        for(; first != last; ++first) {
-            destroy(*first);
+        if constexpr(std::is_same_v<It, typename base_type::iterator>) {
+            base_type *owner = nullptr;
+
+            for(size_type pos = pools.size(); pos; --pos) {
+                if(pools.begin()[pos - 1u].second->data() == first.data()) {
+                    owner = pools.begin()[pos - 1u].second.get();
+                } else {
+                    pools.begin()[pos - 1u].second->remove(first, last);
+                }
+            }
+
+            if(owner) {
+                // waiting to further/completely optimize this with the entity storage
+                for(; first != last; ++first) {
+                    const auto entt = *first;
+                    owner->remove(entt);
+                    release(entt);
+                }
+            } else {
+                release(std::move(first), std::move(last));
+            }
+        } else {
+            for(; first != last; ++first) {
+                destroy(*first);
+            }
         }
     }
 
@@ -838,7 +862,7 @@ public:
      */
     template<typename Type, typename It>
     void insert(It first, It last, const Type &value = {}) {
-        assure<Type>().insert(first, last, value);
+        assure<Type>().insert(std::move(first), std::move(last), value);
     }
 
     /**
@@ -955,17 +979,28 @@ public:
      */
     template<typename Type, typename... Other, typename It>
     size_type remove(It first, It last) {
-        if constexpr(sizeof...(Other) == 0u) {
-            return assure<Type>().remove(std::move(first), std::move(last));
-        } else {
-            size_type count{};
+        size_type count{};
 
+        if constexpr(sizeof...(Other) == 0u) {
+            count += assure<Type>().remove(std::move(first), std::move(last));
+        } else if constexpr(std::is_same_v<It, typename base_type::iterator>) {
+            constexpr size_type len = sizeof...(Other) + 1u;
+            base_type *cpools[len]{&assure<Type>(), &assure<Other>()...};
+
+            for(size_type pos{}; pos < len; ++pos) {
+                if(cpools[pos]->data() == first.data()) {
+                    std::swap(cpools[pos], cpools[len - 1u]);
+                }
+
+                count += cpools[pos]->remove(first, last);
+            }
+        } else {
             for(auto cpools = std::forward_as_tuple(assure<Type>(), assure<Other>()...); first != last; ++first) {
                 count += std::apply([entt = *first](auto &...curr) { return (curr.remove(entt) + ... + 0u); }, cpools);
             }
-
-            return count;
         }
+
+        return count;
     }
 
     /**
@@ -999,6 +1034,17 @@ public:
     void erase(It first, It last) {
         if constexpr(sizeof...(Other) == 0u) {
             assure<Type>().erase(std::move(first), std::move(last));
+        } else if constexpr(std::is_same_v<It, typename base_type::iterator>) {
+            constexpr size_type len = sizeof...(Other) + 1u;
+            base_type *cpools[len]{&assure<Type>(), &assure<Other>()...};
+
+            for(size_type pos{}; pos < len; ++pos) {
+                if(cpools[pos]->data() == first.data()) {
+                    std::swap(cpools[pos], cpools[len - 1u]);
+                }
+
+                cpools[pos]->erase(first, last);
+            }
         } else {
             for(auto cpools = std::forward_as_tuple(assure<Type>(), assure<Other>()...); first != last; ++first) {
                 std::apply([entt = *first](auto &...curr) { (curr.erase(entt), ...); }, cpools);
@@ -1372,7 +1418,7 @@ public:
 
             if constexpr(sizeof...(Owned) == 0) {
                 for(const auto entity: view<Owned..., Get...>(exclude<Exclude...>)) {
-                    handler->current.emplace(entity);
+                    handler->current.push(entity);
                 }
             } else {
                 // we cannot iterate backwards because we want to leave behind valid entities in case of owned types

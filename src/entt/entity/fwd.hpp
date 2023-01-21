@@ -1,6 +1,7 @@
 #ifndef ENTT_ENTITY_FWD_HPP
 #define ENTT_ENTITY_FWD_HPP
 
+#include <cstdint>
 #include <memory>
 #include <type_traits>
 #include "../core/fwd.hpp"
@@ -11,8 +12,13 @@ namespace entt {
 /*! @brief Default entity identifier. */
 enum class entity : id_type {};
 
-template<typename, typename = entity>
-struct component_traits;
+/*! @brief Storage deletion policy. */
+enum class deletion_policy : std::uint8_t {
+    /*! @brief Swap-and-pop deletion policy. */
+    swap_and_pop = 0u,
+    /*! @brief In-place deletion policy. */
+    in_place = 1u
+};
 
 template<typename Entity = entity, typename = std::allocator<Entity>>
 class basic_sparse_set;
@@ -21,7 +27,7 @@ template<typename Type, typename = entity, typename = std::allocator<Type>, type
 class basic_storage;
 
 template<typename Type>
-class sigh_storage_mixin;
+class sigh_mixin;
 
 /**
  * @brief Provides a common way to define storage types.
@@ -32,7 +38,7 @@ class sigh_storage_mixin;
 template<typename Type, typename Entity = entity, typename Allocator = std::allocator<Type>, typename = void>
 struct storage_type {
     /*! @brief Type-to-storage conversion result. */
-    using type = sigh_storage_mixin<basic_storage<Type, Entity, Allocator>>;
+    using type = sigh_mixin<basic_storage<Type, Entity, Allocator>>;
 };
 
 /**

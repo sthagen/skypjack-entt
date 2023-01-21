@@ -1,10 +1,11 @@
-#ifndef ENTT_ENTITY_SIGH_STORAGE_MIXIN_HPP
-#define ENTT_ENTITY_SIGH_STORAGE_MIXIN_HPP
+#ifndef ENTT_ENTITY_MIXIN_HPP
+#define ENTT_ENTITY_MIXIN_HPP
 
 #include <utility>
 #include "../config/config.h"
 #include "../core/any.hpp"
 #include "../signal/sigh.hpp"
+#include "entity.hpp"
 #include "fwd.hpp"
 
 namespace entt {
@@ -23,27 +24,53 @@ namespace entt {
  * @tparam Type The type of the underlying storage.
  */
 template<typename Type>
-class sigh_storage_mixin final: public Type {
+class sigh_mixin final: public Type {
     using basic_registry_type = basic_registry<typename Type::entity_type, typename Type::base_type::allocator_type>;
     using sigh_type = sigh<void(basic_registry_type &, const typename Type::entity_type), typename Type::allocator_type>;
-    using basic_iterator = typename Type::basic_iterator;
+    using underlying_iterator = typename Type::base_type::basic_iterator;
 
-    void pop(basic_iterator first, basic_iterator last) override {
-        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+    void pop(underlying_iterator first, underlying_iterator last) final {
+        if(destruction.empty()) {
+            Type::pop(first, last);
+        } else {
+            ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
 
-        for(; first != last; ++first) {
-            const auto entt = *first;
-            destruction.publish(*owner, entt);
-            const auto it = Type::find(entt);
-            Type::pop(it, it + 1u);
+            for(; first != last; ++first) {
+                const auto entt = *first;
+                destruction.publish(*owner, entt);
+                const auto it = Type::find(entt);
+                Type::pop(it, it + 1u);
+            }
         }
     }
 
-    basic_iterator try_emplace(const typename basic_registry_type::entity_type entt, const bool force_back, const void *value) final {
-        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
-        Type::try_emplace(entt, force_back, value);
-        construction.publish(*owner, entt);
-        return Type::find(entt);
+    void pop_all() final {
+        if(!destruction.empty()) {
+            ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+
+            for(auto &&entt: static_cast<typename Type::base_type &>(*this)) {
+                if constexpr(Type::traits_type::in_place_delete) {
+                    if(entt != tombstone) {
+                        destruction.publish(*owner, entt);
+                    }
+                } else {
+                    destruction.publish(*owner, entt);
+                }
+            }
+        }
+
+        Type::pop_all();
+    }
+
+    underlying_iterator try_emplace(const typename Type::entity_type entt, const bool force_back, const void *value) final {
+        const auto it = Type::try_emplace(entt, force_back, value);
+
+        if(it != Type::base_type::end()) {
+            ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+            construction.publish(*owner, *it);
+        }
+
+        return it;
     }
 
 public:
@@ -55,14 +82,14 @@ public:
     using registry_type = basic_registry_type;
 
     /*! @brief Default constructor. */
-    sigh_storage_mixin()
-        : sigh_storage_mixin{allocator_type{}} {}
+    sigh_mixin()
+        : sigh_mixin{allocator_type{}} {}
 
     /**
      * @brief Constructs an empty storage with a given allocator.
      * @param allocator The allocator to use.
      */
-    explicit sigh_storage_mixin(const allocator_type &allocator)
+    explicit sigh_mixin(const allocator_type &allocator)
         : Type{allocator},
           owner{},
           construction{allocator},
@@ -73,7 +100,7 @@ public:
      * @brief Move constructor.
      * @param other The instance to move from.
      */
-    sigh_storage_mixin(sigh_storage_mixin &&other) noexcept
+    sigh_mixin(sigh_mixin &&other) noexcept
         : Type{std::move(other)},
           owner{other.owner},
           construction{std::move(other.construction)},
@@ -85,7 +112,7 @@ public:
      * @param other The instance to move from.
      * @param allocator The allocator to use.
      */
-    sigh_storage_mixin(sigh_storage_mixin &&other, const allocator_type &allocator) noexcept
+    sigh_mixin(sigh_mixin &&other, const allocator_type &allocator) noexcept
         : Type{std::move(other), allocator},
           owner{other.owner},
           construction{std::move(other.construction), allocator},
@@ -97,7 +124,7 @@ public:
      * @param other The instance to move from.
      * @return This storage.
      */
-    sigh_storage_mixin &operator=(sigh_storage_mixin &&other) noexcept {
+    sigh_mixin &operator=(sigh_mixin &&other) noexcept {
         Type::operator=(std::move(other));
         owner = other.owner;
         construction = std::move(other.construction);
@@ -110,7 +137,7 @@ public:
      * @brief Exchanges the contents with those of a given storage.
      * @param other Storage to exchange the content with.
      */
-    void swap(sigh_storage_mixin &other) {
+    void swap(sigh_mixin &other) {
         using std::swap;
         Type::swap(other);
         swap(owner, other.owner);
@@ -206,11 +233,14 @@ public:
      */
     template<typename It, typename... Args>
     void insert(It first, It last, Args &&...args) {
-        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
         Type::insert(first, last, std::forward<Args>(args)...);
 
-        for(auto it = construction.empty() ? last : first; it != last; ++it) {
-            construction.publish(*owner, *it);
+        if(!construction.empty()) {
+            ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+
+            for(; first != last; ++first) {
+                construction.publish(*owner, *first);
+            }
         }
     }
 

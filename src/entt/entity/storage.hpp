@@ -16,7 +16,6 @@
 #include "entity.hpp"
 #include "fwd.hpp"
 #include "sparse_set.hpp"
-#include "storage_mixin.hpp"
 
 namespace entt {
 
@@ -232,8 +231,9 @@ template<typename Type, typename Entity, typename Allocator, typename>
 class basic_storage: public basic_sparse_set<Entity, typename std::allocator_traits<Allocator>::template rebind_alloc<Entity>> {
     using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(std::is_same_v<typename alloc_traits::value_type, Type>, "Invalid value type");
-    using underlying_type = basic_sparse_set<Entity, typename alloc_traits::template rebind_alloc<Entity>>;
     using container_type = std::vector<typename alloc_traits::pointer, typename alloc_traits::template rebind_alloc<typename alloc_traits::pointer>>;
+    using underlying_type = basic_sparse_set<Entity, typename alloc_traits::template rebind_alloc<Entity>>;
+    using underlying_iterator = typename underlying_type::basic_iterator;
 
     static constexpr bool is_pinned_type_v = !(std::is_move_constructible_v<Type> && std::is_move_assignable_v<Type>);
 
@@ -305,37 +305,33 @@ private:
         return std::addressof(element_at(pos));
     }
 
-    void swap_at([[maybe_unused]] const std::size_t lhs, [[maybe_unused]] const std::size_t rhs) final {
-        // use a runtime value to avoid compile-time suppression that drives the code coverage tool crazy
-        ENTT_ASSERT((lhs + 1u) && !is_pinned_type_v, "Pinned type");
-
-        if constexpr(!is_pinned_type_v) {
-            using std::swap;
-            swap(element_at(lhs), element_at(rhs));
-        }
-    }
-
-    void move_element([[maybe_unused]] const std::size_t from, [[maybe_unused]] const std::size_t to) final {
+    void swap_or_move([[maybe_unused]] const std::size_t from, [[maybe_unused]] const std::size_t to) override {
         // use a runtime value to avoid compile-time suppression that drives the code coverage tool crazy
         ENTT_ASSERT((from + 1u) && !is_pinned_type_v, "Pinned type");
 
         if constexpr(!is_pinned_type_v) {
             auto &elem = element_at(from);
-            entt::uninitialized_construct_using_allocator(to_address(assure_at_least(to)), get_allocator(), std::move(elem));
-            std::destroy_at(std::addressof(elem));
+
+            if constexpr(traits_type::in_place_delete) {
+                if(base_type::operator[](to) == tombstone) {
+                    entt::uninitialized_construct_using_allocator(to_address(assure_at_least(to)), get_allocator(), std::move(elem));
+                    std::destroy_at(std::addressof(elem));
+                    return;
+                }
+            }
+
+            using std::swap;
+            swap(elem, element_at(to));
         }
     }
 
 protected:
-    /*! @brief Random access iterator type. */
-    using basic_iterator = typename underlying_type::basic_iterator;
-
     /**
-     * @brief Erases entities from a sparse set.
+     * @brief Erases entities from a storage.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      */
-    void pop(basic_iterator first, basic_iterator last) override {
+    void pop(underlying_iterator first, underlying_iterator last) override {
         for(; first != last; ++first) {
             // cannot use first.index() because it would break with cross iterators
             auto &elem = element_at(base_type::index(*first));
@@ -353,6 +349,25 @@ protected:
         }
     }
 
+    /*! @brief Erases all entities of a storage. */
+    void pop_all() override {
+        for(auto first = base_type::begin(); !(first.index() < 0); ++first) {
+            if constexpr(traits_type::in_place_delete) {
+                if(*first != tombstone) {
+                    base_type::in_place_pop(first);
+                    std::destroy_at(std::addressof(element_at(static_cast<size_type>(first.index()))));
+                }
+            } else {
+                base_type::swap_and_pop(first);
+                std::destroy_at(std::addressof(element_at(static_cast<size_type>(first.index()))));
+            }
+        }
+
+        if constexpr(traits_type::in_place_delete) {
+            base_type::fast_compact();
+        }
+    }
+
     /**
      * @brief Assigns an entity to a storage.
      * @param entt A valid identifier.
@@ -360,7 +375,7 @@ protected:
      * @param force_back Force back insertion.
      * @return Iterator pointing to the emplaced element.
      */
-    basic_iterator try_emplace([[maybe_unused]] const Entity entt, [[maybe_unused]] const bool force_back, const void *value) override {
+    underlying_iterator try_emplace([[maybe_unused]] const Entity entt, [[maybe_unused]] const bool force_back, const void *value) override {
         if(value) {
             if constexpr(std::is_copy_constructible_v<value_type>) {
                 return emplace_element(entt, force_back, *static_cast<const value_type *>(value));
@@ -379,16 +394,16 @@ protected:
 public:
     /*! @brief Base type. */
     using base_type = underlying_type;
-    /*! @brief Component traits. */
-    using traits_type = component_traits<Type, Entity>;
-    /*! @brief Allocator type. */
-    using allocator_type = Allocator;
     /*! @brief Type of the objects assigned to entities. */
     using value_type = Type;
+    /*! @brief Component traits. */
+    using traits_type = component_traits<value_type>;
     /*! @brief Underlying entity identifier. */
     using entity_type = Entity;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
+    /*! @brief Allocator type. */
+    using allocator_type = Allocator;
     /*! @brief Pointer type to contained elements. */
     using pointer = typename container_type::pointer;
     /*! @brief Constant pointer type to contained elements. */
@@ -462,7 +477,7 @@ public:
      */
     void swap(basic_storage &other) {
         using std::swap;
-        underlying_type::swap(other);
+        base_type::swap(other);
         swap(packed, other.packed);
     }
 
@@ -745,25 +760,24 @@ private:
 
 /*! @copydoc basic_storage */
 template<typename Type, typename Entity, typename Allocator>
-class basic_storage<Type, Entity, Allocator, std::enable_if_t<component_traits<Type, Entity>::page_size == 0u>>
+class basic_storage<Type, Entity, Allocator, std::enable_if_t<component_traits<Type>::page_size == 0u>>
     : public basic_sparse_set<Entity, typename std::allocator_traits<Allocator>::template rebind_alloc<Entity>> {
     using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(std::is_same_v<typename alloc_traits::value_type, Type>, "Invalid value type");
-    using underlying_type = basic_sparse_set<Entity, typename alloc_traits::template rebind_alloc<Entity>>;
 
 public:
     /*! @brief Base type. */
-    using base_type = underlying_type;
-    /*! @brief Component traits. */
-    using traits_type = component_traits<Type, Entity>;
-    /*! @brief Allocator type. */
-    using allocator_type = Allocator;
+    using base_type = basic_sparse_set<Entity, typename alloc_traits::template rebind_alloc<Entity>>;
     /*! @brief Type of the objects assigned to entities. */
     using value_type = Type;
+    /*! @brief Component traits. */
+    using traits_type = component_traits<value_type>;
     /*! @brief Underlying entity identifier. */
     using entity_type = Entity;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
+    /*! @brief Allocator type. */
+    using allocator_type = Allocator;
     /*! @brief Extended iterable storage proxy. */
     using iterable = iterable_adaptor<internal::extended_storage_iterator<typename base_type::iterator>>;
     /*! @brief Constant extended iterable storage proxy. */

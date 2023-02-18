@@ -14,6 +14,12 @@ DOC:
 TODO (high prio):
 * check natvis files (periodically :)
 * remove the static storage from the const assure in the registry
+* make the entity storage available to the end user
+* pop_if to improve further destroying entities (drastically)
+* improve sigh mixin for entity storage (split basic + entt/entt spec)
+* doc: exclude only views, storage entity, bump entities
+* deprecate/remove registry reserve, capacity, empty, data, destroyed, release and so on
+* test exclude-only views
 
 WIP:
 * get rid of observers, storage based views made them pointless - document alternatives

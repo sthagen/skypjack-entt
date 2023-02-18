@@ -31,6 +31,17 @@ void listener(counter &counter, Registry &, typename Registry::entity_type) {
     ++counter.value;
 }
 
+struct empty_each_tag final {};
+
+template<>
+struct entt::basic_storage<empty_each_tag, entt::entity, std::allocator<empty_each_tag>>: entt::basic_storage<void, entt::entity, std::allocator<void>> {
+    basic_storage(const std::allocator<empty_each_tag> &) {}
+
+    [[nodiscard]] iterable each() noexcept {
+        return {internal::extended_storage_iterator{base_type::end()}, internal::extended_storage_iterator{base_type::end()}};
+    }
+};
+
 TEST(SighMixin, GenericType) {
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
     entt::sigh_mixin<entt::storage<int>> pool;
@@ -421,6 +432,99 @@ TEST(SighMixin, Swap) {
 
     ASSERT_EQ(on_construct.value, 3);
     ASSERT_EQ(on_destroy.value, 3);
+}
+
+TEST(SighMixin, EmptyEachStorage) {
+    entt::sigh_mixin<entt::storage<empty_each_tag>> pool;
+    entt::registry registry;
+
+    counter on_destroy{};
+
+    pool.bind(entt::forward_as_any(registry));
+    pool.on_destroy().connect<&listener<entt::registry>>(on_destroy);
+
+    ASSERT_TRUE(pool.empty());
+    ASSERT_EQ(on_destroy.value, 0);
+
+    pool.push(entt::entity{42});
+
+    ASSERT_FALSE(pool.empty());
+    ASSERT_EQ(on_destroy.value, 0);
+
+    ASSERT_NE(pool.begin(), pool.end());
+    ASSERT_EQ(pool.each().begin(), pool.each().end());
+    ASSERT_EQ(on_destroy.value, 0);
+
+    pool.clear();
+
+    ASSERT_EQ(pool.begin(), pool.end());
+    ASSERT_EQ(pool.each().begin(), pool.each().end());
+    // no signal at all because of the (fake) empty iterable
+    ASSERT_EQ(on_destroy.value, 0);
+}
+
+TEST(SighMixin, StorageEntity) {
+    using traits_type = entt::entt_traits<entt::entity>;
+
+    entt::sigh_mixin<entt::storage<entt::entity>> pool;
+    entt::registry registry;
+
+    counter on_construct{};
+    counter on_destroy{};
+
+    pool.bind(entt::forward_as_any(registry));
+    pool.on_construct().connect<&listener<entt::registry>>(on_construct);
+    pool.on_destroy().connect<&listener<entt::registry>>(on_destroy);
+
+    pool.push(entt::entity{1});
+
+    ASSERT_EQ(on_construct.value, 1);
+    ASSERT_EQ(on_destroy.value, 0);
+    ASSERT_EQ(pool.size(), 2u);
+    ASSERT_EQ(pool.in_use(), 1u);
+
+    pool.erase(entt::entity{1});
+
+    ASSERT_EQ(on_construct.value, 1);
+    ASSERT_EQ(on_destroy.value, 1);
+    ASSERT_EQ(pool.size(), 2u);
+    ASSERT_EQ(pool.in_use(), 0u);
+
+    pool.push(traits_type::construct(0, 2));
+    pool.push(traits_type::construct(2, 1));
+
+    ASSERT_TRUE(pool.contains(traits_type::construct(0, 2)));
+    ASSERT_TRUE(pool.contains(traits_type::construct(1, 1)));
+    ASSERT_TRUE(pool.contains(traits_type::construct(2, 1)));
+
+    ASSERT_EQ(on_construct.value, 3);
+    ASSERT_EQ(on_destroy.value, 1);
+    ASSERT_EQ(pool.size(), 3u);
+    ASSERT_EQ(pool.in_use(), 2u);
+
+    pool.clear();
+
+    ASSERT_EQ(pool.size(), 0u);
+    ASSERT_EQ(pool.in_use(), 0u);
+
+    ASSERT_EQ(on_construct.value, 3);
+    ASSERT_EQ(on_destroy.value, 3);
+
+    pool.spawn();
+    pool.spawn(entt::entity{0});
+
+    entt::entity entities[1u]{};
+    pool.spawn(entities, entities + 1u);
+
+    ASSERT_EQ(on_construct.value, 6);
+    ASSERT_EQ(on_destroy.value, 3);
+    ASSERT_EQ(pool.size(), 3u);
+    ASSERT_EQ(pool.in_use(), 3u);
+
+    pool.clear();
+
+    ASSERT_EQ(pool.size(), 0u);
+    ASSERT_EQ(pool.in_use(), 0u);
 }
 
 TEST(SighMixin, CustomAllocator) {

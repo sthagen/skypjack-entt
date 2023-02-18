@@ -48,13 +48,13 @@ class sigh_mixin final: public Type {
         if(!destruction.empty()) {
             ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
 
-            for(auto &&entt: static_cast<typename Type::base_type &>(*this)) {
+            for(auto pos = Type::each().begin().base().index(); !(pos < 0); --pos) {
                 if constexpr(Type::traits_type::in_place_delete) {
-                    if(entt != tombstone) {
+                    if(const auto entt = Type::operator[](static_cast<typename Type::size_type>(pos)); entt != tombstone) {
                         destruction.publish(*owner, entt);
                     }
                 } else {
-                    destruction.publish(*owner, entt);
+                    destruction.publish(*owner, Type::operator[](static_cast<typename Type::size_type>(pos)));
                 }
             }
         }
@@ -234,6 +234,52 @@ public:
     template<typename It, typename... Args>
     void insert(It first, It last, Args &&...args) {
         Type::insert(first, last, std::forward<Args>(args)...);
+
+        if(!construction.empty()) {
+            ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+
+            for(; first != last; ++first) {
+                construction.publish(*owner, *first);
+            }
+        }
+    }
+
+    /**
+     * @brief Creates a new identifier or recycles a destroyed one.
+     * @return A valid identifier.
+     */
+    entity_type spawn() {
+        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+        const auto entt = Type::spawn();
+        construction.publish(*owner, entt);
+        return entt;
+    }
+
+    /**
+     * @brief Creates a new identifier or recycles a destroyed one.
+     *
+     * If the requested identifier isn't in use, the suggested one is used.
+     * Otherwise, a new identifier is returned.
+     *
+     * @param hint Required identifier.
+     * @return A valid identifier.
+     */
+    entity_type spawn(const entity_type hint) {
+        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+        const auto entt = Type::spawn(hint);
+        construction.publish(*owner, entt);
+        return entt;
+    }
+
+    /**
+     * @brief Assigns each element in a range an identifier.
+     * @tparam It Type of mutable forward iterator.
+     * @param first An iterator to the first element of the range to generate.
+     * @param last An iterator past the last element of the range to generate.
+     */
+    template<typename It>
+    void spawn(It first, It last) {
+        Type::spawn(first, last);
 
         if(!construction.empty()) {
             ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");

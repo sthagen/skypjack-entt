@@ -274,13 +274,6 @@ protected:
         packed[static_cast<size_type>(entt)] = std::exchange(free_list, traits_type::combine(entt, tombstone));
     }
 
-    /*! @brief Compact function for empty sparse sets. */
-    void fast_compact() {
-        ENTT_ASSERT((compact(), size()) == 0u, "Non-empty set");
-        packed.clear();
-        free_list = tombstone;
-    }
-
 protected:
     /**
      * @brief Erases entities from a sparse set.
@@ -978,14 +971,14 @@ public:
         const auto to = other.end();
         auto from = other.begin();
 
-        for(size_type pos = packed.size() - 1; pos && from != to; ++from) {
-            if(contains(*from)) {
-                if(*from != packed[pos]) {
+        for(auto it = begin(); it.index() && from != to; ++from) {
+            if(const auto curr = *from; contains(curr)) {
+                if(const auto entt = *it; entt != curr) {
                     // basic no-leak guarantee (with invalid state) if swapping throws
-                    swap_elements(packed[pos], *from);
+                    swap_elements(entt, curr);
                 }
 
-                --pos;
+                ++it;
             }
         }
     }
@@ -993,6 +986,10 @@ public:
     /*! @brief Clears a sparse set. */
     void clear() {
         pop_all();
+        // sanity check to avoid subtle issues due to storage classes
+        ENTT_ASSERT((compact(), size()) == 0u, "Non-empty set");
+        free_list = tombstone;
+        packed.clear();
     }
 
     /**

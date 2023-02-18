@@ -34,7 +34,7 @@ class basic_snapshot {
     template<typename Component, typename Archive, typename It>
     void get(Archive &archive, std::size_t sz, It first, It last) const {
         const auto view = reg->template view<const Component>();
-        archive(typename traits_type::entity_type(sz));
+        archive(static_cast<typename traits_type::entity_type>(sz));
 
         for(auto it = first; it != last; ++it) {
             if(reg->template all_of<Component>(*it)) {
@@ -85,10 +85,11 @@ public:
      */
     template<typename Archive>
     const basic_snapshot &entities(Archive &archive) const {
-        const auto sz = reg->size();
+        const auto sz = static_cast<typename traits_type::entity_type>(reg->size());
+        const auto released = static_cast<typename traits_type::entity_type>(reg->released());
 
-        archive(typename traits_type::entity_type(sz + 1u));
-        archive(reg->released());
+        archive(sz);
+        archive(released);
 
         for(auto first = reg->data(), last = first + sz; first != last; ++first) {
             archive(*first);
@@ -219,15 +220,17 @@ public:
     template<typename Archive>
     const basic_snapshot_loader &entities(Archive &archive) const {
         typename traits_type::entity_type length{};
+        typename traits_type::entity_type released{};
 
         archive(length);
+        archive(released);
         std::vector<entity_type> all(length);
 
         for(std::size_t pos{}; pos < length; ++pos) {
             archive(all[pos]);
         }
 
-        reg->assign(++all.cbegin(), all.cend(), all[0u]);
+        reg->assign(all.cbegin(), all.cend(), released);
 
         return *this;
     }
@@ -432,20 +435,22 @@ public:
     template<typename Archive>
     basic_continuous_loader &entities(Archive &archive) {
         typename traits_type::entity_type length{};
-        entity_type entt{};
+        typename traits_type::entity_type released{};
 
         archive(length);
-        // discards the head of the list of destroyed entities
-        archive(entt);
+        archive(released);
 
-        for(std::size_t pos{}, last = length - 1u; pos < last; ++pos) {
+        entity_type entt{entt::null};
+        std::size_t pos{};
+
+        for(const auto last = length - released; pos < last; ++pos) {
             archive(entt);
+            restore(entt);
+        }
 
-            if(const auto entity = traits_type::to_entity(entt); entity == pos) {
-                restore(entt);
-            } else {
-                destroy(entt);
-            }
+        for(; pos < length; ++pos) {
+            archive(entt);
+            destroy(entt);
         }
 
         return *this;

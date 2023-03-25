@@ -40,18 +40,16 @@ struct aggregate {
 };
 
 struct listener {
-    template<typename Component>
+    template<typename Type>
     static void sort(entt::registry &registry) {
-        registry.sort<Component>([](auto lhs, auto rhs) { return lhs < rhs; });
+        registry.sort<Type>([](auto lhs, auto rhs) { return lhs < rhs; });
     }
 
-    template<typename Component>
     void incr(const entt::registry &, entt::entity entity) {
         last = entity;
         ++counter;
     }
 
-    template<typename Component>
     void decr(const entt::registry &, entt::entity entity) {
         last = entity;
         --counter;
@@ -499,7 +497,7 @@ TEST(Registry, Data) {
     registry.release(entity);
 
     ASSERT_EQ(*std::as_const(registry).data(), other);
-    ASSERT_EQ(*(std::as_const(registry).data() + 1u), traits_type::construct(traits_type::to_entity(entity), 1));
+    ASSERT_EQ(*(std::as_const(registry).data() + 1u), traits_type::next(entity));
 }
 
 TEST(Registry, CreateManyEntitiesAtOnce) {
@@ -534,7 +532,7 @@ TEST(Registry, CreateManyEntitiesAtOnceWithListener) {
     entt::entity entities[3];
     listener listener;
 
-    registry.on_construct<int>().connect<&listener::incr<int>>(listener);
+    registry.on_construct<int>().connect<&listener::incr>(listener);
     registry.create(std::begin(entities), std::end(entities));
     registry.insert(std::begin(entities), std::end(entities), 42);
     registry.insert(std::begin(entities), std::end(entities), 'c');
@@ -543,8 +541,8 @@ TEST(Registry, CreateManyEntitiesAtOnceWithListener) {
     ASSERT_EQ(registry.get<char>(entities[1]), 'c');
     ASSERT_EQ(listener.counter, 3);
 
-    registry.on_construct<int>().disconnect<&listener::incr<int>>(listener);
-    registry.on_construct<empty_type>().connect<&listener::incr<empty_type>>(listener);
+    registry.on_construct<int>().disconnect<&listener::incr>(listener);
+    registry.on_construct<empty_type>().connect<&listener::incr>(listener);
     registry.create(std::begin(entities), std::end(entities));
     registry.insert(std::begin(entities), std::end(entities), 'a');
     registry.insert<empty_type>(std::begin(entities), std::end(entities));
@@ -950,10 +948,12 @@ TEST(Registry, Orphans) {
 
 TEST(Registry, View) {
     entt::registry registry;
-    auto mview = registry.view<int, char>();
+    entt::entity entities[3u];
+
     auto iview = registry.view<int>();
     auto cview = registry.view<char>();
-    entt::entity entities[3u];
+    auto mview = registry.view<int, char>();
+    auto fview = registry.view<int>(entt::exclude<char>);
 
     registry.create(std::begin(entities), std::end(entities));
 
@@ -968,10 +968,52 @@ TEST(Registry, View) {
     ASSERT_EQ(iview.size(), 3u);
     ASSERT_EQ(cview.size(), 2u);
 
-    std::size_t cnt{};
-    mview.each([&cnt](auto...) { ++cnt; });
+    ASSERT_EQ(mview.size_hint(), 3u);
+    ASSERT_EQ(fview.size_hint(), 3u);
 
-    ASSERT_EQ(cnt, 2u);
+    ASSERT_EQ(mview.refresh().size_hint(), 2u);
+    ASSERT_EQ(fview.refresh().size_hint(), 3u);
+
+    ASSERT_NE(mview.begin(), mview.end());
+    ASSERT_NE(fview.begin(), fview.end());
+
+    ASSERT_EQ(std::distance(mview.begin(), mview.end()), 2);
+    ASSERT_EQ(std::distance(fview.begin(), fview.end()), 1);
+
+    mview.each([&entities, first = true](auto entity, auto &&...) mutable {
+        ASSERT_EQ(entity, entities[2u * first]);
+        first = false;
+    });
+
+    fview.each([&entities](auto entity, auto &&...) {
+        ASSERT_EQ(entity, entities[1u]);
+    });
+}
+
+TEST(Registry, ExcludeOnlyView) {
+    entt::registry registry;
+    entt::entity entities[4u];
+
+    auto view = registry.view<entt::entity>(entt::exclude<int>);
+
+    registry.create(std::begin(entities), std::end(entities));
+
+    registry.emplace<int>(entities[0u], 0);
+    registry.emplace<int>(entities[2u], 0);
+    registry.emplace<int>(entities[3u], 0);
+
+    registry.destroy(entities[3u]);
+
+    ASSERT_EQ(view.size_hint(), 4u);
+    ASSERT_NE(view.begin(), view.end());
+
+    // returns all matching identifiers, both in-use and available ones
+    ASSERT_EQ(std::distance(view.begin(), view.end()), 2);
+
+    // skips available identifiers automatically, only returns in-use elements
+    view.each([&entities](auto entity, auto &&...) {
+        ASSERT_EQ(entity, entities[1u]);
+    });
 }
 
 TEST(Registry, NonOwningGroupInitOnFirstUse) {
@@ -984,7 +1026,7 @@ TEST(Registry, NonOwningGroupInitOnFirstUse) {
     registry.emplace<char>(entities[2u], 'c');
 
     std::size_t cnt{};
-    auto group = registry.group<>(entt::get<int, char>);
+    auto group = registry.group(entt::get<int, char>);
     group.each([&cnt](auto...) { ++cnt; });
 
     ASSERT_FALSE((registry.owned<int, char>()));
@@ -994,7 +1036,7 @@ TEST(Registry, NonOwningGroupInitOnFirstUse) {
 TEST(Registry, NonOwningGroupInitOnEmplace) {
     entt::registry registry;
     entt::entity entities[3u];
-    auto group = registry.group<>(entt::get<int, char>);
+    auto group = registry.group(entt::get<int, char>);
 
     registry.create(std::begin(entities), std::end(entities));
     registry.insert<int>(std::begin(entities), std::end(entities), 0);
@@ -1117,7 +1159,7 @@ TEST(Registry, CleanViewAfterRemoveAndClear) {
 
 TEST(Registry, CleanNonOwningGroupViewAfterRemoveAndClear) {
     entt::registry registry;
-    auto group = registry.group<>(entt::get<int, char>);
+    auto group = registry.group(entt::get<int, char>);
 
     const auto entity = registry.create();
     registry.emplace<int>(entity, 0);
@@ -1399,10 +1441,10 @@ TEST(Registry, Signals) {
     entt::entity entities[2u];
     listener listener;
 
-    registry.on_construct<empty_type>().connect<&listener::incr<empty_type>>(listener);
-    registry.on_destroy<empty_type>().connect<&listener::decr<empty_type>>(listener);
-    registry.on_construct<int>().connect<&listener::incr<int>>(listener);
-    registry.on_destroy<int>().connect<&listener::decr<int>>(listener);
+    registry.on_construct<empty_type>().connect<&listener::incr>(listener);
+    registry.on_destroy<empty_type>().connect<&listener::decr>(listener);
+    registry.on_construct<int>().connect<&listener::incr>(listener);
+    registry.on_destroy<int>().connect<&listener::decr>(listener);
 
     registry.create(std::begin(entities), std::end(entities));
     registry.insert<empty_type>(std::begin(entities), std::end(entities));
@@ -1420,16 +1462,16 @@ TEST(Registry, Signals) {
     ASSERT_EQ(listener.counter, 2);
     ASSERT_EQ(listener.last, entities[0u]);
 
-    registry.on_destroy<empty_type>().disconnect<&listener::decr<empty_type>>(listener);
-    registry.on_destroy<int>().disconnect<&listener::decr<int>>(listener);
+    registry.on_destroy<empty_type>().disconnect<&listener::decr>(listener);
+    registry.on_destroy<int>().disconnect<&listener::decr>(listener);
 
     registry.erase<empty_type, int>(entities[1u]);
 
     ASSERT_EQ(listener.counter, 2);
     ASSERT_EQ(listener.last, entities[0u]);
 
-    registry.on_construct<empty_type>().disconnect<&listener::incr<empty_type>>(listener);
-    registry.on_construct<int>().disconnect<&listener::incr<int>>(listener);
+    registry.on_construct<empty_type>().disconnect<&listener::incr>(listener);
+    registry.on_construct<int>().disconnect<&listener::incr>(listener);
 
     registry.emplace<empty_type>(entities[1u]);
     registry.emplace<int>(entities[1u]);
@@ -1437,8 +1479,8 @@ TEST(Registry, Signals) {
     ASSERT_EQ(listener.counter, 2);
     ASSERT_EQ(listener.last, entities[0u]);
 
-    registry.on_construct<int>().connect<&listener::incr<int>>(listener);
-    registry.on_destroy<int>().connect<&listener::decr<int>>(listener);
+    registry.on_construct<int>().connect<&listener::incr>(listener);
+    registry.on_destroy<int>().connect<&listener::decr>(listener);
 
     registry.emplace<int>(entities[0u]);
     registry.erase<int>(entities[1u]);
@@ -1446,8 +1488,8 @@ TEST(Registry, Signals) {
     ASSERT_EQ(listener.counter, 2);
     ASSERT_EQ(listener.last, entities[1u]);
 
-    registry.on_construct<empty_type>().connect<&listener::incr<empty_type>>(listener);
-    registry.on_destroy<empty_type>().connect<&listener::decr<empty_type>>(listener);
+    registry.on_construct<empty_type>().connect<&listener::incr>(listener);
+    registry.on_destroy<empty_type>().connect<&listener::decr>(listener);
 
     registry.erase<empty_type>(entities[1u]);
     registry.emplace<empty_type>(entities[0u]);
@@ -1474,8 +1516,8 @@ TEST(Registry, Signals) {
     ASSERT_EQ(listener.counter, 2);
     ASSERT_EQ(listener.last, entities[0u]);
 
-    registry.on_destroy<empty_type>().disconnect<&listener::decr<empty_type>>(listener);
-    registry.on_destroy<int>().disconnect<&listener::decr<int>>(listener);
+    registry.on_destroy<empty_type>().disconnect<&listener::decr>(listener);
+    registry.on_destroy<int>().disconnect<&listener::decr>(listener);
 
     registry.emplace_or_replace<empty_type>(entities[0u]);
     registry.emplace_or_replace<int>(entities[0u]);
@@ -1483,8 +1525,8 @@ TEST(Registry, Signals) {
     ASSERT_EQ(listener.counter, 2);
     ASSERT_EQ(listener.last, entities[0u]);
 
-    registry.on_update<empty_type>().connect<&listener::incr<empty_type>>(listener);
-    registry.on_update<int>().connect<&listener::incr<int>>(listener);
+    registry.on_update<empty_type>().connect<&listener::incr>(listener);
+    registry.on_update<int>().connect<&listener::incr>(listener);
 
     registry.emplace_or_replace<empty_type>(entities[0u]);
     registry.emplace_or_replace<int>(entities[0u]);
@@ -1497,6 +1539,46 @@ TEST(Registry, Signals) {
 
     ASSERT_EQ(listener.counter, 6);
     ASSERT_EQ(listener.last, entities[0u]);
+}
+
+TEST(Registry, SignalsOnEntity) {
+    entt::registry registry;
+    listener listener;
+
+    registry.on_construct<entt::entity>().connect<&listener::incr>(listener);
+
+    entt::entity entity = registry.create();
+    entt::entity other = registry.create();
+
+    ASSERT_EQ(listener.counter, 2);
+    ASSERT_EQ(listener.last, other);
+
+    registry.destroy(other);
+    registry.destroy(entity);
+
+    ASSERT_EQ(listener.counter, 2);
+    ASSERT_EQ(listener.last, other);
+
+    registry.on_construct<entt::entity>().disconnect<&listener::incr>(listener);
+
+    other = registry.create();
+    entity = registry.create();
+
+    ASSERT_EQ(listener.counter, 2);
+    ASSERT_NE(listener.last, entity);
+    ASSERT_NE(listener.last, other);
+
+    registry.on_destroy<entt::entity>().connect<&listener::decr>(listener);
+
+    registry.destroy(entity);
+
+    ASSERT_EQ(listener.counter, 1);
+    ASSERT_EQ(listener.last, entity);
+
+    registry.storage<entt::entity>().erase(other);
+
+    ASSERT_EQ(listener.counter, 0);
+    ASSERT_EQ(listener.last, other);
 }
 
 TEST(Registry, SignalWhenDestroying) {
@@ -1834,7 +1916,7 @@ TEST(Registry, NonOwningGroupInterleaved) {
     registry.emplace<int>(entity);
     registry.emplace<char>(entity);
 
-    const auto group = registry.group<>(entt::get<int, char>);
+    const auto group = registry.group(entt::get<int, char>);
 
     entity = registry.create();
     registry.emplace<int>(entity);
@@ -1888,7 +1970,7 @@ TEST(Registry, PartialOwningGroupInterleaved) {
 
 TEST(Registry, NonOwningGroupSortInterleaved) {
     entt::registry registry;
-    const auto group = registry.group<>(entt::get<int, char>);
+    const auto group = registry.group(entt::get<int, char>);
 
     const auto e0 = registry.create();
     registry.emplace<int>(e0, 0);
@@ -2116,23 +2198,22 @@ TEST(Registry, Storage) {
     auto &storage = registry.storage<int>("int"_hs);
     storage.emplace(entity);
 
-    for(auto [id, pool]: registry.storage()) {
-        static_assert(std::is_same_v<decltype(pool), entt::sparse_set &>);
-        static_assert(std::is_same_v<decltype(id), entt::id_type>);
+    auto it = ++registry.storage().begin();
+    auto cit = std::as_const(registry).storage().begin();
 
-        ASSERT_TRUE(pool.contains(entity));
-        ASSERT_EQ(std::addressof(storage), std::addressof(pool));
-        ASSERT_EQ(id, "int"_hs);
-    }
+    static_assert(std::is_same_v<decltype(it->first), entt::id_type>);
+    static_assert(std::is_same_v<decltype(it->second), entt::sparse_set &>);
 
-    for(auto &&curr: std::as_const(registry).storage()) {
-        static_assert(std::is_same_v<decltype(curr.second), const entt::sparse_set &>);
-        static_assert(std::is_same_v<decltype(curr.first), entt::id_type>);
+    static_assert(std::is_same_v<decltype(cit->first), entt::id_type>);
+    static_assert(std::is_same_v<decltype(cit->second), const entt::sparse_set &>);
 
-        ASSERT_TRUE(curr.second.contains(entity));
-        ASSERT_EQ(std::addressof(storage), std::addressof(curr.second));
-        ASSERT_EQ(curr.first, "int"_hs);
-    }
+    ASSERT_TRUE(it->second.contains(entity));
+    ASSERT_EQ(std::addressof(storage), std::addressof(it->second));
+    ASSERT_EQ(it->first, "int"_hs);
+
+    ASSERT_TRUE(cit->second.contains(entity));
+    ASSERT_NE(std::addressof(storage), std::addressof(cit->second));
+    ASSERT_EQ(cit->first, entt::type_id<entt::entity>().hash());
 }
 
 TEST(Registry, VoidType) {
@@ -2154,7 +2235,6 @@ TEST(Registry, VoidType) {
 TEST(Registry, RegistryStorageIterator) {
     entt::registry registry;
     const auto entity = registry.create();
-    registry.emplace<int>(entity);
 
     auto test = [entity](auto iterable) {
         auto end{iterable.begin()};
@@ -2193,7 +2273,7 @@ TEST(Registry, RegistryStorageIterator) {
         ASSERT_GT(end, begin);
         ASSERT_GE(end, iterable.end());
 
-        ASSERT_EQ(begin[0u].first, entt::type_id<int>().hash());
+        ASSERT_EQ(begin[0u].first, entt::type_id<entt::entity>().hash());
         ASSERT_TRUE(begin[0u].second.contains(entity));
     };
 
@@ -2208,8 +2288,6 @@ TEST(Registry, RegistryStorageIterator) {
 
 TEST(Registry, RegistryStorageIteratorConversion) {
     entt::registry registry;
-    const auto entity = registry.create();
-    registry.emplace<int>(entity);
 
     auto proxy = registry.storage();
     auto cproxy = std::as_const(registry).storage();
@@ -2220,8 +2298,8 @@ TEST(Registry, RegistryStorageIteratorConversion) {
     static_assert(std::is_same_v<decltype(*it), std::pair<entt::id_type, entt::sparse_set &>>);
     static_assert(std::is_same_v<decltype(*cit), std::pair<entt::id_type, const entt::sparse_set &>>);
 
-    ASSERT_EQ(it->first, entt::type_id<int>().hash());
-    ASSERT_EQ((*it).second.type(), entt::type_id<int>());
+    ASSERT_EQ(it->first, entt::type_id<entt::entity>().hash());
+    ASSERT_EQ((*it).second.type(), entt::type_id<entt::entity>());
     ASSERT_EQ(it->first, cit->first);
     ASSERT_EQ((*it).second.type(), (*cit).second.type());
 

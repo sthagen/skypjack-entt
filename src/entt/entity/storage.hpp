@@ -26,7 +26,7 @@ namespace entt {
 
 namespace internal {
 
-template<typename Container, typename Size>
+template<typename Container, std::size_t Size>
 class storage_iterator final {
     friend storage_iterator<const Container, Size>;
 
@@ -93,12 +93,12 @@ public:
 
     [[nodiscard]] constexpr reference operator[](const difference_type value) const noexcept {
         const auto pos = index() - value;
-        return (*payload)[pos / Size::value][fast_mod(pos, Size::value)];
+        return (*payload)[pos / Size][fast_mod(pos, Size)];
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
         const auto pos = index();
-        return (*payload)[pos / Size::value] + fast_mod(pos, Size::value);
+        return (*payload)[pos / Size] + fast_mod(pos, Size);
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
@@ -114,38 +114,38 @@ private:
     difference_type offset;
 };
 
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr std::ptrdiff_t operator-(const storage_iterator<Lhs...> &lhs, const storage_iterator<Rhs...> &rhs) noexcept {
+template<typename Lhs, typename Rhs, std::size_t Size>
+[[nodiscard]] constexpr std::ptrdiff_t operator-(const storage_iterator<Lhs, Size> &lhs, const storage_iterator<Rhs, Size> &rhs) noexcept {
     return rhs.index() - lhs.index();
 }
 
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator==(const storage_iterator<Lhs...> &lhs, const storage_iterator<Rhs...> &rhs) noexcept {
+template<typename Lhs, typename Rhs, std::size_t Size>
+[[nodiscard]] constexpr bool operator==(const storage_iterator<Lhs, Size> &lhs, const storage_iterator<Rhs, Size> &rhs) noexcept {
     return lhs.index() == rhs.index();
 }
 
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator!=(const storage_iterator<Lhs...> &lhs, const storage_iterator<Rhs...> &rhs) noexcept {
+template<typename Lhs, typename Rhs, std::size_t Size>
+[[nodiscard]] constexpr bool operator!=(const storage_iterator<Lhs, Size> &lhs, const storage_iterator<Rhs, Size> &rhs) noexcept {
     return !(lhs == rhs);
 }
 
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator<(const storage_iterator<Lhs...> &lhs, const storage_iterator<Rhs...> &rhs) noexcept {
+template<typename Lhs, typename Rhs, std::size_t Size>
+[[nodiscard]] constexpr bool operator<(const storage_iterator<Lhs, Size> &lhs, const storage_iterator<Rhs, Size> &rhs) noexcept {
     return lhs.index() > rhs.index();
 }
 
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator>(const storage_iterator<Lhs...> &lhs, const storage_iterator<Rhs...> &rhs) noexcept {
+template<typename Lhs, typename Rhs, std::size_t Size>
+[[nodiscard]] constexpr bool operator>(const storage_iterator<Lhs, Size> &lhs, const storage_iterator<Rhs, Size> &rhs) noexcept {
     return lhs.index() < rhs.index();
 }
 
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator<=(const storage_iterator<Lhs...> &lhs, const storage_iterator<Rhs...> &rhs) noexcept {
+template<typename Lhs, typename Rhs, std::size_t Size>
+[[nodiscard]] constexpr bool operator<=(const storage_iterator<Lhs, Size> &lhs, const storage_iterator<Rhs, Size> &rhs) noexcept {
     return !(lhs > rhs);
 }
 
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator>=(const storage_iterator<Lhs...> &lhs, const storage_iterator<Rhs...> &rhs) noexcept {
+template<typename Lhs, typename Rhs, std::size_t Size>
+[[nodiscard]] constexpr bool operator>=(const storage_iterator<Lhs, Size> &lhs, const storage_iterator<Rhs, Size> &rhs) noexcept {
     return !(lhs < rhs);
 }
 
@@ -410,9 +410,9 @@ public:
     /*! @brief Constant pointer type to contained elements. */
     using const_pointer = typename alloc_traits::template rebind_traits<typename alloc_traits::const_pointer>::const_pointer;
     /*! @brief Random access iterator type. */
-    using iterator = internal::storage_iterator<container_type, std::integral_constant<size_type, traits_type::page_size>>;
+    using iterator = internal::storage_iterator<container_type, traits_type::page_size>;
     /*! @brief Constant random access iterator type. */
-    using const_iterator = internal::storage_iterator<const container_type, std::integral_constant<size_type, traits_type::page_size>>;
+    using const_iterator = internal::storage_iterator<const container_type, traits_type::page_size>;
     /*! @brief Reverse iterator type. */
     using reverse_iterator = std::reverse_iterator<iterator>;
     /*! @brief Constant reverse iterator type. */
@@ -711,12 +711,15 @@ public:
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      * @param value An instance of the object to construct.
+     * @return Iterator pointing to the last element inserted, if any.
      */
     template<typename It>
-    void insert(It first, It last, const value_type &value = {}) {
+    iterator insert(It first, It last, const value_type &value = {}) {
         for(; first != last; ++first) {
             emplace_element(*first, true, value);
         }
+
+        return begin();
     }
 
     /**
@@ -730,12 +733,15 @@ public:
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      * @param from An iterator to the first element of the range of objects.
+     * @return Iterator pointing to the first element inserted, if any.
      */
     template<typename EIt, typename CIt, typename = std::enable_if_t<std::is_same_v<typename std::iterator_traits<CIt>::value_type, value_type>>>
-    void insert(EIt first, EIt last, CIt from) {
+    iterator insert(EIt first, EIt last, CIt from) {
         for(; first != last; ++first, ++from) {
             emplace_element(*first, true, *from);
         }
+
+        return begin();
     }
 
     /**
@@ -964,7 +970,7 @@ protected:
      * @return Iterator pointing to the emplaced element.
      */
     underlying_iterator try_emplace(const Entity hint, const bool, const void *) override {
-        return base_type::find(spawn(hint));
+        return base_type::find(emplace(hint));
     }
 
 public:
@@ -973,7 +979,7 @@ public:
     /*! @brief Type of the objects assigned to entities. */
     using value_type = Entity;
     /*! @brief Component traits. */
-    using traits_type = component_traits<void>;
+    using traits_type = component_traits<value_type>;
     /*! @brief Underlying entity identifier. */
     using entity_type = Entity;
     /*! @brief Unsigned integer type. */
@@ -1068,7 +1074,7 @@ public:
      * @brief Creates a new identifier or recycles a destroyed one.
      * @return A valid identifier.
      */
-    entity_type spawn() {
+    entity_type emplace() {
         if(length == base_type::size()) {
             return *base_type::try_emplace(entity_at(length++), true);
         }
@@ -1085,9 +1091,9 @@ public:
      * @param hint Required identifier.
      * @return A valid identifier.
      */
-    entity_type spawn(const entity_type hint) {
+    entity_type emplace(const entity_type hint) {
         if(hint == null || hint == tombstone) {
-            return spawn();
+            return emplace();
         } else if(const auto curr = local_traits_type::construct(local_traits_type::to_entity(hint), base_type::current(hint)); curr == tombstone) {
             const auto pos = static_cast<size_type>(local_traits_type::to_entity(hint));
 
@@ -1097,7 +1103,7 @@ public:
 
             base_type::swap_at(pos, length++);
         } else if(const auto idx = base_type::index(curr); idx < length) {
-            return spawn();
+            return emplace();
         } else {
             base_type::swap_at(idx, length++);
         }
@@ -1114,7 +1120,7 @@ public:
      * @param last An iterator past the last element of the range to generate.
      */
     template<typename It>
-    void spawn(It first, It last) {
+    void insert(It first, It last) {
         for(const auto sz = base_type::size(); first != last && length != sz; ++first, ++length) {
             *first = base_type::operator[](length);
         }

@@ -756,11 +756,19 @@ struct meta_prop {
           ctx{&area} {}
 
     /**
-     * @brief Returns the stored value by copy.
+     * @brief Returns the stored value by const reference.
      * @return A wrapper containing the value stored with the property.
      */
     [[nodiscard]] meta_any value() const {
         return node->value ? node->type(internal::meta_context::from(*ctx)).from_void(*ctx, nullptr, node->value.get()) : meta_any{meta_ctx_arg, *ctx};
+    }
+
+    /**
+     * @brief Returns the stored value by reference.
+     * @return A wrapper containing the value stored with the property.
+     */
+    [[nodiscard]] meta_any value() {
+        return node->value ? node->type(internal::meta_context::from(*ctx)).from_void(*ctx, node->value.get(), nullptr) : meta_any{meta_ctx_arg, *ctx};
     }
 
     /**
@@ -1634,7 +1642,7 @@ public:
     explicit meta_iterator(const meta_ctx &area, It iter) noexcept
         : ctx{&area},
           vtable{&basic_vtable<It>},
-          handle{std::move(iter)} {}
+          handle{iter} {}
 
     meta_iterator &operator++() noexcept {
         vtable(operation::incr, handle, 1, nullptr);
@@ -1728,7 +1736,7 @@ public:
     meta_iterator(const meta_ctx &area, std::integral_constant<bool, KeyOnly>, It iter) noexcept
         : ctx{&area},
           vtable{&basic_vtable<KeyOnly, It>},
-          handle{std::move(iter)} {}
+          handle{iter} {}
 
     meta_iterator &operator++() noexcept {
         vtable(operation::incr, handle, nullptr);
@@ -1838,7 +1846,7 @@ inline meta_sequence_container::iterator meta_sequence_container::insert(iterato
  * @return A possibly invalid iterator following the last removed element.
  */
 inline meta_sequence_container::iterator meta_sequence_container::erase(iterator it) {
-    return insert(std::move(it), {});
+    return insert(it, {});
 }
 
 /**

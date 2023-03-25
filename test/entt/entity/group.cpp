@@ -93,6 +93,7 @@ TEST(NonOwningGroup, Handle) {
     ASSERT_TRUE(handle.empty());
     ASSERT_FALSE(handle.contains(entity));
     ASSERT_EQ(&handle, &group.handle());
+    ASSERT_NE(&handle, &group.storage<int>());
 
     registry.emplace<int>(entity);
     registry.emplace<char>(entity);
@@ -762,6 +763,7 @@ TEST(OwningGroup, Functionalities) {
         ASSERT_EQ(cgroup.get<const char>(entity), '2');
     }
 
+    ASSERT_EQ(group.handle().data()[0u], e1);
     ASSERT_EQ(group.storage<int>().raw()[0u][0u], 42);
 
     registry.erase<char>(e0);
@@ -778,6 +780,26 @@ TEST(OwningGroup, Functionalities) {
     ASSERT_TRUE(group);
     ASSERT_TRUE(cgroup);
     ASSERT_FALSE(invalid);
+}
+
+TEST(OwningGroup, Handle) {
+    entt::registry registry;
+    const auto entity = registry.create();
+
+    auto group = registry.group<int>(entt::get<char>);
+    auto &&handle = group.handle();
+
+    ASSERT_TRUE(handle.empty());
+    ASSERT_FALSE(handle.contains(entity));
+    ASSERT_EQ(&handle, &group.handle());
+    ASSERT_EQ(&handle, &group.storage<int>());
+
+    registry.emplace<int>(entity);
+    registry.emplace<char>(entity);
+
+    ASSERT_FALSE(handle.empty());
+    ASSERT_TRUE(handle.contains(entity));
+    ASSERT_EQ(&handle, &group.handle());
 }
 
 TEST(OwningGroup, Invalid) {
@@ -930,11 +952,11 @@ TEST(OwningGroup, SortOrdered) {
         return group.get<boxed_int>(lhs).value < group.get<boxed_int>(rhs).value;
     });
 
-    ASSERT_EQ(group.storage<boxed_int>().data()[0u], entities[0]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[1u], entities[1]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[2u], entities[2]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[3u], entities[3]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[4u], entities[4]);
+    ASSERT_EQ(group.handle().data()[0u], entities[0]);
+    ASSERT_EQ(group.handle().data()[1u], entities[1]);
+    ASSERT_EQ(group.handle().data()[2u], entities[2]);
+    ASSERT_EQ(group.handle().data()[3u], entities[3]);
+    ASSERT_EQ(group.handle().data()[4u], entities[4]);
 
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][0u].value, 12);
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][1u].value, 9);
@@ -977,11 +999,11 @@ TEST(OwningGroup, SortReverse) {
         return lhs.value < rhs.value;
     });
 
-    ASSERT_EQ(group.storage<boxed_int>().data()[0u], entities[2]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[1u], entities[1]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[2u], entities[0]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[3u], entities[3]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[4u], entities[4]);
+    ASSERT_EQ(group.handle().data()[0u], entities[2]);
+    ASSERT_EQ(group.handle().data()[1u], entities[1]);
+    ASSERT_EQ(group.handle().data()[2u], entities[0]);
+    ASSERT_EQ(group.handle().data()[3u], entities[3]);
+    ASSERT_EQ(group.handle().data()[4u], entities[4]);
 
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][0u].value, 12);
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][1u].value, 9);
@@ -1032,13 +1054,13 @@ TEST(OwningGroup, SortUnordered) {
         return std::get<1>(lhs) < std::get<1>(rhs);
     });
 
-    ASSERT_EQ(group.storage<boxed_int>().data()[0u], entities[4]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[1u], entities[3]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[2u], entities[0]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[3u], entities[1]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[4u], entities[2]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[5u], entities[5]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[6u], entities[6]);
+    ASSERT_EQ(group.handle().data()[0u], entities[4]);
+    ASSERT_EQ(group.handle().data()[1u], entities[3]);
+    ASSERT_EQ(group.handle().data()[2u], entities[0]);
+    ASSERT_EQ(group.handle().data()[3u], entities[1]);
+    ASSERT_EQ(group.handle().data()[4u], entities[2]);
+    ASSERT_EQ(group.handle().data()[5u], entities[5]);
+    ASSERT_EQ(group.handle().data()[6u], entities[6]);
 
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][0u].value, 12);
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][1u].value, 9);
@@ -1048,11 +1070,11 @@ TEST(OwningGroup, SortUnordered) {
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][5u].value, 4);
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][6u].value, 5);
 
-    ASSERT_EQ(group.get<char>(group.storage<boxed_int>().data()[0u]), 'e');
-    ASSERT_EQ(group.get<char>(group.storage<boxed_int>().data()[1u]), 'd');
-    ASSERT_EQ(group.get<char>(group.storage<boxed_int>().data()[2u]), 'c');
-    ASSERT_EQ(group.get<char>(group.storage<boxed_int>().data()[3u]), 'b');
-    ASSERT_EQ(group.get<char>(group.storage<boxed_int>().data()[4u]), 'a');
+    ASSERT_EQ(group.get<char>(group.handle().data()[0u]), 'e');
+    ASSERT_EQ(group.get<char>(group.handle().data()[1u]), 'd');
+    ASSERT_EQ(group.get<char>(group.handle().data()[2u]), 'c');
+    ASSERT_EQ(group.get<char>(group.handle().data()[3u]), 'b');
+    ASSERT_EQ(group.get<char>(group.handle().data()[4u]), 'a');
 
     ASSERT_FALSE(group.contains(entities[5]));
     ASSERT_FALSE(group.contains(entities[6]));
@@ -1060,7 +1082,7 @@ TEST(OwningGroup, SortUnordered) {
 
 TEST(OwningGroup, SortWithExclusionList) {
     entt::registry registry;
-    auto group = registry.group<boxed_int>({}, entt::exclude<char>);
+    auto group = registry.group<boxed_int>(entt::get<>, entt::exclude<char>);
 
     entt::entity entities[5]{};
     registry.create(std::begin(entities), std::end(entities));
@@ -1077,10 +1099,10 @@ TEST(OwningGroup, SortWithExclusionList) {
         return lhs < rhs;
     });
 
-    ASSERT_EQ(group.storage<boxed_int>().data()[0u], entities[4]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[1u], entities[3]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[2u], entities[1]);
-    ASSERT_EQ(group.storage<boxed_int>().data()[3u], entities[0]);
+    ASSERT_EQ(group.handle().data()[0u], entities[4]);
+    ASSERT_EQ(group.handle().data()[1u], entities[3]);
+    ASSERT_EQ(group.handle().data()[2u], entities[1]);
+    ASSERT_EQ(group.handle().data()[3u], entities[0]);
 
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][0u].value, 4);
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][1u].value, 3);
@@ -1226,7 +1248,7 @@ TEST(OwningGroup, ExcludedComponents) {
     registry.emplace<int>(e1, 1);
     registry.emplace<char>(e1);
 
-    const auto group = registry.group<int>({}, entt::exclude<char, double>);
+    const auto group = registry.group<int>(entt::get<>, entt::exclude<char, double>);
 
     const auto e2 = registry.create();
     registry.emplace<int>(e2, 2);
@@ -1297,8 +1319,8 @@ TEST(OwningGroup, EmptyAndNonEmptyTypes) {
 
 TEST(OwningGroup, TrackEntitiesOnComponentDestruction) {
     entt::registry registry;
-    const auto group = registry.group<int>({}, entt::exclude<char>);
-    const auto cgroup = std::as_const(registry).group_if_exists<const int>({}, entt::exclude<char>);
+    const auto group = registry.group<int>(entt::get<>, entt::exclude<char>);
+    const auto cgroup = std::as_const(registry).group_if_exists<const int>(entt::get<>, entt::exclude<char>);
 
     const auto entity = registry.create();
     registry.emplace<int>(entity);

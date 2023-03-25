@@ -315,7 +315,11 @@ ENTT_DEBUG_TEST_F(StorageDeathTest, EmptyType) {
 TEST_F(Storage, Insert) {
     entt::storage<stable_type> pool;
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
-    pool.insert(std::begin(entities), std::end(entities), stable_type{99});
+    entt::storage<stable_type>::iterator it{};
+
+    it = pool.insert(std::begin(entities), std::end(entities), stable_type{99});
+
+    ASSERT_EQ(it, pool.cbegin());
 
     ASSERT_TRUE(pool.contains(entities[0u]));
     ASSERT_TRUE(pool.contains(entities[1u]));
@@ -324,10 +328,14 @@ TEST_F(Storage, Insert) {
     ASSERT_EQ(pool.size(), 2u);
     ASSERT_EQ(pool.get(entities[0u]).value, 99);
     ASSERT_EQ(pool.get(entities[1u]).value, 99);
+    ASSERT_EQ(it++->value, 99);
+    ASSERT_EQ(it->value, 99);
 
     pool.erase(std::begin(entities), std::end(entities));
     const stable_type values[2u] = {stable_type{42}, stable_type{3}};
-    pool.insert(std::rbegin(entities), std::rend(entities), std::begin(values));
+    it = pool.insert(std::rbegin(entities), std::rend(entities), std::begin(values));
+
+    ASSERT_EQ(it, pool.cbegin());
 
     ASSERT_EQ(pool.size(), 4u);
     ASSERT_EQ(pool.at(2u), entities[1u]);
@@ -336,6 +344,8 @@ TEST_F(Storage, Insert) {
     ASSERT_EQ(pool.index(entities[1u]), 2u);
     ASSERT_EQ(pool.get(entities[0u]).value, 3);
     ASSERT_EQ(pool.get(entities[1u]).value, 42);
+    ASSERT_EQ(it++->value, 3);
+    ASSERT_EQ(it->value, 42);
 }
 
 TEST_F(Storage, InsertEmptyType) {

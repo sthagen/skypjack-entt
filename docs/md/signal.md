@@ -315,7 +315,7 @@ sink.disconnect<&foo>();
 sink.disconnect<&listener::bar>(instance);
 
 // disconnect all member functions of an instance, if any
-sink.disconnect(instance);
+sink.disconnect(&instance);
 
 // discards all listeners at once
 sink.disconnect();
@@ -325,15 +325,6 @@ As shown above, listeners don't have to strictly follow the signature of the
 signal. As long as a listener can be invoked with the given arguments to yield a
 result that is convertible to the given return type, everything works just
 fine.<br/>
-It's also possible to connect a listener before other elements already contained
-by the signal. The `before` function returns a `sink` object that is correctly
-initialized for the purpose and can be used to connect one or more listeners in
-order and in the desired position:
-
-```cpp
-sink.before<&foo>().connect<&listener::bar>(instance);
-```
-
 In all cases, the `connect` member function returns by default a `connection`
 object to be used as an alternative to break a connection by means of its
 `release` member function.<br/>
@@ -434,7 +425,7 @@ of them at once:
 
 ```cpp
 dispatcher.sink<an_event>().disconnect<&listener::receive>(listener);
-dispatcher.sink<another_event>().disconnect(listener);
+dispatcher.sink<another_event>().disconnect(&listener);
 ```
 
 The `trigger` member function serves the purpose of sending an immediate event

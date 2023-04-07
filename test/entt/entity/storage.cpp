@@ -312,6 +312,52 @@ ENTT_DEBUG_TEST_F(StorageDeathTest, EmptyType) {
     ASSERT_DEATH([[maybe_unused]] auto tup = pool.get_as_tuple(entt::entity{3}), "");
 }
 
+TEST_F(Storage, Patch) {
+    entt::storage<int> pool;
+    entt::entity entity{42};
+    auto callback = [](int &value) { ++value; };
+
+    pool.emplace(entity, 0);
+
+    ASSERT_EQ(pool.get(entity), 0);
+
+    pool.patch(entity);
+    pool.patch(entity, callback);
+    pool.patch(entity, callback, callback);
+
+    ASSERT_EQ(pool.get(entity), 3);
+}
+
+ENTT_DEBUG_TEST_F(StorageDeathTest, Patch) {
+    entt::storage<int> pool;
+
+    ASSERT_DEATH(pool.patch(entt::null), "");
+}
+
+TEST_F(Storage, PatchEmptyType) {
+    entt::storage<empty_stable_type> pool;
+    entt::entity entity{42};
+
+    int counter = 0;
+    auto callback = [&counter]() { ++counter; };
+
+    pool.emplace(entity);
+
+    ASSERT_EQ(counter, 0);
+
+    pool.patch(entity);
+    pool.patch(entity, callback);
+    pool.patch(entity, callback, callback);
+
+    ASSERT_EQ(counter, 3);
+}
+
+ENTT_DEBUG_TEST_F(StorageDeathTest, PatchEmptyType) {
+    entt::storage<empty_stable_type> pool;
+
+    ASSERT_DEATH(pool.patch(entt::null), "");
+}
+
 TEST_F(Storage, Insert) {
     entt::storage<stable_type> pool;
     entt::entity entities[2u]{entt::entity{3}, entt::entity{42}};
@@ -1568,7 +1614,7 @@ TEST_F(Storage, RespectDisjoint) {
     ASSERT_TRUE(std::equal(std::rbegin(lhs_entities), std::rend(lhs_entities), lhs.entt::sparse_set::begin(), lhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(lhs_values), std::rend(lhs_values), lhs.begin(), lhs.end()));
 
-    lhs.respect(rhs);
+    lhs.sort_as(rhs);
 
     ASSERT_TRUE(std::equal(std::rbegin(lhs_entities), std::rend(lhs_entities), lhs.entt::sparse_set::begin(), lhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(lhs_values), std::rend(lhs_values), lhs.begin(), lhs.end()));
@@ -1592,7 +1638,7 @@ TEST_F(Storage, RespectOverlap) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entities), std::rend(rhs_entities), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    lhs.respect(rhs);
+    lhs.sort_as(rhs);
 
     auto begin = lhs.begin();
     auto end = lhs.end();
@@ -1625,7 +1671,7 @@ TEST_F(Storage, RespectOrdered) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entities), std::rend(rhs_entities), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    rhs.respect(lhs);
+    rhs.sort_as(lhs);
 
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entities), std::rend(rhs_entities), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
@@ -1649,7 +1695,7 @@ TEST_F(Storage, RespectReverse) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entities), std::rend(rhs_entities), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    rhs.respect(lhs);
+    rhs.sort_as(lhs);
 
     auto begin = rhs.begin();
     auto end = rhs.end();
@@ -1688,7 +1734,7 @@ TEST_F(Storage, RespectUnordered) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entities), std::rend(rhs_entities), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    rhs.respect(lhs);
+    rhs.sort_as(lhs);
 
     auto begin = rhs.begin();
     auto end = rhs.end();

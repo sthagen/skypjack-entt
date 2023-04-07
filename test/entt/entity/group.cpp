@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include <entt/entity/group.hpp>
 #include <entt/entity/registry.hpp>
+#include "../common/config.h"
 
 struct empty_type {};
 
@@ -56,7 +57,7 @@ TEST(NonOwningGroup, Functionalities) {
     for(auto entity: group) {
         ASSERT_EQ(std::get<0>(cgroup.get<const int, const char>(entity)), 42);
         ASSERT_EQ(std::get<1>(group.get<int, char>(entity)), '2');
-        ASSERT_EQ(cgroup.get<const char>(entity), '2');
+        ASSERT_EQ(cgroup.get<1>(entity), '2');
     }
 
     ASSERT_EQ(group.handle().data()[0u], e1);
@@ -276,9 +277,9 @@ TEST(NonOwningGroup, Sort) {
     ASSERT_EQ(group.handle().data()[1u], e1);
     ASSERT_EQ(group.handle().data()[2u], e2);
 
-    ASSERT_EQ((group.get<const int, unsigned int>(e0)), (std::make_tuple(0, 0u)));
-    ASSERT_EQ((group.get<const int, unsigned int>(e1)), (std::make_tuple(1, 1u)));
-    ASSERT_EQ((group.get<const int, unsigned int>(e2)), (std::make_tuple(2, 2u)));
+    ASSERT_EQ((group.get<0, 1>(e0)), (std::make_tuple(0, 0u)));
+    ASSERT_EQ((group.get<0, 1>(e1)), (std::make_tuple(1, 1u)));
+    ASSERT_EQ((group.get<0, 1>(e2)), (std::make_tuple(2, 2u)));
 
     ASSERT_FALSE(group.contains(e3));
 
@@ -326,10 +327,10 @@ TEST(NonOwningGroup, SortAsAPool) {
     }
 
     registry.sort<unsigned int>(std::less<unsigned int>{});
-    group.sort<unsigned int>();
+    group.sort_as(group.storage<unsigned int>());
 
     ASSERT_EQ((group.get<const int, unsigned int>(e0)), (std::make_tuple(0, 0u)));
-    ASSERT_EQ((group.get<const int, unsigned int>(e1)), (std::make_tuple(1, 1u)));
+    ASSERT_EQ((group.get<0, 1>(e1)), (std::make_tuple(1, 1u)));
     ASSERT_EQ((group.get<const int, unsigned int>(e2)), (std::make_tuple(2, 2u)));
 
     ASSERT_FALSE(group.contains(e3));
@@ -387,9 +388,18 @@ TEST(NonOwningGroup, ConstNonConstAndAllInBetween) {
 
     ASSERT_EQ(group.size(), 1u);
 
+    static_assert(std::is_same_v<decltype(group.get<0>({})), int &>);
     static_assert(std::is_same_v<decltype(group.get<int>({})), int &>);
+
+    static_assert(std::is_same_v<decltype(group.get<1>({})), void>);
+    static_assert(std::is_same_v<decltype(group.get<empty_type>({})), void>);
+
+    static_assert(std::is_same_v<decltype(group.get<2>({})), const char &>);
     static_assert(std::is_same_v<decltype(group.get<const char>({})), const char &>);
-    static_assert(std::is_same_v<decltype(group.get<int, const char>({})), std::tuple<int &, const char &>>);
+
+    static_assert(std::is_same_v<decltype(group.get<int, empty_type, const char>({})), std::tuple<int &, const char &>>);
+    static_assert(std::is_same_v<decltype(group.get<0, 1, 2>({})), std::tuple<int &, const char &>>);
+
     static_assert(std::is_same_v<decltype(group.get({})), std::tuple<int &, const char &>>);
 
     static_assert(std::is_same_v<decltype(std::as_const(registry).group_if_exists(entt::get<int, char>)), decltype(std::as_const(registry).group_if_exists(entt::get<const int, const char>))>);
@@ -478,7 +488,7 @@ TEST(NonOwningGroup, ExcludedComponents) {
         if(entity == e0) {
             ASSERT_EQ(group.get<int>(e0), 0);
         } else if(entity == e2) {
-            ASSERT_EQ(group.get<int>(e2), 2);
+            ASSERT_EQ(group.get<0>(e2), 2);
         }
     }
 
@@ -496,7 +506,7 @@ TEST(NonOwningGroup, ExcludedComponents) {
         if(entity == e1) {
             ASSERT_EQ(group.get<int>(e1), 1);
         } else if(entity == e3) {
-            ASSERT_EQ(group.get<int>(e3), 3);
+            ASSERT_EQ(group.get<0>(e3), 3);
         }
     }
 }
@@ -720,6 +730,32 @@ TEST(NonOwningGroup, Storage) {
     ASSERT_FALSE((registry.any_of<int, double, float>(entity)));
 }
 
+TEST(NonOwningGroup, Overlapping) {
+    entt::registry registry;
+
+    auto group = registry.group(entt::get<char>, entt::exclude<double>);
+    auto other = registry.group<int>(entt::get<char>, entt::exclude<double>);
+
+    ASSERT_TRUE(group.empty());
+    ASSERT_TRUE(other.empty());
+
+    const auto entity = registry.create();
+    registry.emplace<char>(entity, '1');
+
+    ASSERT_FALSE(group.empty());
+    ASSERT_TRUE(other.empty());
+
+    registry.emplace<int>(entity, 42);
+
+    ASSERT_FALSE(group.empty());
+    ASSERT_FALSE(other.empty());
+
+    registry.emplace<double>(entity, 3.);
+
+    ASSERT_TRUE(group.empty());
+    ASSERT_TRUE(other.empty());
+}
+
 TEST(OwningGroup, Functionalities) {
     entt::registry registry;
     auto group = registry.group<int>(entt::get<char>);
@@ -760,7 +796,7 @@ TEST(OwningGroup, Functionalities) {
     for(auto entity: group) {
         ASSERT_EQ(std::get<0>(cgroup.get<const int, const char>(entity)), 42);
         ASSERT_EQ(std::get<1>(group.get<int, char>(entity)), '2');
-        ASSERT_EQ(cgroup.get<const char>(entity), '2');
+        ASSERT_EQ(cgroup.get<1>(entity), '2');
     }
 
     ASSERT_EQ(group.handle().data()[0u], e1);
@@ -949,7 +985,7 @@ TEST(OwningGroup, SortOrdered) {
     registry.emplace<boxed_int>(entities[4], 2);
 
     group.sort([&group](const entt::entity lhs, const entt::entity rhs) {
-        return group.get<boxed_int>(lhs).value < group.get<boxed_int>(rhs).value;
+        return group.get<boxed_int>(lhs).value < group.get<0>(rhs).value;
     });
 
     ASSERT_EQ(group.handle().data()[0u], entities[0]);
@@ -969,7 +1005,7 @@ TEST(OwningGroup, SortOrdered) {
     ASSERT_EQ(group.storage<char>().raw()[0u][2u], 'c');
 
     ASSERT_EQ((group.get<boxed_int, char>(entities[0])), (std::make_tuple(boxed_int{12}, 'a')));
-    ASSERT_EQ((group.get<boxed_int, char>(entities[1])), (std::make_tuple(boxed_int{9}, 'b')));
+    ASSERT_EQ((group.get<0, 1>(entities[1])), (std::make_tuple(boxed_int{9}, 'b')));
     ASSERT_EQ((group.get<boxed_int, char>(entities[2])), (std::make_tuple(boxed_int{6}, 'c')));
 
     ASSERT_FALSE(group.contains(entities[3]));
@@ -1016,7 +1052,7 @@ TEST(OwningGroup, SortReverse) {
     ASSERT_EQ(group.storage<char>().raw()[0u][2u], 'a');
 
     ASSERT_EQ((group.get<boxed_int, char>(entities[0])), (std::make_tuple(boxed_int{6}, 'a')));
-    ASSERT_EQ((group.get<boxed_int, char>(entities[1])), (std::make_tuple(boxed_int{9}, 'b')));
+    ASSERT_EQ((group.get<0, 1>(entities[1])), (std::make_tuple(boxed_int{9}, 'b')));
     ASSERT_EQ((group.get<boxed_int, char>(entities[2])), (std::make_tuple(boxed_int{12}, 'c')));
 
     ASSERT_FALSE(group.contains(entities[3]));
@@ -1071,9 +1107,9 @@ TEST(OwningGroup, SortUnordered) {
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][6u].value, 5);
 
     ASSERT_EQ(group.get<char>(group.handle().data()[0u]), 'e');
-    ASSERT_EQ(group.get<char>(group.handle().data()[1u]), 'd');
+    ASSERT_EQ(group.get<1>(group.handle().data()[1u]), 'd');
     ASSERT_EQ(group.get<char>(group.handle().data()[2u]), 'c');
-    ASSERT_EQ(group.get<char>(group.handle().data()[3u]), 'b');
+    ASSERT_EQ(group.get<1>(group.handle().data()[3u]), 'b');
     ASSERT_EQ(group.get<char>(group.handle().data()[4u]), 'a');
 
     ASSERT_FALSE(group.contains(entities[5]));
@@ -1110,9 +1146,9 @@ TEST(OwningGroup, SortWithExclusionList) {
     ASSERT_EQ(group.storage<boxed_int>().raw()[0u][3u].value, 0);
 
     ASSERT_EQ(group.get<boxed_int>(entities[0]).value, 0);
-    ASSERT_EQ(group.get<boxed_int>(entities[1]).value, 1);
+    ASSERT_EQ(group.get<0>(entities[1]).value, 1);
     ASSERT_EQ(group.get<boxed_int>(entities[3]).value, 3);
-    ASSERT_EQ(group.get<boxed_int>(entities[4]).value, 4);
+    ASSERT_EQ(group.get<0>(entities[4]).value, 4);
 
     ASSERT_FALSE(group.contains(entities[2]));
 }
@@ -1166,11 +1202,24 @@ TEST(OwningGroup, ConstNonConstAndAllInBetween) {
 
     ASSERT_EQ(group.size(), 1u);
 
+    static_assert(std::is_same_v<decltype(group.get<0>({})), int &>);
     static_assert(std::is_same_v<decltype(group.get<int>({})), int &>);
+
+    static_assert(std::is_same_v<decltype(group.get<1>({})), const char &>);
     static_assert(std::is_same_v<decltype(group.get<const char>({})), const char &>);
+
+    static_assert(std::is_same_v<decltype(group.get<2>({})), void>);
+    static_assert(std::is_same_v<decltype(group.get<empty_type>({})), void>);
+
+    static_assert(std::is_same_v<decltype(group.get<3>({})), double &>);
     static_assert(std::is_same_v<decltype(group.get<double>({})), double &>);
+
+    static_assert(std::is_same_v<decltype(group.get<4>({})), const float &>);
     static_assert(std::is_same_v<decltype(group.get<const float>({})), const float &>);
-    static_assert(std::is_same_v<decltype(group.get<int, const char, double, const float>({})), std::tuple<int &, const char &, double &, const float &>>);
+
+    static_assert(std::is_same_v<decltype(group.get<int, const char, empty_type, double, const float>({})), std::tuple<int &, const char &, double &, const float &>>);
+    static_assert(std::is_same_v<decltype(group.get<0, 1, 2, 3, 4>({})), std::tuple<int &, const char &, double &, const float &>>);
+
     static_assert(std::is_same_v<decltype(group.get({})), std::tuple<int &, const char &, double &, const float &>>);
 
     static_assert(std::is_same_v<decltype(std::as_const(registry).group_if_exists<int>(entt::get<char>)), decltype(std::as_const(registry).group_if_exists<const int>(entt::get<const char>))>);
@@ -1263,7 +1312,7 @@ TEST(OwningGroup, ExcludedComponents) {
         if(entity == e0) {
             ASSERT_EQ(group.get<int>(e0), 0);
         } else if(entity == e2) {
-            ASSERT_EQ(group.get<int>(e2), 2);
+            ASSERT_EQ(group.get<0>(e2), 2);
         }
     }
 
@@ -1281,7 +1330,7 @@ TEST(OwningGroup, ExcludedComponents) {
         if(entity == e1) {
             ASSERT_EQ(group.get<int>(e1), 1);
         } else if(entity == e3) {
-            ASSERT_EQ(group.get<int>(e3), 3);
+            ASSERT_EQ(group.get<0>(e3), 3);
         }
     }
 }
@@ -1551,4 +1600,13 @@ TEST(OwningGroup, Storage) {
     ASSERT_FALSE(group.storage<3u>().contains(entity));
     ASSERT_TRUE((registry.all_of<char>(entity)));
     ASSERT_FALSE((registry.any_of<int, double, float>(entity)));
+}
+
+ENTT_DEBUG_TEST(OwningGroup, Overlapping) {
+    entt::registry registry;
+    registry.group<char>(entt::get<int>, entt::exclude<double>);
+
+    ASSERT_DEATH((registry.group<char, float>(entt::get<float>, entt::exclude<double>)), "");
+    ASSERT_DEATH(registry.group<char>(entt::get<int, float>, entt::exclude<double>), "");
+    ASSERT_DEATH(registry.group<char>(entt::get<int>, entt::exclude<double, float>), "");
 }

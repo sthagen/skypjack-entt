@@ -33,22 +33,23 @@ class basic_snapshot {
 
     template<typename Component, typename Archive, typename It>
     void get(Archive &archive, std::size_t sz, It first, It last) const {
-        const auto view = reg->template view<const Component>();
+        const auto &storage = reg->template storage<Component>();
         archive(static_cast<typename traits_type::entity_type>(sz));
 
         for(auto it = first; it != last; ++it) {
-            if(reg->template all_of<Component>(*it)) {
-                std::apply(archive, std::tuple_cat(std::make_tuple(*it), view.get(*it)));
+            if(storage.contains(*it)) {
+                std::apply(archive, std::tuple_cat(std::make_tuple(*it), storage.get_as_tuple(*it)));
             }
         }
     }
 
     template<typename... Component, typename Archive, typename It, std::size_t... Index>
     void component(Archive &archive, It first, It last, std::index_sequence<Index...>) const {
+        auto storage{std::forward_as_tuple(reg->template storage<Component>()...)};
         std::array<std::size_t, sizeof...(Index)> size{};
 
         for(auto it = first; it != last; ++it) {
-            ((reg->template all_of<Component>(*it) ? ++size[Index] : 0u), ...);
+            ((std::get<Index>(storage).contains(*it) ? ++size[Index] : 0u), ...);
         }
 
         (get<Component>(archive, size[Index], first, last), ...);
@@ -85,13 +86,12 @@ public:
      */
     template<typename Archive>
     const basic_snapshot &entities(Archive &archive) const {
-        const auto sz = static_cast<typename traits_type::entity_type>(reg->size());
-        const auto released = static_cast<typename traits_type::entity_type>(reg->released());
+        const auto &storage = reg->template storage<entity_type>();
 
-        archive(sz);
-        archive(released);
+        archive(static_cast<typename traits_type::entity_type>(storage.size()));
+        archive(static_cast<typename traits_type::entity_type>(storage.in_use()));
 
-        for(auto first = reg->data(), last = first + sz; first != last; ++first) {
+        for(auto first = storage.data(), last = first + storage.size(); first != last; ++first) {
             archive(*first);
         }
 
@@ -161,6 +161,9 @@ class basic_snapshot_loader {
 
     template<typename Component, typename Archive>
     void assign(Archive &archive) const {
+        auto &storage = reg->template storage<entity_type>();
+        auto &elem = reg->template storage<Component>();
+
         typename traits_type::entity_type length{};
         entity_type entt;
 
@@ -169,18 +172,18 @@ class basic_snapshot_loader {
         if constexpr(std::is_empty_v<Component>) {
             while(length--) {
                 archive(entt);
-                const auto entity = reg->valid(entt) ? entt : reg->create(entt);
+                const auto entity = storage.contains(entt) ? entt : storage.emplace(entt);
                 ENTT_ASSERT(entity == entt, "Entity not available for use");
-                reg->template emplace<Component>(entity);
+                elem.emplace(entity);
             }
         } else {
             Component instance;
 
             while(length--) {
                 archive(entt, instance);
-                const auto entity = reg->valid(entt) ? entt : reg->create(entt);
+                const auto entity = storage.contains(entt) ? entt : storage.emplace(entt);
                 ENTT_ASSERT(entity == entt, "Entity not available for use");
-                reg->template emplace<Component>(entity, std::move(instance));
+                elem.emplace(entity, std::move(instance));
             }
         }
     }
@@ -219,18 +222,22 @@ public:
      */
     template<typename Archive>
     const basic_snapshot_loader &entities(Archive &archive) const {
+        auto &storage = reg->template storage<entity_type>();
         typename traits_type::entity_type length{};
-        typename traits_type::entity_type released{};
+        typename traits_type::entity_type in_use{};
+        entity_type entity = null;
 
         archive(length);
-        archive(released);
-        std::vector<entity_type> all(length);
+        archive(in_use);
+
+        storage.reserve(length);
 
         for(std::size_t pos{}; pos < length; ++pos) {
-            archive(all[pos]);
+            archive(entity);
+            storage.emplace(entity);
         }
 
-        reg->assign(all.cbegin(), all.cend(), released);
+        storage.in_use(in_use);
 
         return *this;
     }
@@ -265,11 +272,13 @@ public:
      * @return A valid loader to continue restoring data.
      */
     const basic_snapshot_loader &orphans() const {
-        reg->each([this](const auto entt) {
+        auto &storage = reg->template storage<entity_type>();
+
+        for(auto entt: storage) {
             if(reg->orphan(entt)) {
-                reg->release(entt);
+                storage.erase(entt);
             }
-        });
+        }
 
         return *this;
     }
@@ -369,17 +378,16 @@ class basic_continuous_loader {
 
     template<typename Component>
     void remove_if_exists() {
-        for(auto &&ref: remloc) {
-            const auto local = ref.second.first;
+        auto &storage = reg->template storage<Component>();
 
-            if(reg->valid(local)) {
-                reg->template remove<Component>(local);
-            }
+        for(auto &&ref: remloc) {
+            storage.remove(ref.second.first);
         }
     }
 
     template<typename Component, typename Archive, typename... Other, typename... Member>
     void assign(Archive &archive, [[maybe_unused]] Member Other::*...member) {
+        auto &storage = reg->template storage<Component>();
         typename traits_type::entity_type length{};
         entity_type entt;
 
@@ -389,7 +397,7 @@ class basic_continuous_loader {
             while(length--) {
                 archive(entt);
                 restore(entt);
-                reg->template emplace_or_replace<Component>(map(entt));
+                storage.emplace(map(entt));
             }
         } else {
             Component instance;
@@ -398,7 +406,7 @@ class basic_continuous_loader {
                 archive(entt, instance);
                 (update(instance, member), ...);
                 restore(entt);
-                reg->template emplace_or_replace<Component>(map(entt), std::move(instance));
+                storage.emplace(map(entt), std::move(instance));
             }
         }
     }
@@ -435,15 +443,15 @@ public:
     template<typename Archive>
     basic_continuous_loader &entities(Archive &archive) {
         typename traits_type::entity_type length{};
-        typename traits_type::entity_type released{};
+        typename traits_type::entity_type in_use{};
 
         archive(length);
-        archive(released);
+        archive(in_use);
 
         entity_type entt{null};
         std::size_t pos{};
 
-        for(const auto last = length - released; pos < last; ++pos) {
+        for(; pos < in_use; ++pos) {
             archive(entt);
             restore(entt);
         }
@@ -491,6 +499,7 @@ public:
      * @return A non-const reference to this loader.
      */
     basic_continuous_loader &shrink() {
+        const auto &storage = reg->template storage<entity_type>();
         auto it = remloc.begin();
 
         while(it != remloc.cend()) {
@@ -501,7 +510,7 @@ public:
                 dirty = false;
                 ++it;
             } else {
-                if(reg->valid(local)) {
+                if(storage.contains(local)) {
                     reg->destroy(local);
                 }
 
@@ -523,11 +532,13 @@ public:
      * @return A non-const reference to this loader.
      */
     basic_continuous_loader &orphans() {
-        reg->each([this](const auto entt) {
+        auto &storage = reg->template storage<entity_type>();
+
+        for(auto entt: storage) {
             if(reg->orphan(entt)) {
-                reg->release(entt);
+                storage.erase(entt);
             }
-        });
+        }
 
         return *this;
     }

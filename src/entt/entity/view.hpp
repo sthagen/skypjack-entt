@@ -199,8 +199,8 @@ class basic_view;
  */
 template<typename... Get, typename... Exclude>
 class basic_view<get_t<Get...>, exclude_t<Exclude...>> {
-    using underlying_type = std::common_type_t<typename Get::entity_type..., typename Exclude::entity_type...>;
-    using basic_common_type = std::common_type_t<typename Get::base_type..., typename Exclude::base_type...>;
+    using base_type = std::common_type_t<typename Get::base_type..., typename Exclude::base_type...>;
+    using underlying_type = typename base_type::entity_type;
 
     template<typename, typename, typename>
     friend class basic_view;
@@ -209,7 +209,7 @@ class basic_view<get_t<Get...>, exclude_t<Exclude...>> {
     static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Get::value_type..., typename Exclude::value_type...>>;
 
     [[nodiscard]] auto opaque_check_set() const noexcept {
-        std::array<const base_type *, sizeof...(Get) - 1u> other{};
+        std::array<const common_type *, sizeof...(Get) - 1u> other{};
         std::apply([&other, pos = 0u, view = view](const auto *...curr) mutable { ((curr == view ? void() : void(other[pos++] = curr)), ...); }, pools);
         return other;
     }
@@ -247,9 +247,9 @@ public:
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Common type among all storage types. */
-    using base_type = basic_common_type;
+    using common_type = base_type;
     /*! @brief Bidirectional iterator type. */
-    using iterator = internal::view_iterator<base_type, sizeof...(Get) - 1u, sizeof...(Exclude)>;
+    using iterator = internal::view_iterator<common_type, sizeof...(Get) - 1u, sizeof...(Exclude)>;
     /*! @brief Iterable view type. */
     using iterable = iterable_adaptor<internal::extended_view_iterator<iterator, Get...>>;
 
@@ -313,7 +313,7 @@ public:
      * @brief Returns the leading storage of a view.
      * @return The leading storage of the view.
      */
-    [[nodiscard]] const base_type &handle() const noexcept {
+    [[nodiscard]] const common_type &handle() const noexcept {
         return *view;
     }
 
@@ -440,39 +440,33 @@ public:
      * Attempting to use an entity that doesn't belong to the view results in
      * undefined behavior.
      *
-     * @tparam Type Types of components to get.
+     * @tparam Type Type of the component to get.
+     * @tparam Other Other types of components to get.
      * @param entt A valid identifier.
      * @return The components assigned to the entity.
      */
-    template<typename... Type>
+    template<typename Type, typename... Other>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
-        if constexpr(sizeof...(Type) == 0) {
-            return std::apply([entt](auto *...curr) { return std::tuple_cat(curr->get_as_tuple(entt)...); }, pools);
-        } else if constexpr(sizeof...(Type) == 1) {
-            return (storage<index_of<Type>>().get(entt), ...);
-        } else {
-            return std::tuple_cat(storage<index_of<Type>>().get_as_tuple(entt)...);
-        }
+        return get<index_of<Type>, index_of<Other>...>(entt);
     }
 
     /**
      * @brief Returns the components assigned to the given entity.
      *
-     * @warning
-     * Attempting to use an entity that doesn't belong to the view results in
-     * undefined behavior.
+     * @sa get
      *
-     * @tparam First Index of a component to get.
-     * @tparam Other Indexes of other components to get.
+     * @tparam Index Indexes of the components to get.
      * @param entt A valid identifier.
      * @return The components assigned to the entity.
      */
-    template<std::size_t First, std::size_t... Other>
+    template<std::size_t... Index>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
-        if constexpr(sizeof...(Other) == 0) {
-            return storage<First>().get(entt);
+        if constexpr(sizeof...(Index) == 0) {
+            return std::apply([entt](auto *...curr) { return std::tuple_cat(curr->get_as_tuple(entt)...); }, pools);
+        } else if constexpr(sizeof...(Index) == 1) {
+            return (storage<Index>().get(entt), ...);
         } else {
-            return std::tuple_cat(storage<First>().get_as_tuple(entt), storage<Other>().get_as_tuple(entt)...);
+            return std::tuple_cat(storage<Index>().get_as_tuple(entt)...);
         }
     }
 
@@ -528,8 +522,8 @@ public:
 
 private:
     std::tuple<Get *...> pools;
-    std::array<const base_type *, sizeof...(Exclude)> filter;
-    const base_type *view;
+    std::array<const common_type *, sizeof...(Exclude)> filter;
+    const common_type *view;
 };
 
 /**
@@ -564,11 +558,11 @@ public:
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Common type among all storage types. */
-    using base_type = typename Get::base_type;
+    using common_type = typename Get::base_type;
     /*! @brief Random access iterator type. */
-    using iterator = typename base_type::iterator;
+    using iterator = typename common_type::iterator;
     /*! @brief Reversed iterator type. */
-    using reverse_iterator = typename base_type::reverse_iterator;
+    using reverse_iterator = typename common_type::reverse_iterator;
     /*! @brief Iterable view type. */
     using iterable = decltype(std::declval<Get>().each());
 
@@ -598,7 +592,7 @@ public:
      * @brief Returns the leading storage of a view.
      * @return The leading storage of the view.
      */
-    [[nodiscard]] const base_type &handle() const noexcept {
+    [[nodiscard]] const common_type &handle() const noexcept {
         return *view;
     }
 
@@ -761,24 +755,24 @@ public:
      * Attempting to use an entity that doesn't belong to the view results in
      * undefined behavior.
      *
-     * @tparam Type Type or index of the component to get.
+     * @tparam Elem Type or index of the component to get.
      * @param entt A valid identifier.
      * @return The component assigned to the entity.
      */
-    template<typename... Type>
+    template<typename Elem>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
-        if constexpr(sizeof...(Type) == 0) {
-            return storage().get_as_tuple(entt);
-        } else {
-            static_assert((std::is_same_v<std::remove_const_t<Type>, typename Get::value_type> && ...), "Invalid component type");
-            return storage().get(entt);
-        }
+        static_assert(std::is_same_v<std::remove_const_t<Elem>, typename Get::value_type>, "Invalid component type");
+        return get<0>(entt);
     }
 
     /*! @copydoc get */
-    template<std::size_t Index>
+    template<std::size_t... Elem>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
-        return storage().get(entt);
+        if constexpr(sizeof...(Elem) == 0) {
+            return storage().get_as_tuple(entt);
+        } else {
+            return storage<Elem...>().get(entt);
+        }
     }
 
     /**
@@ -849,8 +843,8 @@ public:
 
 private:
     std::tuple<Get *> pools;
-    std::array<const base_type *, 0u> filter;
-    const base_type *view;
+    std::array<const common_type *, 0u> filter;
+    const common_type *view;
 };
 
 /**

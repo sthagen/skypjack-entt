@@ -33,23 +33,23 @@ class basic_snapshot {
 
     template<typename Component, typename Archive, typename It>
     void get(Archive &archive, std::size_t sz, It first, It last) const {
-        const auto &storage = reg->template storage<Component>();
+        const auto view = reg->template view<Component>();
         archive(static_cast<typename traits_type::entity_type>(sz));
 
         for(auto it = first; it != last; ++it) {
-            if(storage.contains(*it)) {
-                std::apply(archive, std::tuple_cat(std::make_tuple(*it), storage.get_as_tuple(*it)));
+            if(view.contains(*it)) {
+                std::apply(archive, std::tuple_cat(std::make_tuple(*it), view.get(*it)));
             }
         }
     }
 
     template<typename... Component, typename Archive, typename It, std::size_t... Index>
     void component(Archive &archive, It first, It last, std::index_sequence<Index...>) const {
-        auto storage{std::forward_as_tuple(reg->template storage<Component>()...)};
+        const auto view{std::make_tuple(reg->template view<Component>()...)};
         std::array<std::size_t, sizeof...(Index)> size{};
 
         for(auto it = first; it != last; ++it) {
-            ((std::get<Index>(storage).contains(*it) ? ++size[Index] : 0u), ...);
+            ((std::get<Index>(view).contains(*it) ? ++size[Index] : 0u), ...);
         }
 
         (get<Component>(archive, size[Index], first, last), ...);
@@ -75,23 +75,19 @@ public:
     basic_snapshot &operator=(basic_snapshot &&) noexcept = default;
 
     /**
-     * @brief Puts aside all the entities from the underlying registry.
-     *
-     * Entities are serialized along with their versions. Destroyed entities are
-     * taken in consideration as well by this function.
-     *
+     * @brief Serializes all identifiers, including those to be recycled.
      * @tparam Archive Type of output archive.
      * @param archive A valid reference to an output archive.
      * @return An object of this type to continue creating the snapshot.
      */
     template<typename Archive>
     const basic_snapshot &entities(Archive &archive) const {
-        const auto &storage = reg->template storage<entity_type>();
+        const auto *storage = reg->template storage<entity_type>();
 
-        archive(static_cast<typename traits_type::entity_type>(storage.size()));
-        archive(static_cast<typename traits_type::entity_type>(storage.in_use()));
+        archive(static_cast<typename traits_type::entity_type>(storage->size()));
+        archive(static_cast<typename traits_type::entity_type>(storage->in_use()));
 
-        for(auto first = storage.data(), last = first + storage.size(); first != last; ++first) {
+        for(auto first = storage->data(), last = first + storage->size(); first != last; ++first) {
             archive(*first);
         }
 
@@ -99,11 +95,7 @@ public:
     }
 
     /**
-     * @brief Puts aside the given components.
-     *
-     * Each instance is serialized together with the entity to which it belongs.
-     * Entities are serialized along with their versions.
-     *
+     * @brief Serializes all required components with associated identifiers.
      * @tparam Component Types of components to serialize.
      * @tparam Archive Type of output archive.
      * @param archive A valid reference to an output archive.
@@ -114,19 +106,16 @@ public:
         if constexpr(sizeof...(Component) == 1u) {
             const auto view = reg->template view<const Component...>();
             (component<Component>(archive, view.rbegin(), view.rend()), ...);
-            return *this;
         } else {
             (component<Component>(archive), ...);
-            return *this;
         }
+
+        return *this;
     }
 
     /**
-     * @brief Puts aside the given components for the entities in a range.
-     *
-     * Each instance is serialized together with the entity to which it belongs.
-     * Entities are serialized along with their versions.
-     *
+     * @brief Serializes all required components with associated identifiers for
+     * the entities in a range.
      * @tparam Component Types of components to serialize.
      * @tparam Archive Type of output archive.
      * @tparam It Type of input iterator.
@@ -160,7 +149,7 @@ class basic_snapshot_loader {
     using traits_type = typename Registry::traits_type;
 
     template<typename Component, typename Archive>
-    void assign(Archive &archive) const {
+    void assign(Archive &archive) {
         auto &storage = reg->template storage<entity_type>();
         auto &elem = reg->template storage<Component>();
 
@@ -211,17 +200,13 @@ public:
     basic_snapshot_loader &operator=(basic_snapshot_loader &&) noexcept = default;
 
     /**
-     * @brief Restores entities that were in use during serialization.
-     *
-     * This function restores the entities that were in use during serialization
-     * and gives them the versions they originally had.
-     *
+     * @brief Restores all identifiers, including those to be recycled.
      * @tparam Archive Type of input archive.
      * @param archive A valid reference to an input archive.
      * @return A valid loader to continue restoring data.
      */
     template<typename Archive>
-    const basic_snapshot_loader &entities(Archive &archive) const {
+    basic_snapshot_loader &entities(Archive &archive) {
         auto &storage = reg->template storage<entity_type>();
         typename traits_type::entity_type length{};
         typename traits_type::entity_type in_use{};
@@ -243,12 +228,10 @@ public:
     }
 
     /**
-     * @brief Restores components and assigns them to the right entities.
+     * @brief Restores all required components with associated identifiers.
      *
      * The template parameter list must be exactly the same used during
-     * serialization. In the event that the entity to which the component is
-     * assigned doesn't exist yet, the loader will take care to create it with
-     * the version it originally had.
+     * serialization.
      *
      * @tparam Component Types of components to restore.
      * @tparam Archive Type of input archive.
@@ -256,7 +239,7 @@ public:
      * @return A valid loader to continue restoring data.
      */
     template<typename... Component, typename Archive>
-    const basic_snapshot_loader &component(Archive &archive) const {
+    basic_snapshot_loader &component(Archive &archive) {
         (assign<Component>(archive), ...);
         return *this;
     }
@@ -267,11 +250,11 @@ public:
      * In case all the entities were serialized but only part of the components
      * was saved, it could happen that some of the entities have no components
      * once restored.<br/>
-     * This functions helps to identify and destroy those entities.
+     * This function helps to identify and destroy those entities.
      *
      * @return A valid loader to continue restoring data.
      */
-    const basic_snapshot_loader &orphans() const {
+    basic_snapshot_loader &orphans() {
         auto &storage = reg->template storage<entity_type>();
 
         for(auto entt: storage) {
@@ -297,7 +280,7 @@ private:
  * Identifiers that entities originally had are not transferred to the target.
  * Instead, the loader maps remote identifiers to local ones while restoring a
  * snapshot.<br/>
- * An example of use is the implementation of a client-server applications with
+ * An example of use is the implementation of a client-server application with
  * the requirement of transferring somehow parts of the representation side to
  * side.
  *
@@ -431,10 +414,9 @@ public:
     basic_continuous_loader &operator=(basic_continuous_loader &&) = default;
 
     /**
-     * @brief Restores entities that were in use during serialization.
+     * @brief Restores all identifiers, including those to be recycled.
      *
-     * This function restores the entities that were in use during serialization
-     * and creates local counterparts for them if required.
+     * It creates local counterparts for remote elements as needed.
      *
      * @tparam Archive Type of input archive.
      * @param archive A valid reference to an input archive.
@@ -465,15 +447,12 @@ public:
     }
 
     /**
-     * @brief Restores components and assigns them to the right entities.
+     * @brief Serializes all required components with associated identifiers.
      *
-     * The template parameter list must be exactly the same used during
-     * serialization. In the event that the entity to which the component is
-     * assigned doesn't exist yet, the loader will take care to create a local
-     * counterpart for it.<br/>
-     * Members can be either data members of type entity_type or containers of
-     * entities. In both cases, the loader will visit them and update the
-     * entities by replacing each one with its local counterpart.
+     * It creates local counterparts for remote elements as needed.<br/>
+     * Members are either data members of type entity_type or containers of
+     * entities. In both cases, a loader visits them and replaces entities with
+     * their local counterpart.
      *
      * @tparam Component Type of component to restore.
      * @tparam Archive Type of input archive.
@@ -527,7 +506,7 @@ public:
      * In case all the entities were serialized but only part of the components
      * was saved, it could happen that some of the entities have no components
      * once restored.<br/>
-     * This functions helps to identify and destroy those entities.
+     * This function helps to identify and destroy those entities.
      *
      * @return A non-const reference to this loader.
      */
@@ -558,14 +537,11 @@ public:
      * @return The local identifier if any, the null entity otherwise.
      */
     [[nodiscard]] entity_type map(entity_type entt) const noexcept {
-        const auto it = remloc.find(entt);
-        entity_type other = null;
-
-        if(it != remloc.cend()) {
-            other = it->second.first;
+        if(const auto it = remloc.find(entt); it != remloc.cend()) {
+            return it->second.first;
         }
 
-        return other;
+        return null;
     }
 
 private:

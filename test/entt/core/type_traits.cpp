@@ -112,6 +112,14 @@ TEST(TypeList, Functionalities) {
     static_assert(std::is_same_v<entt::type_list_transform_t<entt::type_list<int, char>, entt::type_identity>, entt::type_list<int, char>>);
     static_assert(std::is_same_v<entt::type_list_transform_t<entt::type_list<int, char>, std::add_const>, entt::type_list<const int, const char>>);
     static_assert(std::is_same_v<entt::type_list_transform_t<entt::type_list<int, char>, multi_argument_operation>, entt::type_list<void, void>>);
+
+    static_assert(std::tuple_size_v<entt::type_list<>> == 0u);
+    static_assert(std::tuple_size_v<entt::type_list<int>> == 1u);
+    static_assert(std::tuple_size_v<entt::type_list<int, float>> == 2u);
+
+    static_assert(std::is_same_v<int, std::tuple_element_t<0, entt::type_list<int>>>);
+    static_assert(std::is_same_v<int, std::tuple_element_t<0, entt::type_list<int, float>>>);
+    static_assert(std::is_same_v<float, std::tuple_element_t<1, entt::type_list<int, float>>>);
 }
 
 TEST(ValueList, Functionalities) {
@@ -144,6 +152,14 @@ TEST(ValueList, Functionalities) {
     static_assert(std::is_same_v<entt::value_list_diff_t<entt::value_list<0, 1, 2>, entt::value_list<0, 1>>, entt::value_list<2>>);
     static_assert(std::is_same_v<entt::value_list_diff_t<entt::value_list<0, 1, 2>, entt::value_list<1, 2>>, entt::value_list<0>>);
     static_assert(std::is_same_v<entt::value_list_diff_t<entt::value_list<0, 1, 2>, entt::value_list<1>>, entt::value_list<0, 2>>);
+
+    static_assert(std::tuple_size_v<entt::value_list<>> == 0u);
+    static_assert(std::tuple_size_v<entt::value_list<42>> == 1u);
+    static_assert(std::tuple_size_v<entt::value_list<42, 'a'>> == 2u);
+
+    static_assert(std::is_same_v<int, std::tuple_element_t<0, entt::value_list<42>>>);
+    static_assert(std::is_same_v<int, std::tuple_element_t<0, entt::value_list<42, 'a'>>>);
+    static_assert(std::is_same_v<char, std::tuple_element_t<1, entt::value_list<42, 'a'>>>);
 }
 
 TEST(IsApplicable, Functionalities) {

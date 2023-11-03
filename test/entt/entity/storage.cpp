@@ -10,22 +10,10 @@
 #include <entt/entity/component.hpp>
 #include <entt/entity/storage.hpp>
 #include "../common/config.h"
+#include "../common/pointer_stable.h"
 #include "../common/throwing_allocator.hpp"
 #include "../common/throwing_type.hpp"
 #include "../common/tracked_memory_resource.hpp"
-
-struct pointer_stable {
-    static constexpr auto in_place_delete = true;
-    int value{};
-};
-
-inline bool operator==(const pointer_stable &lhs, const pointer_stable &rhs) {
-    return lhs.value == rhs.value;
-}
-
-inline bool operator<(const pointer_stable &lhs, const pointer_stable &rhs) {
-    return lhs.value < rhs.value;
-}
 
 struct update_from_destructor {
     update_from_destructor(entt::storage<update_from_destructor> &ref, entt::entity other)
@@ -78,7 +66,7 @@ struct Storage: testing::Test {
 template<typename Type>
 using StorageDeathTest = Storage<Type>;
 
-using StorageTypes = ::testing::Types<int, pointer_stable>;
+using StorageTypes = ::testing::Types<int, test::pointer_stable>;
 
 TYPED_TEST_SUITE(Storage, StorageTypes, );
 TYPED_TEST_SUITE(StorageDeathTest, StorageTypes, );
@@ -606,9 +594,6 @@ ENTT_DEBUG_TYPED_TEST(StorageDeathTest, Value) {
 }
 
 TYPED_TEST(Storage, Emplace) {
-    // ensure that we've at least an aggregate type to test here
-    static_assert(std::is_aggregate_v<pointer_stable>, "Not an aggregate type");
-
     using value_type = typename TestFixture::type;
     entt::storage<value_type> pool;
 
@@ -907,7 +892,6 @@ TYPED_TEST(Storage, Erase) {
 
 TYPED_TEST(Storage, CrossErase) {
     using value_type = typename TestFixture::type;
-    using traits_type = entt::component_traits<value_type>;
     entt::storage<value_type> pool;
     entt::sparse_set set;
 
@@ -968,7 +952,6 @@ TYPED_TEST(Storage, Remove) {
 
 TYPED_TEST(Storage, CrossRemove) {
     using value_type = typename TestFixture::type;
-    using traits_type = entt::component_traits<value_type>;
     entt::storage<value_type> pool;
     entt::sparse_set set;
 
@@ -1377,7 +1360,7 @@ TYPED_TEST(Storage, SortUnordered) {
     ASSERT_EQ(pool.data()[4u], entity[2u]);
 }
 
-TYPED_TEST(Storage, SortRange) {
+TYPED_TEST(Storage, SortN) {
     using value_type = typename TestFixture::type;
     entt::storage<value_type> pool;
 
@@ -1419,7 +1402,7 @@ TYPED_TEST(Storage, SortRange) {
     ASSERT_EQ(pool.data()[4u], entity[2u]);
 }
 
-TYPED_TEST(Storage, RespectDisjoint) {
+TYPED_TEST(Storage, SortAsDisjoint) {
     using value_type = typename TestFixture::type;
     entt::storage<value_type> lhs;
     entt::storage<value_type> rhs;
@@ -1432,13 +1415,13 @@ TYPED_TEST(Storage, RespectDisjoint) {
     ASSERT_TRUE(std::equal(std::rbegin(lhs_entity), std::rend(lhs_entity), lhs.entt::sparse_set::begin(), lhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(lhs_values), std::rend(lhs_values), lhs.begin(), lhs.end()));
 
-    lhs.sort_as(rhs);
+    lhs.sort_as(rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end());
 
     ASSERT_TRUE(std::equal(std::rbegin(lhs_entity), std::rend(lhs_entity), lhs.entt::sparse_set::begin(), lhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(lhs_values), std::rend(lhs_values), lhs.begin(), lhs.end()));
 }
 
-TYPED_TEST(Storage, RespectOverlap) {
+TYPED_TEST(Storage, SortAsOverlap) {
     using value_type = typename TestFixture::type;
     entt::storage<value_type> lhs;
     entt::storage<value_type> rhs;
@@ -1459,7 +1442,7 @@ TYPED_TEST(Storage, RespectOverlap) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entity), std::rend(rhs_entity), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    lhs.sort_as(rhs);
+    lhs.sort_as(rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end());
 
     auto begin = lhs.begin();
     auto end = lhs.end();
@@ -1474,7 +1457,7 @@ TYPED_TEST(Storage, RespectOverlap) {
     ASSERT_EQ(lhs.data()[2u], lhs_entity[1u]);
 }
 
-TYPED_TEST(Storage, RespectOrdered) {
+TYPED_TEST(Storage, SortAsOrdered) {
     using value_type = typename TestFixture::type;
     entt::storage<value_type> lhs;
     entt::storage<value_type> rhs;
@@ -1495,13 +1478,13 @@ TYPED_TEST(Storage, RespectOrdered) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entity), std::rend(rhs_entity), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    rhs.sort_as(lhs);
+    rhs.sort_as(lhs.entt::sparse_set::begin(), lhs.entt::sparse_set::end());
 
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entity), std::rend(rhs_entity), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 }
 
-TYPED_TEST(Storage, RespectReverse) {
+TYPED_TEST(Storage, SortAsReverse) {
     using value_type = typename TestFixture::type;
     entt::storage<value_type> lhs;
     entt::storage<value_type> rhs;
@@ -1522,7 +1505,7 @@ TYPED_TEST(Storage, RespectReverse) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entity), std::rend(rhs_entity), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    rhs.sort_as(lhs);
+    rhs.sort_as(lhs.entt::sparse_set::begin(), lhs.entt::sparse_set::end());
 
     auto begin = rhs.begin();
     auto end = rhs.end();
@@ -1543,7 +1526,7 @@ TYPED_TEST(Storage, RespectReverse) {
     ASSERT_EQ(rhs.data()[5u], rhs_entity[0u]);
 }
 
-TYPED_TEST(Storage, RespectUnordered) {
+TYPED_TEST(Storage, SortAsUnordered) {
     using value_type = typename TestFixture::type;
     entt::storage<value_type> lhs;
     entt::storage<value_type> rhs;
@@ -1564,7 +1547,7 @@ TYPED_TEST(Storage, RespectUnordered) {
     ASSERT_TRUE(std::equal(std::rbegin(rhs_entity), std::rend(rhs_entity), rhs.entt::sparse_set::begin(), rhs.entt::sparse_set::end()));
     ASSERT_TRUE(std::equal(std::rbegin(rhs_values), std::rend(rhs_values), rhs.begin(), rhs.end()));
 
-    rhs.sort_as(lhs);
+    rhs.sort_as(lhs.entt::sparse_set::begin(), lhs.entt::sparse_set::end());
 
     auto begin = rhs.begin();
     auto end = rhs.end();
@@ -1646,9 +1629,9 @@ TYPED_TEST(Storage, ReferencesGuaranteed) {
     ASSERT_EQ(pool.get(entt::entity{0}), value_type{0});
     ASSERT_EQ(pool.get(entt::entity{1}), value_type{1});
 
-    for(auto &&type: pool) {
-        if(!(type == value_type{})) {
-            type = value_type{42};
+    for(auto &&elem: pool) {
+        if(!(elem == value_type{})) {
+            elem = value_type{42};
         }
     }
 
@@ -1666,14 +1649,15 @@ TYPED_TEST(Storage, ReferencesGuaranteed) {
 }
 
 TEST(Storage, UpdateFromDestructor) {
-    auto test = [](const auto target) {
-        constexpr auto size = 10u;
+    constexpr auto size = 10u;
+    const entt::entity entity[3u]{entt::entity{9u}, entt::entity{8u}, entt::entity{0u}};
 
+    for(auto target: entity) {
         entt::storage<update_from_destructor> pool;
 
         for(std::size_t next{}; next < size; ++next) {
-            const auto entity = entt::entity(next);
-            pool.emplace(entity, pool, entity == entt::entity(size / 2) ? target : entity);
+            const auto other = entt::entity(next);
+            pool.emplace(other, pool, other == entt::entity(size / 2) ? target : other);
         }
 
         pool.erase(entt::entity(size / 2));
@@ -1689,11 +1673,7 @@ TEST(Storage, UpdateFromDestructor) {
         for(std::size_t next{}; next < size; ++next) {
             ASSERT_FALSE(pool.contains(entt::entity(next)));
         }
-    };
-
-    test(entt::entity{9u});
-    test(entt::entity{8u});
-    test(entt::entity{0u});
+    }
 }
 
 TEST(Storage, CreateFromConstructor) {

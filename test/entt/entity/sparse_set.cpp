@@ -6,6 +6,9 @@
 #include <memory>
 #include <utility>
 #include <gtest/gtest.h>
+#include <entt/config/config.h>
+#include <entt/core/any.hpp>
+#include <entt/core/type_info.hpp>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/sparse_set.hpp>
 #include "../common/config.h"
@@ -1745,12 +1748,12 @@ ENTT_DEBUG_TYPED_TEST(SparseSetDeathTest, Sort) {
         set.erase(entity);
 
         switch(policy) {
-        case entt::deletion_policy::swap_and_pop: {
+        case entt::deletion_policy::swap_and_pop:
+        case entt::deletion_policy::swap_only: {
             SUCCEED();
         } break;
-        case entt::deletion_policy::in_place:
-        case entt::deletion_policy::swap_only: {
-            ASSERT_DEATH(set.sort(std::less{});, "");
+        case entt::deletion_policy::in_place: {
+            ASSERT_DEATH(set.sort(std::less{}), "");
         } break;
         }
     }
@@ -1800,7 +1803,7 @@ ENTT_DEBUG_TYPED_TEST(SparseSetDeathTest, SortN) {
         entity_type entity{42};
         entity_type other{3};
 
-        ASSERT_DEATH(set.sort_n(1u, std::less{});, "");
+        ASSERT_DEATH(set.sort_n(1u, std::less{}), "");
 
         set.push(entity);
         set.push(other);
@@ -1812,12 +1815,12 @@ ENTT_DEBUG_TYPED_TEST(SparseSetDeathTest, SortN) {
         } break;
         case entt::deletion_policy::in_place: {
             ASSERT_EQ(set.size(), 2u);
-            ASSERT_DEATH(set.sort_n(1u, std::less{});, "");
+            ASSERT_DEATH(set.sort_n(1u, std::less{}), "");
         } break;
         case entt::deletion_policy::swap_only: {
             ASSERT_EQ(set.size(), 2u);
             ASSERT_NO_FATAL_FAILURE(set.sort_n(1u, std::less{}));
-            ASSERT_DEATH(set.sort_n(2u, std::less{});, "");
+            ASSERT_DEATH(set.sort_n(2u, std::less{}), "");
         } break;
         }
     }
@@ -2010,16 +2013,17 @@ ENTT_DEBUG_TYPED_TEST(SparseSetDeathTest, SortAs) {
             lhs.push(entity);
             lhs.erase(entity);
 
-            ASSERT_DEATH(lhs.sort_as(rhs);, "");
+            ASSERT_DEATH(lhs.sort_as(rhs), "");
         } break;
         case entt::deletion_policy::swap_only: {
-            entity_type entity[2u]{entity_type{3}, entity_type{42}};
+            entity_type entity[3u]{entity_type{3}, entity_type{42}, entity_type{9}};
 
             lhs.push(std::begin(entity), std::end(entity));
             rhs.push(std::rbegin(entity), std::rend(entity));
-            lhs.erase(entity[1u]);
+            lhs.erase(entity[0u]);
+            lhs.bump(entity[0u]);
 
-            ASSERT_DEATH(lhs.sort_as(rhs);, "");
+            ASSERT_DEATH(lhs.sort_as(rhs), "");
         } break;
         }
     }

@@ -4,11 +4,7 @@
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
 #include <entt/entity/runtime_view.hpp>
-
-struct stable_type {
-    static constexpr auto in_place_delete = true;
-    int value;
-};
+#include "../common/pointer_stable.h"
 
 template<typename Type>
 struct RuntimeView: testing::Test {
@@ -341,12 +337,12 @@ TYPED_TEST(RuntimeView, StableType) {
     registry.emplace<int>(e1);
     registry.emplace<int>(e2);
 
-    registry.emplace<stable_type>(e0);
-    registry.emplace<stable_type>(e1);
+    registry.emplace<test::pointer_stable>(e0);
+    registry.emplace<test::pointer_stable>(e1);
 
-    registry.remove<stable_type>(e1);
+    registry.remove<test::pointer_stable>(e1);
 
-    view.iterate(registry.storage<int>()).iterate(registry.storage<stable_type>());
+    view.iterate(registry.storage<int>()).iterate(registry.storage<test::pointer_stable>());
 
     ASSERT_EQ(view.size_hint(), 2u);
     ASSERT_TRUE(view.contains(e0));
@@ -378,11 +374,11 @@ TYPED_TEST(RuntimeView, StableTypeWithExcludedComponent) {
     const auto entity = registry.create();
     const auto other = registry.create();
 
-    registry.emplace<stable_type>(entity, 0);
-    registry.emplace<stable_type>(other, 42);
+    registry.emplace<test::pointer_stable>(entity, 0);
+    registry.emplace<test::pointer_stable>(other, 42);
     registry.emplace<int>(entity);
 
-    view.iterate(registry.storage<stable_type>()).exclude(registry.storage<int>());
+    view.iterate(registry.storage<test::pointer_stable>()).exclude(registry.storage<int>());
 
     ASSERT_EQ(view.size_hint(), 2u);
     ASSERT_FALSE(view.contains(entity));

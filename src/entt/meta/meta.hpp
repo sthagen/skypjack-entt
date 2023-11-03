@@ -83,14 +83,14 @@ private:
     const meta_ctx *ctx{};
     internal::meta_type_node (*value_type_node)(const internal::meta_context &){};
     internal::meta_type_node (*const_reference_node)(const internal::meta_context &){};
-    size_type (*size_fn)(const void *);
-    bool (*clear_fn)(void *);
-    bool (*reserve_fn)(void *, const size_type);
-    bool (*resize_fn)(void *, const size_type);
-    void (*begin_fn)(const void *, const bool, iterator &);
-    void (*end_fn)(const void *, const bool, iterator &);
-    bool (*insert_fn)(void *, const void *, const void *, iterator &);
-    bool (*erase_fn)(void *, iterator &);
+    size_type (*size_fn)(const void *){};
+    bool (*clear_fn)(void *){};
+    bool (*reserve_fn)(void *, const size_type){};
+    bool (*resize_fn)(void *, const size_type){};
+    void (*begin_fn)(const void *, const bool, iterator &){};
+    void (*end_fn)(const void *, const bool, iterator &){};
+    bool (*insert_fn)(void *, const void *, const void *, iterator &){};
+    bool (*erase_fn)(void *, iterator &){};
     any storage{};
 };
 
@@ -159,14 +159,14 @@ private:
     internal::meta_type_node (*key_type_node)(const internal::meta_context &){};
     internal::meta_type_node (*mapped_type_node)(const internal::meta_context &){};
     internal::meta_type_node (*value_type_node)(const internal::meta_context &){};
-    size_type (*size_fn)(const void *);
-    bool (*clear_fn)(void *);
-    bool (*reserve_fn)(void *, const size_type);
-    void (*begin_fn)(const void *, const bool, iterator &);
-    void (*end_fn)(const void *, const bool, iterator &);
-    bool (*insert_fn)(void *, const void *, const void *);
-    size_type (*erase_fn)(void *, const void *);
-    void (*find_fn)(const void *, const bool, const void *, iterator &);
+    size_type (*size_fn)(const void *){};
+    bool (*clear_fn)(void *){};
+    bool (*reserve_fn)(void *, const size_type){};
+    void (*begin_fn)(const void *, const bool, iterator &){};
+    void (*end_fn)(const void *, const bool, iterator &){};
+    bool (*insert_fn)(void *, const void *, const void *){};
+    size_type (*erase_fn)(void *, const void *){};
+    void (*find_fn)(const void *, const bool, const void *, iterator &){};
     any storage{};
 };
 
@@ -1319,7 +1319,7 @@ public:
      */
     [[nodiscard]] bool can_cast(const meta_type &other) const noexcept {
         // casting this is UB in all cases but we aren't going to use the resulting pointer, so...
-        return internal::try_cast(internal::meta_context::from(*ctx), node, other.node, this);
+        return (internal::try_cast(internal::meta_context::from(*ctx), node, other.node, this) != nullptr);
     }
 
     /**
@@ -1328,7 +1328,7 @@ public:
      * @return True if the conversion is allowed, false otherwise.
      */
     [[nodiscard]] bool can_convert(const meta_type &other) const noexcept {
-        return internal::try_convert(internal::meta_context::from(*ctx), node, other.info(), other.is_arithmetic() || other.is_enum(), nullptr, [](const void *, auto &&...args) { return ((static_cast<void>(args), 1) + ... + 0u); });
+        return (internal::try_convert(internal::meta_context::from(*ctx), node, other.info(), other.is_arithmetic() || other.is_enum(), nullptr, [](const void *, auto &&...args) { return ((static_cast<void>(args), 1) + ... + 0u); }) != 0u);
     }
 
     /**

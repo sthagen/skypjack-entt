@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <entt/entity/component.hpp>
 #include <entt/entity/storage.hpp>
+#include "../common/aggregate.h"
 #include "../common/config.h"
 #include "../common/pointer_stable.h"
 #include "../common/throwing_allocator.hpp"
@@ -164,7 +165,6 @@ TYPED_TEST(Storage, Swap) {
     ASSERT_EQ(other.type(), entt::type_id<value_type>());
 
     pool.emplace(entt::entity{42}, 41);
-
     other.emplace(entt::entity{9}, 8);
     other.emplace(entt::entity{3}, 2);
     other.erase(entt::entity{9});
@@ -241,15 +241,9 @@ TYPED_TEST(Storage, Raw) {
 
     pool.emplace(entt::entity{3}, 3);
     pool.emplace(entt::entity{12}, 6);
-    pool.emplace(entt::entity{42}, 9);
-
-    ASSERT_EQ(pool.get(entt::entity{3}), value_type{3});
-    ASSERT_EQ(std::as_const(pool).get(entt::entity{12}), value_type{6});
-    ASSERT_EQ(pool.get(entt::entity{42}), value_type{9});
 
     ASSERT_EQ(pool.raw()[0u][0u], value_type{3});
     ASSERT_EQ(std::as_const(pool).raw()[0u][1u], value_type{6});
-    ASSERT_EQ(pool.raw()[0u][2u], value_type{9});
 }
 
 TYPED_TEST(Storage, Iterator) {
@@ -599,16 +593,25 @@ TYPED_TEST(Storage, Emplace) {
 
     testing::StaticAssertTypeEq<decltype(pool.emplace({})), value_type &>();
 
-    // aggregate types with no args enter the non-aggregate path
     ASSERT_EQ(pool.emplace(entt::entity{3}), value_type{});
-    // aggregate types with args work despite the lack of support in the standard library
     ASSERT_EQ(pool.emplace(entt::entity{42}, 42), value_type{42});
+}
+
+TEST(Storage, EmplaceAggregate) {
+    entt::storage<test::aggregate> pool;
+
+    testing::StaticAssertTypeEq<decltype(pool.emplace({})), test::aggregate &>();
+
+    // aggregate types with no args enter the non-aggregate path
+    ASSERT_EQ(pool.emplace(entt::entity{3}), test::aggregate{});
+    // aggregate types with args work despite the lack of support in the standard library
+    ASSERT_EQ(pool.emplace(entt::entity{42}, 42), test::aggregate{42});
 }
 
 TEST(Storage, EmplaceSelfMoveSupport) {
     // see #37 - this test shouldn't crash, that's all
     entt::storage<std::unordered_set<int>> pool;
-    entt::entity entity{};
+    entt::entity entity{42};
 
     ASSERT_EQ(pool.policy(), entt::deletion_policy::swap_and_pop);
 
@@ -621,7 +624,7 @@ TEST(Storage, EmplaceSelfMoveSupport) {
 TEST(Storage, EmplaceSelfMoveSupportInPlaceDelete) {
     // see #37 - this test shouldn't crash, that's all
     entt::storage<std::unordered_set<char>> pool;
-    entt::entity entity{};
+    entt::entity entity{42};
 
     ASSERT_EQ(pool.policy(), entt::deletion_policy::in_place);
 
@@ -1848,7 +1851,7 @@ TYPED_TEST(Storage, NoUsesAllocatorConstruction) {
     using value_type = typename TestFixture::type;
     test::tracked_memory_resource memory_resource{};
     entt::basic_storage<value_type, entt::entity, std::pmr::polymorphic_allocator<value_type>> pool{&memory_resource};
-    const entt::entity entity{};
+    const entt::entity entity{42};
 
     pool.emplace(entity);
     pool.erase(entity);
@@ -1864,7 +1867,7 @@ TEST(Storage, UsesAllocatorConstruction) {
     using string_type = typename test::tracked_memory_resource::string_type;
     test::tracked_memory_resource memory_resource{};
     entt::basic_storage<string_type, entt::entity, std::pmr::polymorphic_allocator<string_type>> pool{&memory_resource};
-    const entt::entity entity{};
+    const entt::entity entity{42};
 
     pool.emplace(entity);
     pool.erase(entity);

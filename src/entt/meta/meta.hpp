@@ -64,7 +64,8 @@ public:
         end_fn = meta_sequence_container_traits<std::remove_const_t<Type>>::end;
         insert_fn = meta_sequence_container_traits<std::remove_const_t<Type>>::insert;
         erase_fn = meta_sequence_container_traits<std::remove_const_t<Type>>::erase;
-        storage = forward_as_any(instance);
+        const_only = std::is_const_v<Type>;
+        data = &instance;
     }
 
     [[nodiscard]] inline meta_type value_type() const noexcept;
@@ -87,11 +88,12 @@ private:
     bool (*clear_fn)(void *){};
     bool (*reserve_fn)(void *, const size_type){};
     bool (*resize_fn)(void *, const size_type){};
-    void (*begin_fn)(const void *, const bool, iterator &){};
-    void (*end_fn)(const void *, const bool, iterator &){};
-    bool (*insert_fn)(void *, const void *, const void *, iterator &){};
-    bool (*erase_fn)(void *, iterator &){};
-    any storage{};
+    iterator (*begin_fn)(const meta_ctx &, void *, const void *){};
+    iterator (*end_fn)(const meta_ctx &, void *, const void *){};
+    iterator (*insert_fn)(const meta_ctx &, void *, const void *, const void *, const iterator &){};
+    iterator (*erase_fn)(const meta_ctx &, void *, const iterator &){};
+    const void *data{};
+    bool const_only{};
 };
 
 /*! @brief Proxy object for associative containers. */
@@ -137,7 +139,8 @@ public:
         insert_fn = &meta_associative_container_traits<std::remove_const_t<Type>>::insert;
         erase_fn = &meta_associative_container_traits<std::remove_const_t<Type>>::erase;
         find_fn = &meta_associative_container_traits<std::remove_const_t<Type>>::find;
-        storage = forward_as_any(instance);
+        const_only = std::is_const_v<Type>;
+        data = &instance;
     }
 
     [[nodiscard]] inline bool key_only() const noexcept;
@@ -162,12 +165,13 @@ private:
     size_type (*size_fn)(const void *){};
     bool (*clear_fn)(void *){};
     bool (*reserve_fn)(void *, const size_type){};
-    void (*begin_fn)(const void *, const bool, iterator &){};
-    void (*end_fn)(const void *, const bool, iterator &){};
+    iterator (*begin_fn)(const meta_ctx &, void *, const void *){};
+    iterator (*end_fn)(const meta_ctx &, void *, const void *){};
     bool (*insert_fn)(void *, const void *, const void *){};
     size_type (*erase_fn)(void *, const void *){};
-    void (*find_fn)(const void *, const bool, const void *, iterator &){};
-    any storage{};
+    iterator (*find_fn)(const meta_ctx &, void *, const void *, const void *){};
+    const void *data{};
+    bool const_only{};
 };
 
 /*! @brief Possible modes of a meta any object. */
@@ -1642,6 +1646,7 @@ public:
     using pointer = input_iterator_pointer<value_type>;
     using reference = value_type;
     using iterator_category = std::input_iterator_tag;
+    using iterator_concept = std::bidirectional_iterator_tag;
 
     meta_iterator() noexcept
         : meta_iterator{locator<meta_ctx>::value_or()} {}
@@ -1650,10 +1655,10 @@ public:
         : ctx{&area} {}
 
     template<typename It>
-    void rebind(It iter) noexcept {
-        vtable = &basic_vtable<It>;
-        handle = iter;
-    }
+    meta_iterator(const meta_ctx &area, It iter) noexcept
+        : ctx{&area},
+          vtable{&basic_vtable<It>},
+          handle{iter} {}
 
     meta_iterator &operator++() noexcept {
         vtable(handle.data(), 1, nullptr);
@@ -1732,6 +1737,7 @@ public:
     using pointer = input_iterator_pointer<value_type>;
     using reference = value_type;
     using iterator_category = std::input_iterator_tag;
+    using iterator_concept = std::forward_iterator_tag;
 
     meta_iterator() noexcept
         : meta_iterator{locator<meta_ctx>::value_or()} {}
@@ -1740,10 +1746,10 @@ public:
         : ctx{&area} {}
 
     template<bool KeyOnly, typename It>
-    void rebind(It iter) noexcept {
-        vtable = &basic_vtable<KeyOnly, It>;
-        handle = iter;
-    }
+    meta_iterator(const meta_ctx &area, std::bool_constant<KeyOnly>, It iter) noexcept
+        : ctx{&area},
+          vtable{&basic_vtable<KeyOnly, It>},
+          handle{iter} {}
 
     meta_iterator &operator++() noexcept {
         vtable(handle.data(), nullptr);
@@ -1802,7 +1808,7 @@ private:
  * @return The size of the container.
  */
 [[nodiscard]] inline meta_sequence_container::size_type meta_sequence_container::size() const noexcept {
-    return size_fn(std::as_const(storage).data());
+    return size_fn(data);
 }
 
 /**
@@ -1811,7 +1817,7 @@ private:
  * @return True in case of success, false otherwise.
  */
 inline bool meta_sequence_container::resize(const size_type sz) {
-    return (storage.policy() != any_policy::cref) && resize_fn(storage.data(), sz);
+    return !const_only && resize_fn(const_cast<void *>(data), sz);
 }
 
 /**
@@ -1819,7 +1825,7 @@ inline bool meta_sequence_container::resize(const size_type sz) {
  * @return True in case of success, false otherwise.
  */
 inline bool meta_sequence_container::clear() {
-    return (storage.policy() != any_policy::cref) && clear_fn(storage.data());
+    return !const_only && clear_fn(const_cast<void *>(data));
 }
 
 /**
@@ -1828,7 +1834,7 @@ inline bool meta_sequence_container::clear() {
  * @return True in case of success, false otherwise.
  */
 inline bool meta_sequence_container::reserve(const size_type sz) {
-    return (storage.policy() != any_policy::cref) && reserve_fn(storage.data(), sz);
+    return !const_only && reserve_fn(const_cast<void *>(data), sz);
 }
 
 /**
@@ -1836,9 +1842,7 @@ inline bool meta_sequence_container::reserve(const size_type sz) {
  * @return An iterator to the first element of the container.
  */
 [[nodiscard]] inline meta_sequence_container::iterator meta_sequence_container::begin() {
-    iterator it{*ctx};
-    begin_fn(std::as_const(storage).data(), storage.policy() == any_policy::cref, it);
-    return it;
+    return begin_fn(*ctx, const_only ? nullptr : const_cast<void *>(data), data);
 }
 
 /**
@@ -1846,9 +1850,7 @@ inline bool meta_sequence_container::reserve(const size_type sz) {
  * @return An iterator that is past the last element of the container.
  */
 [[nodiscard]] inline meta_sequence_container::iterator meta_sequence_container::end() {
-    iterator it{*ctx};
-    end_fn(std::as_const(storage).data(), storage.policy() == any_policy::cref, it);
-    return it;
+    return end_fn(*ctx, const_only ? nullptr : const_cast<void *>(data), data);
 }
 
 /**
@@ -1859,10 +1861,9 @@ inline bool meta_sequence_container::reserve(const size_type sz) {
  */
 inline meta_sequence_container::iterator meta_sequence_container::insert(iterator it, meta_any value) {
     // this abomination is necessary because only on macos value_type and const_reference are different types for std::vector<bool>
-    if(const auto vtype = value_type_node(internal::meta_context::from(*ctx)); (storage.policy() != any_policy::cref) && (value.allow_cast({*ctx, vtype}) || value.allow_cast({*ctx, const_reference_node(internal::meta_context::from(*ctx))}))) {
-        if(const bool is_value_type = (value.type().info() == *vtype.info); insert_fn(storage.data(), is_value_type ? std::as_const(value).data() : nullptr, is_value_type ? nullptr : std::as_const(value).data(), it)) {
-            return it;
-        }
+    if(const auto vtype = value_type_node(internal::meta_context::from(*ctx)); !const_only && (value.allow_cast({*ctx, vtype}) || value.allow_cast({*ctx, const_reference_node(internal::meta_context::from(*ctx))}))) {
+        const bool is_value_type = (value.type().info() == *vtype.info);
+        return insert_fn(*ctx, const_cast<void *>(data), is_value_type ? std::as_const(value).data() : nullptr, is_value_type ? nullptr : std::as_const(value).data(), it);
     }
 
     return iterator{*ctx};
@@ -1874,7 +1875,7 @@ inline meta_sequence_container::iterator meta_sequence_container::insert(iterato
  * @return A possibly invalid iterator following the last removed element.
  */
 inline meta_sequence_container::iterator meta_sequence_container::erase(iterator it) {
-    return ((storage.policy() != any_policy::cref) && erase_fn(storage.data(), it)) ? it : iterator{*ctx};
+    return const_only ? iterator{*ctx} : erase_fn(*ctx, const_cast<void *>(data), it);
 }
 
 /**
@@ -1894,7 +1895,7 @@ inline meta_sequence_container::iterator meta_sequence_container::erase(iterator
  * @return False if the proxy is invalid, true otherwise.
  */
 [[nodiscard]] inline meta_sequence_container::operator bool() const noexcept {
-    return static_cast<bool>(storage);
+    return (data != nullptr);
 }
 
 /**
@@ -1928,31 +1929,27 @@ inline meta_sequence_container::iterator meta_sequence_container::erase(iterator
 
 /*! @copydoc meta_sequence_container::size */
 [[nodiscard]] inline meta_associative_container::size_type meta_associative_container::size() const noexcept {
-    return size_fn(std::as_const(storage).data());
+    return size_fn(data);
 }
 
 /*! @copydoc meta_sequence_container::clear */
 inline bool meta_associative_container::clear() {
-    return (storage.policy() != any_policy::cref) && clear_fn(storage.data());
+    return !const_only && clear_fn(const_cast<void *>(data));
 }
 
 /*! @copydoc meta_sequence_container::reserve */
 inline bool meta_associative_container::reserve(const size_type sz) {
-    return (storage.policy() != any_policy::cref) && reserve_fn(storage.data(), sz);
+    return !const_only && reserve_fn(const_cast<void *>(data), sz);
 }
 
 /*! @copydoc meta_sequence_container::begin */
 [[nodiscard]] inline meta_associative_container::iterator meta_associative_container::begin() {
-    iterator it{*ctx};
-    begin_fn(std::as_const(storage).data(), storage.policy() == any_policy::cref, it);
-    return it;
+    return begin_fn(*ctx, const_only ? nullptr : const_cast<void *>(data), data);
 }
 
 /*! @copydoc meta_sequence_container::end */
 [[nodiscard]] inline meta_associative_container::iterator meta_associative_container::end() {
-    iterator it{*ctx};
-    end_fn(std::as_const(storage).data(), storage.policy() == any_policy::cref, it);
-    return it;
+    return end_fn(*ctx, const_only ? nullptr : const_cast<void *>(data), data);
 }
 
 /**
@@ -1962,8 +1959,9 @@ inline bool meta_associative_container::reserve(const size_type sz) {
  * @return A bool denoting whether the insertion took place.
  */
 inline bool meta_associative_container::insert(meta_any key, meta_any value = {}) {
-    const bool valid_key = key.allow_cast(meta_type{*ctx, key_type_node(internal::meta_context::from(*ctx))}) && (!mapped_type_node || value.allow_cast(meta_type{*ctx, mapped_type_node(internal::meta_context::from(*ctx))}));
-    return valid_key && (storage.policy() != any_policy::cref) && insert_fn(storage.data(), std::as_const(key).data(), std::as_const(value).data());
+    return !const_only && key.allow_cast(meta_type{*ctx, key_type_node(internal::meta_context::from(*ctx))})
+           && (!mapped_type_node || value.allow_cast(meta_type{*ctx, mapped_type_node(internal::meta_context::from(*ctx))}))
+           && insert_fn(const_cast<void *>(data), std::as_const(key).data(), std::as_const(value).data());
 }
 
 /**
@@ -1972,8 +1970,7 @@ inline bool meta_associative_container::insert(meta_any key, meta_any value = {}
  * @return A bool denoting whether the removal took place.
  */
 inline meta_associative_container::size_type meta_associative_container::erase(meta_any key) {
-    const bool valid_key = key.allow_cast(meta_type{*ctx, key_type_node(internal::meta_context::from(*ctx))});
-    return (valid_key && (storage.policy() != any_policy::cref)) ? erase_fn(storage.data(), std::as_const(key).data()) : 0u;
+    return (!const_only && key.allow_cast(meta_type{*ctx, key_type_node(internal::meta_context::from(*ctx))})) ? erase_fn(const_cast<void *>(data), std::as_const(key).data()) : 0u;
 }
 
 /**
@@ -1982,13 +1979,7 @@ inline meta_associative_container::size_type meta_associative_container::erase(m
  * @return An iterator to the element with the given key, if any.
  */
 [[nodiscard]] inline meta_associative_container::iterator meta_associative_container::find(meta_any key) {
-    iterator it{*ctx};
-
-    if(key.allow_cast(meta_type{*ctx, key_type_node(internal::meta_context::from(*ctx))})) {
-        find_fn(std::as_const(storage).data(), storage.policy() == any_policy::cref, std::as_const(key).data(), it);
-    }
-
-    return it;
+    return key.allow_cast(meta_type{*ctx, key_type_node(internal::meta_context::from(*ctx))}) ? find_fn(*ctx, const_only ? nullptr : const_cast<void *>(data), data, std::as_const(key).data()) : iterator{*ctx};
 }
 
 /**
@@ -1996,7 +1987,7 @@ inline meta_associative_container::size_type meta_associative_container::erase(m
  * @return False if the proxy is invalid, true otherwise.
  */
 [[nodiscard]] inline meta_associative_container::operator bool() const noexcept {
-    return static_cast<bool>(storage);
+    return (data != nullptr);
 }
 
 } // namespace entt

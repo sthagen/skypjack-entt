@@ -50,6 +50,7 @@ public:
     using reference = value_type;
     using difference_type = std::ptrdiff_t;
     using iterator_category = std::input_iterator_tag;
+    using iterator_concept = std::random_access_iterator_tag;
 
     constexpr registry_storage_iterator() noexcept
         : it{} {}
@@ -259,7 +260,7 @@ class basic_registry {
                 using storage_type = storage_for_type<Type>;
                 using alloc_type = typename storage_type::allocator_type;
 
-                if constexpr(std::is_void_v<void> && !std::is_constructible_v<alloc_type, allocator_type>) {
+                if constexpr(std::is_void_v<Type> && !std::is_constructible_v<alloc_type, allocator_type>) {
                     // std::allocator<void> has no cross constructors (waiting for C++20)
                     cpool = std::allocate_shared<storage_type>(get_allocator(), alloc_type{});
                 } else {

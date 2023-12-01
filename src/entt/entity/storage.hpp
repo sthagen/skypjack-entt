@@ -161,6 +161,7 @@ public:
     using pointer = input_iterator_pointer<value_type>;
     using reference = value_type;
     using iterator_category = std::input_iterator_tag;
+    using iterator_concept = std::forward_iterator_tag;
 
     constexpr extended_storage_iterator()
         : it{} {}
@@ -240,8 +241,6 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
     using underlying_type = basic_sparse_set<Entity, typename alloc_traits::template rebind_alloc<Entity>>;
     using underlying_iterator = typename underlying_type::basic_iterator;
 
-    static constexpr bool is_pinned_type_v = !(std::is_move_constructible_v<Type> && std::is_move_assignable_v<Type>);
-
     [[nodiscard]] auto &element_at(const std::size_t pos) const {
         return payload[pos / traits_type::page_size][fast_mod(pos, traits_type::page_size)];
     }
@@ -311,6 +310,7 @@ private:
     }
 
     void swap_or_move([[maybe_unused]] const std::size_t from, [[maybe_unused]] const std::size_t to) override {
+        static constexpr bool is_pinned_type_v = !(std::is_move_constructible_v<Type> && std::is_move_assignable_v<Type>);
         // use a runtime value to avoid compile-time suppression that drives the code coverage tool crazy
         ENTT_ASSERT((from + 1u) && !is_pinned_type_v, "Pinned type");
 
@@ -1009,7 +1009,7 @@ public:
      * @param allocator The allocator to use.
      */
     explicit basic_storage(const allocator_type &allocator)
-        : base_type{type_id<value_type>(), deletion_policy::swap_only, allocator} {}
+        : base_type{type_id<void>(), deletion_policy::swap_only, allocator} {}
 
     /**
      * @brief Move constructor.

@@ -13,9 +13,8 @@
 #include <entt/meta/meta.hpp>
 #include <entt/meta/resolve.hpp>
 #include "../common/config.h"
+#include "../common/empty.h"
 #include "../common/non_default_constructible.h"
-
-struct invalid {};
 
 TEST(MetaContainer, Invalid) {
     ASSERT_FALSE(entt::meta_any{42}.as_sequence_container());
@@ -90,7 +89,7 @@ TEST(SequenceContainer, StdVector) {
     auto ret = view.insert(it, 0);
 
     ASSERT_TRUE(ret);
-    ASSERT_FALSE(view.insert(ret, invalid{}));
+    ASSERT_FALSE(view.insert(ret, test::empty{}));
     ASSERT_TRUE(view.insert(++ret, 1.));
 
     ASSERT_EQ(view.size(), 5u);
@@ -150,7 +149,7 @@ TEST(SequenceContainer, StdVectorBool) {
     auto ret = view.insert(it, true);
 
     ASSERT_TRUE(ret);
-    ASSERT_FALSE(view.insert(ret, invalid{}));
+    ASSERT_FALSE(view.insert(ret, test::empty{}));
     ASSERT_TRUE(view.insert(++ret, false));
 
     ASSERT_EQ(view.size(), 5u);
@@ -236,7 +235,7 @@ TEST(SequenceContainer, StdList) {
     auto ret = view.insert(it, 0);
 
     ASSERT_TRUE(ret);
-    ASSERT_FALSE(view.insert(ret, invalid{}));
+    ASSERT_FALSE(view.insert(ret, test::empty{}));
     ASSERT_TRUE(view.insert(++ret, 1.));
 
     ASSERT_EQ(view.size(), 5u);
@@ -291,7 +290,7 @@ TEST(SequenceContainer, StdDeque) {
     auto ret = view.insert(it, 0);
 
     ASSERT_TRUE(ret);
-    ASSERT_FALSE(view.insert(ret, invalid{}));
+    ASSERT_FALSE(view.insert(ret, test::empty{}));
     ASSERT_TRUE(view.insert(++ret, 1.));
 
     ASSERT_EQ(view.size(), 5u);
@@ -377,35 +376,61 @@ ENTT_DEBUG_TEST(SequenceContainerDeathTest, Constness) {
     ASSERT_DEATH(view[0].cast<int &>() = 2, "");
 }
 
-TEST(SequenceContainer, AsConst) {
-    auto test = [](const entt::meta_any any) {
-        auto view = any.as_sequence_container();
-
-        ASSERT_TRUE(view);
-        ASSERT_EQ(view.value_type(), entt::resolve<int>());
-        ASSERT_EQ(view[0].cast<const int &>(), 42);
-    };
-
+TEST(SequenceContainer, FromConstAny) {
     std::vector<int> vec{42};
+    const entt::meta_any any{vec};
+    auto view = any.as_sequence_container();
 
-    test(vec);
-    test(entt::forward_as_meta(vec));
-    test(entt::forward_as_meta(std::as_const(vec)));
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), entt::resolve<int>());
+    ASSERT_EQ(view[0].cast<const int &>(), 42);
 }
 
-ENTT_DEBUG_TEST(SequenceContainerDeathTest, AsConst) {
-    auto test = [](const entt::meta_any any) {
-        auto view = any.as_sequence_container();
-
-        ASSERT_TRUE(view);
-        ASSERT_DEATH(view[0].cast<int &>() = 2, "");
-    };
-
+TEST(SequenceContainer, FromConstAnyRef) {
     std::vector<int> vec{42};
+    const entt::meta_any any = entt::forward_as_meta(vec);
+    auto view = any.as_sequence_container();
 
-    test(vec);
-    test(entt::forward_as_meta(vec));
-    test(entt::forward_as_meta(std::as_const(vec)));
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), entt::resolve<int>());
+    ASSERT_EQ(view[0].cast<const int &>(), 42);
+}
+
+TEST(SequenceContainer, FromConstAnyConstRef) {
+    std::vector<int> vec{42};
+    const entt::meta_any any = entt::forward_as_meta(std::as_const(vec));
+    auto view = any.as_sequence_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), entt::resolve<int>());
+    ASSERT_EQ(view[0].cast<const int &>(), 42);
+}
+
+ENTT_DEBUG_TEST(SequenceContainerDeathTest, FromConstAny) {
+    std::vector<int> vec{42};
+    const entt::meta_any any{vec};
+    auto view = any.as_sequence_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_DEATH(view[0].cast<int &>() = 2, "");
+}
+
+ENTT_DEBUG_TEST(SequenceContainerDeathTest, FromConstAnyRef) {
+    std::vector<int> vec{42};
+    const entt::meta_any any = entt::forward_as_meta(vec);
+    auto view = any.as_sequence_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_DEATH(view[0].cast<int &>() = 2, "");
+}
+
+ENTT_DEBUG_TEST(SequenceContainerDeathTest, FromConstAnyConstRef) {
+    std::vector<int> vec{42};
+    const entt::meta_any any = entt::forward_as_meta(std::as_const(vec));
+    auto view = any.as_sequence_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_DEATH(view[0].cast<int &>() = 2, "");
 }
 
 TEST(AssociativeContainer, Empty) {
@@ -462,8 +487,8 @@ TEST(AssociativeContainer, StdMap) {
 
     ASSERT_EQ(view.find(3)->second.cast<char>(), 'd');
 
-    ASSERT_FALSE(view.insert(invalid{}, 'a'));
-    ASSERT_FALSE(view.insert(1, invalid{}));
+    ASSERT_FALSE(view.insert(test::empty{}, 'a'));
+    ASSERT_FALSE(view.insert(1, test::empty{}));
 
     ASSERT_TRUE(view.insert(0, 'a'));
     ASSERT_TRUE(view.insert(1., static_cast<int>('b')));
@@ -472,8 +497,8 @@ TEST(AssociativeContainer, StdMap) {
     ASSERT_EQ(view.find(0)->second.cast<char>(), 'a');
     ASSERT_EQ(view.find(1.)->second.cast<char>(), 'b');
 
-    ASSERT_EQ(view.erase(invalid{}), 0u);
-    ASSERT_FALSE(view.find(invalid{}));
+    ASSERT_EQ(view.erase(test::empty{}), 0u);
+    ASSERT_FALSE(view.find(test::empty{}));
     ASSERT_EQ(view.size(), 5u);
 
     ASSERT_EQ(view.erase(0), 1u);
@@ -506,7 +531,7 @@ TEST(AssociativeContainer, StdSet) {
 
     ASSERT_EQ(view.find(3)->first.cast<int>(), 3);
 
-    ASSERT_FALSE(view.insert(invalid{}));
+    ASSERT_FALSE(view.insert(test::empty{}));
 
     ASSERT_TRUE(view.insert(.0));
     ASSERT_TRUE(view.insert(1));
@@ -515,8 +540,8 @@ TEST(AssociativeContainer, StdSet) {
     ASSERT_EQ(view.find(0)->first.cast<int>(), 0);
     ASSERT_EQ(view.find(1.)->first.cast<int>(), 1);
 
-    ASSERT_EQ(view.erase(invalid{}), 0u);
-    ASSERT_FALSE(view.find(invalid{}));
+    ASSERT_EQ(view.erase(test::empty{}), 0u);
+    ASSERT_FALSE(view.find(test::empty{}));
     ASSERT_EQ(view.size(), 5u);
 
     ASSERT_EQ(view.erase(0), 1u);
@@ -553,8 +578,8 @@ TEST(AssociativeContainer, DenseMap) {
 
     ASSERT_EQ(view.find(3)->second.cast<char>(), 'd');
 
-    ASSERT_FALSE(view.insert(invalid{}, 'a'));
-    ASSERT_FALSE(view.insert(1, invalid{}));
+    ASSERT_FALSE(view.insert(test::empty{}, 'a'));
+    ASSERT_FALSE(view.insert(1, test::empty{}));
 
     ASSERT_TRUE(view.insert(0, 'a'));
     ASSERT_TRUE(view.insert(1., static_cast<int>('b')));
@@ -563,8 +588,8 @@ TEST(AssociativeContainer, DenseMap) {
     ASSERT_EQ(view.find(0)->second.cast<char>(), 'a');
     ASSERT_EQ(view.find(1.)->second.cast<char>(), 'b');
 
-    ASSERT_EQ(view.erase(invalid{}), 0u);
-    ASSERT_FALSE(view.find(invalid{}));
+    ASSERT_EQ(view.erase(test::empty{}), 0u);
+    ASSERT_FALSE(view.find(test::empty{}));
     ASSERT_EQ(view.size(), 5u);
 
     ASSERT_EQ(view.erase(0), 1u);
@@ -601,7 +626,7 @@ TEST(AssociativeContainer, DenseSet) {
 
     ASSERT_EQ(view.find(3)->first.cast<int>(), 3);
 
-    ASSERT_FALSE(view.insert(invalid{}));
+    ASSERT_FALSE(view.insert(test::empty{}));
 
     ASSERT_TRUE(view.insert(.0));
     ASSERT_TRUE(view.insert(1));
@@ -610,8 +635,8 @@ TEST(AssociativeContainer, DenseSet) {
     ASSERT_EQ(view.find(0)->first.cast<int>(), 0);
     ASSERT_EQ(view.find(1.)->first.cast<int>(), 1);
 
-    ASSERT_EQ(view.erase(invalid{}), 0u);
-    ASSERT_FALSE(view.find(invalid{}));
+    ASSERT_EQ(view.erase(test::empty{}), 0u);
+    ASSERT_FALSE(view.find(test::empty{}));
     ASSERT_EQ(view.size(), 5u);
 
     ASSERT_EQ(view.erase(0), 1u);
@@ -709,53 +734,101 @@ TEST(KeyOnlyAssociativeContainer, Constness) {
     ASSERT_EQ(view.size(), 1u);
 }
 
-TEST(KeyValueAssociativeContainer, AsConst) {
-    auto test = [](const entt::meta_any any) {
-        auto view = any.as_associative_container();
-
-        ASSERT_TRUE(view);
-        ASSERT_EQ(view.value_type(), (entt::resolve<std::pair<const int, char>>()));
-        ASSERT_EQ(view.find(2)->second.cast<const char &>(), 'c');
-    };
-
+TEST(KeyValueAssociativeContainer, FromConstAny) {
     std::map<int, char> map{{2, 'c'}};
+    const entt::meta_any any{map};
+    auto view = any.as_associative_container();
 
-    test(map);
-    test(entt::forward_as_meta(map));
-    test(entt::forward_as_meta(std::as_const(map)));
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), (entt::resolve<std::pair<const int, char>>()));
+    ASSERT_EQ(view.find(2)->second.cast<const char &>(), 'c');
 }
 
-ENTT_DEBUG_TEST(KeyValueAssociativeContainerDeathTest, AsConst) {
-    auto test = [](const entt::meta_any any) {
-        auto view = any.as_associative_container();
-
-        ASSERT_TRUE(view);
-        ASSERT_DEATH(view.find(2)->second.cast<char &>() = 'a', "");
-    };
-
+TEST(KeyValueAssociativeContainer, FromConstAnyRef) {
     std::map<int, char> map{{2, 'c'}};
+    const entt::meta_any any = entt::forward_as_meta(map);
+    auto view = any.as_associative_container();
 
-    test(map);
-    test(entt::forward_as_meta(map));
-    test(entt::forward_as_meta(std::as_const(map)));
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), (entt::resolve<std::pair<const int, char>>()));
+    ASSERT_EQ(view.find(2)->second.cast<const char &>(), 'c');
 }
 
-TEST(KeyOnlyAssociativeContainer, AsConst) {
-    auto test = [](const entt::meta_any any) {
-        auto view = any.as_associative_container();
+TEST(KeyValueAssociativeContainer, FromConstAnyConstRef) {
+    std::map<int, char> map{{2, 'c'}};
+    const entt::meta_any any = entt::forward_as_meta(std::as_const(map));
+    auto view = any.as_associative_container();
 
-        ASSERT_TRUE(view);
-        ASSERT_EQ(view.value_type(), (entt::resolve<int>()));
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), (entt::resolve<std::pair<const int, char>>()));
+    ASSERT_EQ(view.find(2)->second.cast<const char &>(), 'c');
+}
 
-        ASSERT_EQ(view.find(2)->first.try_cast<int>(), nullptr);
-        ASSERT_NE(view.find(2)->first.try_cast<const int>(), nullptr);
-        ASSERT_EQ(view.find(2)->first.cast<int>(), 2);
-        ASSERT_EQ(view.find(2)->first.cast<const int &>(), 2);
-    };
+ENTT_DEBUG_TEST(KeyValueAssociativeContainerDeathTest, FromConstAny) {
+    std::map<int, char> map{{2, 'c'}};
+    const entt::meta_any any{map};
+    auto view = any.as_associative_container();
 
+    ASSERT_TRUE(view);
+    ASSERT_DEATH(view.find(2)->second.cast<char &>() = 'a', "");
+}
+
+ENTT_DEBUG_TEST(KeyValueAssociativeContainerDeathTest, FromConstAnyRef) {
+    std::map<int, char> map{{2, 'c'}};
+    const entt::meta_any any = entt::forward_as_meta(map);
+    auto view = any.as_associative_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_DEATH(view.find(2)->second.cast<char &>() = 'a', "");
+}
+
+ENTT_DEBUG_TEST(KeyValueAssociativeContainerDeathTest, FromConstAnyConstRef) {
+    std::map<int, char> map{{2, 'c'}};
+    const entt::meta_any any = entt::forward_as_meta(std::as_const(map));
+    auto view = any.as_associative_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_DEATH(view.find(2)->second.cast<char &>() = 'a', "");
+}
+
+TEST(KeyOnlyAssociativeContainer, FromConstAny) {
     std::set<int> set{2};
+    const entt::meta_any any{set};
+    auto view = any.as_associative_container();
 
-    test(set);
-    test(entt::forward_as_meta(set));
-    test(entt::forward_as_meta(std::as_const(set)));
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), (entt::resolve<int>()));
+
+    ASSERT_EQ(view.find(2)->first.try_cast<int>(), nullptr);
+    ASSERT_NE(view.find(2)->first.try_cast<const int>(), nullptr);
+    ASSERT_EQ(view.find(2)->first.cast<int>(), 2);
+    ASSERT_EQ(view.find(2)->first.cast<const int &>(), 2);
+}
+
+TEST(KeyOnlyAssociativeContainer, FromConstAnyRef) {
+    std::set<int> set{2};
+    const entt::meta_any any = entt::forward_as_meta(set);
+    auto view = any.as_associative_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), (entt::resolve<int>()));
+
+    ASSERT_EQ(view.find(2)->first.try_cast<int>(), nullptr);
+    ASSERT_NE(view.find(2)->first.try_cast<const int>(), nullptr);
+    ASSERT_EQ(view.find(2)->first.cast<int>(), 2);
+    ASSERT_EQ(view.find(2)->first.cast<const int &>(), 2);
+}
+
+TEST(KeyOnlyAssociativeContainer, FromConstAnyConstRef) {
+    std::set<int> set{2};
+    const entt::meta_any any = entt::forward_as_meta(std::as_const(set));
+    auto view = any.as_associative_container();
+
+    ASSERT_TRUE(view);
+    ASSERT_EQ(view.value_type(), (entt::resolve<int>()));
+
+    ASSERT_EQ(view.find(2)->first.try_cast<int>(), nullptr);
+    ASSERT_NE(view.find(2)->first.try_cast<const int>(), nullptr);
+    ASSERT_EQ(view.find(2)->first.cast<int>(), 2);
+    ASSERT_EQ(view.find(2)->first.cast<const int &>(), 2);
 }

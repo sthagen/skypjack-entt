@@ -16,7 +16,7 @@ namespace entt {
 
 namespace internal {
 
-// waiting for C++20 (and std::popcount)
+// waiting for C++20 and std::popcount
 template<typename Type>
 constexpr int popcount(Type value) noexcept {
     return value ? (int(value & 1) + popcount(value >> 1)) : 0;
@@ -114,7 +114,7 @@ public:
      * @return The integral representation of the version part.
      */
     [[nodiscard]] static constexpr version_type to_version(const value_type value) noexcept {
-        return static_cast<version_type>(to_integral(value) >> length);
+        return (static_cast<version_type>(to_integral(value) >> length) & version_mask);
     }
 
     /**
@@ -124,7 +124,7 @@ public:
      */
     [[nodiscard]] static constexpr value_type next(const value_type value) noexcept {
         const auto vers = to_version(value) + 1;
-        return construct(to_entity(value), static_cast<version_type>(vers + (vers == version_mask)));
+        return construct(to_integral(value), static_cast<version_type>(vers + (vers == version_mask)));
     }
 
     /**
@@ -138,7 +138,7 @@ public:
      * @return A properly constructed identifier.
      */
     [[nodiscard]] static constexpr value_type construct(const entity_type entity, const version_type version) noexcept {
-        return value_type{(entity & entity_mask) | (static_cast<entity_type>(version) << length)};
+        return value_type{(entity & entity_mask) | (static_cast<entity_type>(version & version_mask) << length)};
     }
 
     /**
@@ -152,8 +152,7 @@ public:
      * @return A properly constructed identifier.
      */
     [[nodiscard]] static constexpr value_type combine(const entity_type lhs, const entity_type rhs) noexcept {
-        constexpr auto mask = (version_mask << length);
-        return value_type{(lhs & entity_mask) | (rhs & mask)};
+        return value_type{(lhs & entity_mask) | (rhs & (version_mask << length))};
     }
 };
 

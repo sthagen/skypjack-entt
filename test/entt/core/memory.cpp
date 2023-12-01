@@ -85,16 +85,16 @@ TEST(FastMod, Functionalities) {
 
 TEST(AllocateUnique, Functionalities) {
     test::throwing_allocator<test::throwing_type> allocator{};
-    test::throwing_allocator<test::throwing_type>::trigger_on_allocate = true;
-    test::throwing_type::trigger_on_value = 0;
 
-    ASSERT_THROW((entt::allocate_unique<test::throwing_type>(allocator, 0)), test::throwing_allocator<test::throwing_type>::exception_type);
-    ASSERT_THROW((entt::allocate_unique<test::throwing_type>(allocator, test::throwing_type{0})), test::throwing_type::exception_type);
+    allocator.throw_counter<test::throwing_type>(0u);
 
-    std::unique_ptr<test::throwing_type, entt::allocation_deleter<test::throwing_allocator<test::throwing_type>>> ptr = entt::allocate_unique<test::throwing_type>(allocator, 42);
+    ASSERT_THROW((entt::allocate_unique<test::throwing_type>(allocator, false)), test::throwing_allocator_exception);
+    ASSERT_THROW((entt::allocate_unique<test::throwing_type>(allocator, test::throwing_type{true})), test::throwing_type_exception);
+
+    std::unique_ptr<test::throwing_type, entt::allocation_deleter<test::throwing_allocator<test::throwing_type>>> ptr = entt::allocate_unique<test::throwing_type>(allocator, false);
 
     ASSERT_TRUE(ptr);
-    ASSERT_EQ(*ptr, 42);
+    ASSERT_EQ(*ptr, false);
 
     ptr.reset();
 
@@ -201,9 +201,11 @@ TEST(UsesAllocatorConstructionArgs, PairRValueReference) {
 
 TEST(MakeObjUsingAllocator, Functionalities) {
     const auto size = 42u;
-    test::throwing_allocator<int>::trigger_on_allocate = true;
+    test::throwing_allocator<int> allocator{};
 
-    ASSERT_THROW((entt::make_obj_using_allocator<std::vector<int, test::throwing_allocator<int>>>(test::throwing_allocator<int>{}, size)), test::throwing_allocator<int>::exception_type);
+    allocator.throw_counter<int>(0u);
+
+    ASSERT_THROW((entt::make_obj_using_allocator<std::vector<int, test::throwing_allocator<int>>>(allocator, size)), test::throwing_allocator_exception);
 
     const auto vec = entt::make_obj_using_allocator<std::vector<int>>(std::allocator<int>{}, size);
 
@@ -221,6 +223,7 @@ TEST(UninitializedConstructUsingAllocator, NoUsesAllocatorConstruction) {
 }
 
 #if defined(ENTT_HAS_TRACKED_MEMORY_RESOURCE)
+#    include <memory_resource>
 
 TEST(UninitializedConstructUsingAllocator, UsesAllocatorConstruction) {
     using string_type = typename test::tracked_memory_resource::string_type;

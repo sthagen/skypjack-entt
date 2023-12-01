@@ -1,4 +1,5 @@
 #include <functional>
+#include <memory>
 #include <utility>
 #include <gtest/gtest.h>
 #include <entt/process/process.hpp>
@@ -26,7 +27,7 @@ struct succeeded_process: entt::process<succeeded_process, entt::scheduler::delt
         succeed();
     }
 
-    static inline unsigned int invoked;
+    inline static unsigned int invoked;
 };
 
 struct failed_process: entt::process<failed_process, entt::scheduler::delta_type> {
@@ -35,7 +36,7 @@ struct failed_process: entt::process<failed_process, entt::scheduler::delta_type
         fail();
     }
 
-    static inline unsigned int invoked;
+    inline static unsigned int invoked;
 };
 
 struct Scheduler: ::testing::Test {
@@ -47,9 +48,13 @@ struct Scheduler: ::testing::Test {
 
 TEST_F(Scheduler, Functionalities) {
     entt::scheduler scheduler{};
+    entt::scheduler other{};
 
     bool updated = false;
     bool aborted = false;
+
+    ASSERT_NO_FATAL_FAILURE(entt::scheduler{std::move(scheduler)});
+    ASSERT_NO_FATAL_FAILURE(scheduler = std::move(other));
 
     ASSERT_EQ(scheduler.size(), 0u);
     ASSERT_TRUE(scheduler.empty());
@@ -76,22 +81,48 @@ TEST_F(Scheduler, Functionalities) {
     ASSERT_TRUE(scheduler.empty());
 }
 
-TEST_F(Scheduler, Then) {
-    entt::scheduler scheduler;
+TEST_F(Scheduler, Swap) {
+    entt::scheduler scheduler{};
+    entt::scheduler other{};
+    int counter{};
 
-    // failing process with successor
-    scheduler.attach<succeeded_process>()
+    scheduler.attach([&counter](auto &&...) { ++counter; });
+
+    ASSERT_EQ(scheduler.size(), 1u);
+    ASSERT_EQ(other.size(), 0u);
+    ASSERT_EQ(counter, 0);
+
+    scheduler.update({});
+
+    ASSERT_EQ(counter, 1);
+
+    scheduler.swap(other);
+    scheduler.update({});
+
+    ASSERT_EQ(scheduler.size(), 0u);
+    ASSERT_EQ(other.size(), 1u);
+    ASSERT_EQ(counter, 1);
+
+    other.update({});
+
+    ASSERT_EQ(counter, 2);
+}
+
+TEST_F(Scheduler, Then) {
+    entt::scheduler scheduler{};
+
+    scheduler
+        // failing process with successor
+        .attach<succeeded_process>()
         .then<succeeded_process>()
         .then<failed_process>()
-        .then<succeeded_process>();
-
-    // failing process without successor
-    scheduler.attach<succeeded_process>()
         .then<succeeded_process>()
-        .then<failed_process>();
-
-    // non-failing process
-    scheduler.attach<succeeded_process>()
+        // failing process without successor
+        .attach<succeeded_process>()
+        .then<succeeded_process>()
+        .then<failed_process>()
+        // non-failing process
+        .attach<succeeded_process>()
         .then<succeeded_process>();
 
     ASSERT_EQ(succeeded_process::invoked, 0u);
@@ -106,7 +137,7 @@ TEST_F(Scheduler, Then) {
 }
 
 TEST_F(Scheduler, Functor) {
-    entt::scheduler scheduler;
+    entt::scheduler scheduler{};
 
     bool first_functor = false;
     bool second_functor = false;
@@ -135,7 +166,7 @@ TEST_F(Scheduler, Functor) {
 }
 
 TEST_F(Scheduler, SpawningProcess) {
-    entt::scheduler scheduler;
+    entt::scheduler scheduler{};
 
     scheduler.attach([&scheduler](auto, void *, auto resolve, auto) {
         scheduler.attach<succeeded_process>().then<failed_process>();
@@ -151,4 +182,17 @@ TEST_F(Scheduler, SpawningProcess) {
 
     ASSERT_EQ(succeeded_process::invoked, 1u);
     ASSERT_EQ(failed_process::invoked, 1u);
+}
+
+TEST_F(Scheduler, CustomAllocator) {
+    std::allocator<void> allocator{};
+    entt::scheduler scheduler{allocator};
+
+    ASSERT_EQ(scheduler.get_allocator(), allocator);
+    ASSERT_FALSE(scheduler.get_allocator() != allocator);
+
+    scheduler.attach([](auto &&...) {});
+    decltype(scheduler) other{std::move(scheduler), allocator};
+
+    ASSERT_EQ(other.size(), 1u);
 }

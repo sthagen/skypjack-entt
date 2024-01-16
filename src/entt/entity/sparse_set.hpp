@@ -17,11 +17,7 @@
 
 namespace entt {
 
-/**
- * @cond TURN_OFF_DOXYGEN
- * Internal details not to be documented.
- */
-
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
 template<typename Container>
@@ -137,11 +133,7 @@ template<typename Container>
 }
 
 } // namespace internal
-
-/**
- * Internal details not to be documented.
- * @endcond
- */
+/*! @endcond */
 
 /**
  * @brief Basic sparse set implementation.
@@ -195,9 +187,10 @@ class basic_sparse_set {
         }
 
         if(!sparse[page]) {
+            constexpr entity_type init = null;
             auto page_allocator{packed.get_allocator()};
             sparse[page] = alloc_traits::allocate(page_allocator, traits_type::page_size);
-            std::uninitialized_fill(sparse[page], sparse[page] + traits_type::page_size, null);
+            std::uninitialized_fill(sparse[page], sparse[page] + traits_type::page_size, init);
         }
 
         return sparse[page][fast_mod(pos, traits_type::page_size)];
@@ -761,7 +754,7 @@ public:
      * @param pos The position for which to return the entity.
      * @return The entity at specified location if any, a null entity otherwise.
      */
-    [[nodiscard]] entity_type at(const size_type pos) const noexcept {
+    [[deprecated("use .begin()[pos] instead")]] [[nodiscard]] entity_type at(const size_type pos) const noexcept {
         return pos < packed.size() ? packed[pos] : null;
     }
 

@@ -30,11 +30,7 @@
 
 namespace entt {
 
-/**
- * @cond TURN_OFF_DOXYGEN
- * Internal details not to be documented.
- */
-
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
 template<typename It>
@@ -226,11 +222,7 @@ private:
 };
 
 } // namespace internal
-
-/**
- * Internal details not to be documented.
- * @endcond
- */
+/*! @endcond */
 
 /**
  * @brief Fast and reliable entity-component system.
@@ -250,10 +242,11 @@ class basic_registry {
 
     template<typename Type>
     [[nodiscard]] auto &assure([[maybe_unused]] const id_type id = type_hash<Type>::value()) {
+        static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
+
         if constexpr(std::is_same_v<Type, entity_type>) {
             return entities;
         } else {
-            static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
             auto &cpool = pools[id];
 
             if(!cpool) {
@@ -277,11 +270,11 @@ class basic_registry {
 
     template<typename Type>
     [[nodiscard]] const auto *assure([[maybe_unused]] const id_type id = type_hash<Type>::value()) const {
+        static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
+
         if constexpr(std::is_same_v<Type, entity_type>) {
             return &entities;
         } else {
-            static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
-
             if(const auto it = pools.find(id); it != pools.cend()) {
                 ENTT_ASSERT(it->second->type() == type_id<Type>(), "Unexpected type");
                 return static_cast<const storage_for_type<Type> *>(it->second.get());
@@ -314,6 +307,10 @@ public:
     using common_type = base_type;
     /*! @brief Context type. */
     using context = internal::registry_context<allocator_type>;
+    /*! @brief Iterable registry type. */
+    using iterable = iterable_adaptor<internal::registry_storage_iterator<typename pool_container_type::iterator>>;
+    /*! @brief Constant iterable registry type. */
+    using const_iterable = iterable_adaptor<internal::registry_storage_iterator<typename pool_container_type::const_iterator>>;
 
     /**
      * @copybrief storage_for
@@ -407,12 +404,12 @@ public:
      *
      * @return An iterable object to use to _visit_ the registry.
      */
-    [[nodiscard]] auto storage() noexcept {
+    [[nodiscard]] iterable storage() noexcept {
         return iterable_adaptor{internal::registry_storage_iterator{pools.begin()}, internal::registry_storage_iterator{pools.end()}};
     }
 
     /*! @copydoc storage */
-    [[nodiscard]] auto storage() const noexcept {
+    [[nodiscard]] const_iterable storage() const noexcept {
         return iterable_adaptor{internal::registry_storage_iterator{pools.cbegin()}, internal::registry_storage_iterator{pools.cend()}};
     }
 
@@ -559,11 +556,13 @@ public:
      */
     template<typename It>
     void destroy(It first, It last) {
-        const auto from = entities.each().cbegin().base();
-        const auto to = from + entities.pack(first, last);
+        entities.sort_as(first, last);
 
-        for(size_type pos = pools.size(); pos; --pos) {
-            pools.begin()[pos - 1u].second->remove(from, to);
+        const auto from = entities.cbegin(0);
+        const auto to = from + std::distance(first, last);
+
+        for(auto &&curr: pools) {
+            curr.second->remove(from, to);
         }
 
         entities.erase(from, to);
@@ -947,8 +946,8 @@ public:
                 pools.begin()[pos - 1u].second->clear();
             }
 
-            const auto iterable = entities.each();
-            entities.erase(iterable.begin().base(), iterable.end().base());
+            const auto elem = entities.each();
+            entities.erase(elem.begin().base(), elem.end().base());
         } else {
             (assure<Type>().clear(), ...);
         }

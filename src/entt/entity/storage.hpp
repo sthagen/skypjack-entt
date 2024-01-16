@@ -19,11 +19,7 @@
 
 namespace entt {
 
-/**
- * @cond TURN_OFF_DOXYGEN
- * Internal details not to be documented.
- */
-
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
 template<typename Container, std::size_t Size>
@@ -212,11 +208,7 @@ template<typename... Lhs, typename... Rhs>
 }
 
 } // namespace internal
-
-/**
- * Internal details not to be documented.
- * @endcond
- */
+/*! @endcond */
 
 /**
  * @brief Basic storage implementation.
@@ -289,7 +281,7 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
 
         for(auto pos = sz, length = base_type::size(); pos < length; ++pos) {
             if constexpr(traits_type::in_place_delete) {
-                if(base_type::at(pos) != tombstone) {
+                if(base_type::data()[pos] != tombstone) {
                     alloc_traits::destroy(allocator, std::addressof(element_at(pos)));
                 }
             } else {
@@ -1070,7 +1062,7 @@ public:
      */
     entity_type emplace() {
         const auto len = base_type::free_list();
-        const auto entt = (len == base_type::size()) ? entity_at(len) : base_type::at(len);
+        const auto entt = (len == base_type::size()) ? entity_at(len) : base_type::data()[len];
         return *base_type::try_emplace(entt, true);
     }
 
@@ -1123,7 +1115,7 @@ public:
     template<typename It>
     void insert(It first, It last) {
         for(const auto sz = base_type::size(); first != last && base_type::free_list() != sz; ++first) {
-            *first = *base_type::try_emplace(base_type::at(base_type::free_list()), true);
+            *first = *base_type::try_emplace(base_type::data()[base_type::free_list()], true);
         }
 
         for(; first != last; ++first) {

@@ -7,7 +7,7 @@
 
 struct foo_process: entt::process<foo_process, entt::scheduler::delta_type> {
     foo_process(std::function<void()> upd, std::function<void()> abort)
-        : on_update{upd}, on_aborted{abort} {}
+        : on_update{std::move(upd)}, on_aborted{std::move(abort)} {}
 
     void update(delta_type, void *) {
         on_update();
@@ -27,7 +27,7 @@ struct succeeded_process: entt::process<succeeded_process, entt::scheduler::delt
         succeed();
     }
 
-    inline static unsigned int invoked;
+    inline static unsigned int invoked; // NOLINT
 };
 
 struct failed_process: entt::process<failed_process, entt::scheduler::delta_type> {
@@ -36,7 +36,7 @@ struct failed_process: entt::process<failed_process, entt::scheduler::delta_type
         fail();
     }
 
-    inline static unsigned int invoked;
+    inline static unsigned int invoked; // NOLINT
 };
 
 struct Scheduler: ::testing::Test {
@@ -48,13 +48,12 @@ struct Scheduler: ::testing::Test {
 
 TEST_F(Scheduler, Functionalities) {
     entt::scheduler scheduler{};
-    entt::scheduler other{};
+    entt::scheduler other{std::move(scheduler)};
+
+    scheduler = std::move(other);
 
     bool updated = false;
     bool aborted = false;
-
-    ASSERT_NO_FATAL_FAILURE(entt::scheduler{std::move(scheduler)});
-    ASSERT_NO_FATAL_FAILURE(scheduler = std::move(other));
 
     ASSERT_EQ(scheduler.size(), 0u);
     ASSERT_TRUE(scheduler.empty());
@@ -185,14 +184,14 @@ TEST_F(Scheduler, SpawningProcess) {
 }
 
 TEST_F(Scheduler, CustomAllocator) {
-    std::allocator<void> allocator{};
+    const std::allocator<void> allocator{};
     entt::scheduler scheduler{allocator};
 
     ASSERT_EQ(scheduler.get_allocator(), allocator);
     ASSERT_FALSE(scheduler.get_allocator() != allocator);
 
     scheduler.attach([](auto &&...) {});
-    decltype(scheduler) other{std::move(scheduler), allocator};
+    const decltype(scheduler) other{std::move(scheduler), allocator};
 
     ASSERT_EQ(other.size(), 1u);
 }

@@ -21,35 +21,27 @@ struct base_t {
         ++counter;
     }
 
-    inline static int counter = 0;
+    inline static int counter = 0; // NOLINT
     int value{3};
 };
 
 struct derived_t: base_t {
-    derived_t() {}
+    derived_t() = default;
 };
 
 struct clazz_t {
-    clazz_t()
-        : i{0},
-          j{1},
-          base{} {}
-
     operator int() const {
         return h;
     }
 
     int i{0};
-    const int j{1};
+    const int j{1}; // NOLINT
     base_t base{};
-    inline static int h{2};
-    inline static const int k{3};
+    inline static int h{2};       // NOLINT
+    inline static const int k{3}; // NOLINT
 };
 
 struct setter_getter_t {
-    setter_getter_t()
-        : value{0} {}
-
     int setter(double val) {
         return value = static_cast<int>(val);
     }
@@ -74,13 +66,10 @@ struct setter_getter_t {
         return type.value;
     }
 
-    int value;
+    int value{0};
 };
 
 struct multi_setter_t {
-    multi_setter_t()
-        : value{0} {}
-
     void from_double(double val) {
         value = static_cast<int>(val);
     }
@@ -89,12 +78,12 @@ struct multi_setter_t {
         value = std::atoi(val);
     }
 
-    int value;
+    int value{0};
 };
 
 struct array_t {
-    inline static int global[3];
-    int local[5];
+    inline static int global[3]; // NOLINT
+    int local[5];                // NOLINT
 };
 
 enum class property_t : entt::id_type {
@@ -288,7 +277,7 @@ TEST_F(MetaData, GetMetaAnyArg) {
     using namespace entt::literals;
 
     entt::meta_any any{clazz_t{}};
-    any.cast<clazz_t &>().i = 99;
+    any.cast<clazz_t &>().i = 99; // NOLINT
     const auto value = entt::resolve<clazz_t>().data("i"_hs).get(any);
 
     ASSERT_TRUE(value);
@@ -307,7 +296,7 @@ TEST_F(MetaData, SetMetaAnyArg) {
     using namespace entt::literals;
 
     entt::meta_any any{clazz_t{}};
-    entt::meta_any value{42};
+    const entt::meta_any value{42};
 
     ASSERT_EQ(any.cast<clazz_t>().i, 0);
     ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, value));
@@ -334,7 +323,7 @@ TEST_F(MetaData, SetConvert) {
     using namespace entt::literals;
 
     clazz_t instance{};
-    instance.h = 42;
+    instance.h = 42; // NOLINT
 
     ASSERT_EQ(instance.i, 0);
     ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(instance, instance));
@@ -345,7 +334,7 @@ TEST_F(MetaData, SetByRef) {
     using namespace entt::literals;
 
     entt::meta_any any{clazz_t{}};
-    int value{42};
+    int value{42}; // NOLINT
 
     ASSERT_EQ(any.cast<clazz_t>().i, 0);
     ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, entt::forward_as_meta(value)));
@@ -362,7 +351,7 @@ TEST_F(MetaData, SetByConstRef) {
     using namespace entt::literals;
 
     entt::meta_any any{clazz_t{}};
-    int value{42};
+    int value{42}; // NOLINT
 
     ASSERT_EQ(any.cast<clazz_t>().i, 0);
     ASSERT_TRUE(entt::resolve<clazz_t>().data("i"_hs).set(any, entt::forward_as_meta(std::as_const(value))));
@@ -537,8 +526,8 @@ TEST_F(MetaData, ArrayStatic) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.arity(), 1u);
-    ASSERT_EQ(data.type(), entt::resolve<int[3]>());
-    ASSERT_EQ(data.arg(0u), entt::resolve<int[3]>());
+    ASSERT_EQ(data.type(), entt::resolve<int[3]>());  // NOLINT
+    ASSERT_EQ(data.arg(0u), entt::resolve<int[3]>()); // NOLINT
     ASSERT_FALSE(data.is_const());
     ASSERT_TRUE(data.is_static());
     ASSERT_TRUE(data.type().is_array());
@@ -553,8 +542,8 @@ TEST_F(MetaData, Array) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.arity(), 1u);
-    ASSERT_EQ(data.type(), entt::resolve<int[5]>());
-    ASSERT_EQ(data.arg(0u), entt::resolve<int[5]>());
+    ASSERT_EQ(data.type(), entt::resolve<int[5]>());  // NOLINT
+    ASSERT_EQ(data.arg(0u), entt::resolve<int[5]>()); // NOLINT
     ASSERT_FALSE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_TRUE(data.type().is_array());
@@ -675,8 +664,8 @@ TEST_F(MetaData, CollisionAndReuse) {
     ASSERT_FALSE(entt::resolve<clazz_t>().data("cj"_hs));
     ASSERT_TRUE(entt::resolve<clazz_t>().data("j"_hs).is_const());
 
-    ASSERT_NO_FATAL_FAILURE(entt::meta<clazz_t>().data<&clazz_t::i>("j"_hs));
-    ASSERT_NO_FATAL_FAILURE(entt::meta<clazz_t>().data<&clazz_t::j>("cj"_hs));
+    ASSERT_NO_THROW(entt::meta<clazz_t>().data<&clazz_t::i>("j"_hs));
+    ASSERT_NO_THROW(entt::meta<clazz_t>().data<&clazz_t::j>("cj"_hs));
 
     ASSERT_TRUE(entt::resolve<clazz_t>().data("j"_hs));
     ASSERT_TRUE(entt::resolve<clazz_t>().data("cj"_hs));

@@ -19,7 +19,7 @@ TEST(DenseSet, Functionalities) {
     entt::dense_set<int, entt::identity, test::transparent_equal_to> set;
     const auto &cset = set;
 
-    ASSERT_NO_FATAL_FAILURE([[maybe_unused]] auto alloc = set.get_allocator());
+    ASSERT_NO_THROW([[maybe_unused]] auto alloc = set.get_allocator());
 
     ASSERT_TRUE(set.empty());
     ASSERT_EQ(set.size(), 0u);
@@ -101,7 +101,7 @@ TEST(DenseSet, Constructors) {
     set.emplace(3);
 
     entt::dense_set<int> temp{set, set.get_allocator()};
-    entt::dense_set<int> other{std::move(temp), set.get_allocator()};
+    const entt::dense_set<int> other{std::move(temp), set.get_allocator()};
 
     ASSERT_EQ(set.size(), 1u);
     ASSERT_EQ(other.size(), 1u);
@@ -121,7 +121,7 @@ TEST(DenseSet, Copy) {
     ASSERT_EQ(set.max_load_factor(), other.max_load_factor());
 
     set.emplace(1u);
-    set.emplace(11u);
+    set.emplace(11u); // NOLINT
     other.emplace(0u);
     other = set;
 
@@ -144,17 +144,17 @@ TEST(DenseSet, Move) {
 
     entt::dense_set<std::size_t, entt::identity> other{std::move(set)};
 
-    ASSERT_EQ(set.size(), 0u);
+    ASSERT_EQ(set.size(), 0u); // NOLINT
     ASSERT_TRUE(other.contains(3u));
     ASSERT_EQ(set.max_load_factor(), other.max_load_factor());
 
     set = other;
     set.emplace(1u);
-    set.emplace(11u);
+    set.emplace(11u); // NOLINT
     other.emplace(0u);
     other = std::move(set);
 
-    ASSERT_EQ(set.size(), 0u);
+    ASSERT_EQ(set.size(), 0u); // NOLINT
     ASSERT_TRUE(other.contains(3u));
     ASSERT_TRUE(other.contains(1u));
     ASSERT_TRUE(other.contains(11u));
@@ -211,11 +211,11 @@ TEST(DenseSet, Iterator) {
     ASSERT_GT(end, begin);
     ASSERT_GE(end, set.end());
 
-    set.emplace(42);
+    set.emplace(1);
     begin = set.begin();
 
     ASSERT_EQ(begin[0u], 3);
-    ASSERT_EQ(begin[1u], 42);
+    ASSERT_EQ(begin[1u], 1);
 }
 
 TEST(DenseSet, ConstIterator) {
@@ -264,11 +264,11 @@ TEST(DenseSet, ConstIterator) {
     ASSERT_GT(cend, cbegin);
     ASSERT_GE(cend, set.cend());
 
-    set.emplace(42);
+    set.emplace(1);
     cbegin = set.cbegin();
 
     ASSERT_EQ(cbegin[0u], 3);
-    ASSERT_EQ(cbegin[1u], 42);
+    ASSERT_EQ(cbegin[1u], 1);
 }
 
 TEST(DenseSet, ReverseIterator) {
@@ -317,10 +317,10 @@ TEST(DenseSet, ReverseIterator) {
     ASSERT_GT(end, begin);
     ASSERT_GE(end, set.rend());
 
-    set.emplace(42);
+    set.emplace(1);
     begin = set.rbegin();
 
-    ASSERT_EQ(begin[0u], 42);
+    ASSERT_EQ(begin[0u], 1);
     ASSERT_EQ(begin[1u], 3);
 }
 
@@ -370,10 +370,10 @@ TEST(DenseSet, ConstReverseIterator) {
     ASSERT_GT(cend, cbegin);
     ASSERT_GE(cend, set.crend());
 
-    set.emplace(42);
+    set.emplace(1);
     cbegin = set.crbegin();
 
-    ASSERT_EQ(cbegin[0u], 42);
+    ASSERT_EQ(cbegin[0u], 1);
     ASSERT_EQ(cbegin[1u], 3);
 }
 
@@ -381,7 +381,7 @@ TEST(DenseSet, IteratorConversion) {
     entt::dense_set<int> set;
     set.emplace(3);
 
-    typename entt::dense_set<int, int>::iterator it = set.begin();
+    const typename entt::dense_set<int, int>::iterator it = set.begin();
     typename entt::dense_set<int, int>::const_iterator cit = it;
 
     testing::StaticAssertTypeEq<decltype(*it), const int &>();
@@ -405,7 +405,7 @@ TEST(DenseSet, IteratorConversion) {
 TEST(DenseSet, Insert) {
     entt::dense_set<int> set;
     typename entt::dense_set<int>::iterator it;
-    bool result;
+    bool result{};
 
     ASSERT_TRUE(set.empty());
     ASSERT_EQ(set.size(), 0u);
@@ -445,7 +445,7 @@ TEST(DenseSet, Insert) {
     ASSERT_EQ(it, --set.end());
     ASSERT_EQ(*it, 3);
 
-    int range[2u]{7, 9};
+    int range[2u]{7, 9}; // NOLINT
     set.insert(std::begin(range), std::end(range));
 
     ASSERT_EQ(set.size(), 4u);
@@ -507,7 +507,7 @@ TEST(DenseSet, InsertSameBucket) {
 TEST(DenseSet, Emplace) {
     entt::dense_set<int> set;
     typename entt::dense_set<int>::iterator it;
-    bool result;
+    bool result{};
 
     ASSERT_TRUE(set.empty());
     ASSERT_EQ(set.size(), 0u);
@@ -629,7 +629,7 @@ TEST(DenseSet, Erase) {
     ASSERT_EQ(*--set.end(), 5u);
 
     for(std::size_t next{}, last = minimum_bucket_count + 1u; next < last; ++next) {
-        if(next == 1u || next == 8u || next == 6u) {
+        if(next == 1u || next == 8u || next == 6u) { // NOLINT
             ASSERT_FALSE(set.contains(next));
             ASSERT_EQ(set.bucket_size(next), 0u);
         } else {
@@ -712,7 +712,7 @@ TEST(DenseSet, EraseFromBucket) {
 
     set.erase(*++set.begin(0u));
     set.erase(*++set.begin(2u));
-    set.erase(*++set.begin(15u));
+    set.erase(*++set.begin(15u)); // NOLINT
 
     ASSERT_EQ(set.bucket_count(), 2u * minimum_bucket_count);
     ASSERT_EQ(set.size(), 6u);
@@ -725,8 +725,8 @@ TEST(DenseSet, EraseFromBucket) {
     ASSERT_FALSE(set.contains(2u * minimum_bucket_count * 1u + 2u));
     ASSERT_FALSE(set.contains(2u * minimum_bucket_count * (1u + 1u) - 1u));
 
-    while(set.begin(15) != set.end(15u)) {
-        set.erase(*set.begin(15));
+    while(set.begin(15) != set.end(15u)) { // NOLINT
+        set.erase(*set.begin(15));         // NOLINT
     }
 
     ASSERT_EQ(set.bucket_count(), 2u * minimum_bucket_count);
@@ -780,7 +780,7 @@ TEST(DenseSet, EqualRange) {
     entt::dense_set<int, entt::identity, test::transparent_equal_to> set;
     const auto &cset = set;
 
-    set.emplace(42);
+    set.emplace(1);
 
     ASSERT_EQ(set.equal_range(0).first, set.end());
     ASSERT_EQ(set.equal_range(0).second, set.end());
@@ -794,21 +794,21 @@ TEST(DenseSet, EqualRange) {
     ASSERT_EQ(cset.equal_range(0.0).first, cset.cend());
     ASSERT_EQ(cset.equal_range(0.0).second, cset.cend());
 
-    ASSERT_NE(set.equal_range(42).first, set.end());
-    ASSERT_EQ(*set.equal_range(42).first, 42);
-    ASSERT_EQ(set.equal_range(42).second, set.end());
+    ASSERT_NE(set.equal_range(1).first, set.end());
+    ASSERT_EQ(*set.equal_range(1).first, 1);
+    ASSERT_EQ(set.equal_range(1).second, set.end());
 
-    ASSERT_NE(cset.equal_range(42).first, cset.cend());
-    ASSERT_EQ(*cset.equal_range(42).first, 42);
-    ASSERT_EQ(cset.equal_range(42).second, cset.cend());
+    ASSERT_NE(cset.equal_range(1).first, cset.cend());
+    ASSERT_EQ(*cset.equal_range(1).first, 1);
+    ASSERT_EQ(cset.equal_range(1).second, cset.cend());
 
-    ASSERT_NE(set.equal_range(42.0).first, set.end());
-    ASSERT_EQ(*set.equal_range(42.0).first, 42);
-    ASSERT_EQ(set.equal_range(42.0).second, set.end());
+    ASSERT_NE(set.equal_range(1.0).first, set.end());
+    ASSERT_EQ(*set.equal_range(1.0).first, 1);
+    ASSERT_EQ(set.equal_range(1.0).second, set.end());
 
-    ASSERT_NE(cset.equal_range(42.0).first, cset.cend());
-    ASSERT_EQ(*cset.equal_range(42.0).first, 42);
-    ASSERT_EQ(cset.equal_range(42.0).second, cset.cend());
+    ASSERT_NE(cset.equal_range(1.0).first, cset.cend());
+    ASSERT_EQ(*cset.equal_range(1.0).first, 1);
+    ASSERT_EQ(cset.equal_range(1.0).second, cset.cend());
 }
 
 TEST(DenseSet, LocalIterator) {
@@ -871,7 +871,7 @@ TEST(DenseSet, LocalIteratorConversion) {
     entt::dense_set<int> set;
     set.emplace(3);
 
-    typename entt::dense_set<int>::local_iterator it = set.begin(set.bucket(3));
+    const typename entt::dense_set<int>::local_iterator it = set.begin(set.bucket(3));
     typename entt::dense_set<int>::const_local_iterator cit = it;
 
     testing::StaticAssertTypeEq<decltype(*it), const int &>();
@@ -895,13 +895,13 @@ TEST(DenseSet, Rehash) {
     ASSERT_TRUE(set.contains(32u));
     ASSERT_EQ(set.bucket(32u), 0u);
 
-    set.rehash(12u);
+    set.rehash(12u); // NOLINT
 
     ASSERT_EQ(set.bucket_count(), 2u * minimum_bucket_count);
     ASSERT_TRUE(set.contains(32u));
     ASSERT_EQ(set.bucket(32u), 0u);
 
-    set.rehash(44u);
+    set.rehash(44u); // NOLINT
 
     ASSERT_EQ(set.bucket_count(), 8u * minimum_bucket_count);
     ASSERT_TRUE(set.contains(32u));
@@ -925,7 +925,7 @@ TEST(DenseSet, Rehash) {
     ASSERT_EQ(set.bucket_count(), 2u * minimum_bucket_count);
     ASSERT_TRUE(set.contains(32u));
 
-    set.rehash(55u);
+    set.rehash(55u); // NOLINT
 
     ASSERT_EQ(set.bucket_count(), 8u * minimum_bucket_count);
     ASSERT_TRUE(set.contains(32u));
@@ -980,7 +980,7 @@ TEST(DenseSet, Reserve) {
 TEST(DenseSet, ThrowingAllocator) {
     constexpr std::size_t minimum_bucket_count = 8u;
     using allocator = test::throwing_allocator<std::size_t>;
-    entt::dense_set<std::size_t, std::hash<std::size_t>, std::equal_to<std::size_t>, allocator> set{};
+    entt::dense_set<std::size_t, std::hash<std::size_t>, std::equal_to<>, allocator> set{};
 
     set.get_allocator().throw_counter<std::pair<std::size_t, std::size_t>>(0u);
 
@@ -1011,7 +1011,7 @@ TEST(DenseSet, NoUsesAllocatorConstruction) {
     using allocator = std::pmr::polymorphic_allocator<int>;
 
     test::tracked_memory_resource memory_resource{};
-    entt::dense_set<int, std::hash<int>, std::equal_to<int>, allocator> set{&memory_resource};
+    entt::dense_set<int, std::hash<int>, std::equal_to<>, allocator> set{&memory_resource};
 
     set.reserve(1u);
     memory_resource.reset();
@@ -1027,7 +1027,7 @@ TEST(DenseSet, UsesAllocatorConstruction) {
     using allocator = std::pmr::polymorphic_allocator<string_type>;
 
     test::tracked_memory_resource memory_resource{};
-    entt::dense_set<string_type, std::hash<string_type>, std::equal_to<string_type>, allocator> set{&memory_resource};
+    entt::dense_set<string_type, std::hash<string_type>, std::equal_to<>, allocator> set{&memory_resource};
 
     set.reserve(1u);
     memory_resource.reset();

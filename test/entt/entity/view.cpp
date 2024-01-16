@@ -25,10 +25,10 @@ TEST(SingleComponentView, Functionalities) {
 
     registry.emplace<char>(e1);
 
-    ASSERT_NO_FATAL_FAILURE(view.begin()++);
-    ASSERT_NO_FATAL_FAILURE(++cview.begin());
-    ASSERT_NO_FATAL_FAILURE([](auto it) { return it++; }(view.rbegin()));
-    ASSERT_NO_FATAL_FAILURE([](auto it) { return ++it; }(cview.rbegin()));
+    ASSERT_NO_THROW(view.begin()++);
+    ASSERT_NO_THROW(++cview.begin());
+    ASSERT_NO_THROW([](auto it) { return it++; }(view.rbegin()));
+    ASSERT_NO_THROW([](auto it) { return ++it; }(cview.rbegin()));
 
     ASSERT_NE(view.begin(), view.end());
     ASSERT_NE(cview.begin(), cview.end());
@@ -61,7 +61,7 @@ TEST(SingleComponentView, Functionalities) {
     ASSERT_EQ(view.rbegin(), view.rend());
     ASSERT_TRUE(view.empty());
 
-    decltype(view) invalid{};
+    const decltype(view) invalid{};
 
     ASSERT_TRUE(view);
     ASSERT_TRUE(cview);
@@ -107,9 +107,9 @@ TEST(SingleComponentView, InvalidView) {
 TEST(SingleComponentView, Constructors) {
     entt::storage<int> storage{};
 
-    entt::view<entt::get_t<int>> invalid{};
-    entt::basic_view from_storage{storage};
-    entt::basic_view from_tuple{std::forward_as_tuple(storage)};
+    const entt::view<entt::get_t<int>> invalid{};
+    const entt::basic_view from_storage{storage};
+    const entt::basic_view from_tuple{std::forward_as_tuple(storage)};
 
     ASSERT_FALSE(invalid);
     ASSERT_TRUE(from_storage);
@@ -168,14 +168,14 @@ TEST(SingleComponentView, ElementAccess) {
     auto cview = std::as_const(registry).view<const int>();
 
     const auto e0 = registry.create();
-    registry.emplace<int>(e0, 42);
+    registry.emplace<int>(e0, 42); // NOLINT
 
     const auto e1 = registry.create();
     registry.emplace<int>(e1, 3);
 
     for(auto i = 0u; i < view.size(); ++i) {
-        ASSERT_EQ(view[i], i ? e0 : e1);
-        ASSERT_EQ(cview[i], i ? e0 : e1);
+        ASSERT_EQ(view[i], i ? e0 : e1);  // NOLINT
+        ASSERT_EQ(cview[i], i ? e0 : e1); // NOLINT
     }
 
     ASSERT_EQ(view[e0], 42);
@@ -210,7 +210,7 @@ TEST(SingleComponentView, Empty) {
 
 TEST(SingleComponentView, Each) {
     entt::registry registry;
-    entt::entity entity[2]{registry.create(), registry.create()};
+    const entt::entity entity[2]{registry.create(), registry.create()}; // NOLINT
 
     auto view = registry.view<int>(entt::exclude<double>);
     auto cview = std::as_const(registry).view<const int>();
@@ -222,7 +222,7 @@ TEST(SingleComponentView, Each) {
     auto citerable = cview.each();
 
     ASSERT_NE(citerable.begin(), citerable.end());
-    ASSERT_NO_FATAL_FAILURE(iterable.begin()->operator=(*iterable.begin()));
+    ASSERT_NO_THROW(iterable.begin()->operator=(*iterable.begin()));
     ASSERT_EQ(decltype(iterable.end()){}, iterable.end());
 
     auto it = iterable.begin();
@@ -418,9 +418,8 @@ TEST(SingleComponentView, FrontBack) {
 }
 
 TEST(SingleComponentView, DeductionGuide) {
-    entt::registry registry;
-    entt::storage_type_t<int> istorage;
-    entt::storage_type_t<test::pointer_stable> sstorage;
+    entt::storage_type_t<int> istorage;                  // NOLINT
+    entt::storage_type_t<test::pointer_stable> sstorage; // NOLINT
 
     testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<entt::storage_type_t<int>>, entt::exclude_t<>>, decltype(entt::basic_view{istorage})>();
     testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<const entt::storage_type_t<int>>, entt::exclude_t<>>, decltype(entt::basic_view{std::as_const(istorage)})>();
@@ -610,7 +609,7 @@ TEST(MultiComponentView, Functionalities) {
     registry.emplace<char>(e0, '1');
 
     const auto e1 = registry.create();
-    registry.emplace<int>(e1, 42);
+    registry.emplace<int>(e1, 42); // NOLINT
     registry.emplace<char>(e1, '2');
 
     ASSERT_EQ(*view.begin(), e1);
@@ -618,8 +617,8 @@ TEST(MultiComponentView, Functionalities) {
     ASSERT_EQ(++view.begin(), (view.end()));
     ASSERT_EQ(++cview.begin(), (cview.end()));
 
-    ASSERT_NO_FATAL_FAILURE((view.begin()++));
-    ASSERT_NO_FATAL_FAILURE((++cview.begin()));
+    ASSERT_NO_THROW((view.begin()++));
+    ASSERT_NO_THROW((++cview.begin()));
 
     ASSERT_NE(view.begin(), view.end());
     ASSERT_NE(cview.begin(), cview.end());
@@ -636,7 +635,7 @@ TEST(MultiComponentView, Functionalities) {
         ASSERT_EQ(cview.get<1u>(entity), '2');
     }
 
-    decltype(view) invalid{};
+    const decltype(view) invalid{};
 
     ASSERT_TRUE(view);
     ASSERT_TRUE(cview);
@@ -686,9 +685,9 @@ TEST(MultiComponentView, InvalidView) {
 TEST(MultiComponentView, Constructors) {
     entt::storage<int> storage{};
 
-    entt::view<entt::get_t<int, int>> invalid{};
-    entt::basic_view from_storage{storage, storage};
-    entt::basic_view from_tuple{std::forward_as_tuple(storage, storage)};
+    const entt::view<entt::get_t<int, int>> invalid{};
+    const entt::basic_view from_storage{storage, storage};
+    const entt::basic_view from_tuple{std::forward_as_tuple(storage, storage)};
 
     ASSERT_FALSE(invalid);
     ASSERT_TRUE(from_storage);
@@ -773,7 +772,7 @@ TEST(MultiComponentView, LazyExcludedTypeFromConstRegistry) {
 
 TEST(MultiComponentView, Iterator) {
     entt::registry registry;
-    const entt::entity entity[2]{registry.create(), registry.create()};
+    const entt::entity entity[2]{registry.create(), registry.create()}; // NOLINT
 
     registry.insert<int>(std::begin(entity), std::end(entity));
     registry.insert<char>(std::begin(entity), std::end(entity));
@@ -805,7 +804,7 @@ TEST(MultiComponentView, ElementAccess) {
     auto cview = std::as_const(registry).view<const int, const char>();
 
     const auto e0 = registry.create();
-    registry.emplace<int>(e0, 42);
+    registry.emplace<int>(e0, 42); // NOLINT
     registry.emplace<char>(e0, '0');
 
     const auto e1 = registry.create();
@@ -854,7 +853,7 @@ TEST(MultiComponentView, SizeHint) {
 
 TEST(MultiComponentView, UseAndRefresh) {
     entt::registry registry;
-    entt::entity entity[3]{registry.create(), registry.create(), registry.create()};
+    const entt::entity entity[3]{registry.create(), registry.create(), registry.create()}; // NOLINT
 
     registry.emplace<int>(entity[0u]);
     registry.emplace<int>(entity[1u]);
@@ -884,7 +883,7 @@ TEST(MultiComponentView, UseAndRefresh) {
 
 TEST(MultiComponentView, Each) {
     entt::registry registry;
-    entt::entity entity[2]{registry.create(), registry.create()};
+    const entt::entity entity[2]{registry.create(), registry.create()}; // NOLINT
 
     auto view = registry.view<int, char>(entt::exclude<double>);
     auto cview = std::as_const(registry).view<const int, const char>();
@@ -899,7 +898,7 @@ TEST(MultiComponentView, Each) {
     auto citerable = cview.each();
 
     ASSERT_NE(citerable.begin(), citerable.end());
-    ASSERT_NO_FATAL_FAILURE(iterable.begin()->operator=(*iterable.begin()));
+    ASSERT_NO_THROW(iterable.begin()->operator=(*iterable.begin()));
     ASSERT_EQ(decltype(iterable.end()){}, iterable.end());
 
     auto it = iterable.begin();
@@ -946,7 +945,7 @@ TEST(MultiComponentView, EachWithSuggestedType) {
 
     // makes char a better candidate during iterations
     const auto entity = registry.create();
-    registry.emplace<int>(entity, 99);
+    registry.emplace<int>(entity, 99); // NOLINT
 
     view.use<int>();
     view.each([value = 2](const auto curr, const auto) mutable {
@@ -999,7 +998,7 @@ TEST(MultiComponentView, EachWithHoles) {
 
     auto view = registry.view<char, int>();
 
-    view.each([e0](auto entity, const char &c, const int &i) {
+    view.each([e0](auto entity, const char &c, const int &i) { // NOLINT
         ASSERT_EQ(entity, e0);
         ASSERT_EQ(c, '0');
         ASSERT_EQ(i, 0);
@@ -1259,10 +1258,9 @@ TEST(MultiComponentView, ExtendedGet) {
 }
 
 TEST(MultiComponentView, DeductionGuide) {
-    entt::registry registry;
-    entt::storage_type_t<int> istorage;
-    entt::storage_type_t<double> dstorage;
-    entt::storage_type_t<test::pointer_stable> sstorage;
+    entt::storage_type_t<int> istorage;                  // NOLINT
+    entt::storage_type_t<double> dstorage;               // NOLINT
+    entt::storage_type_t<test::pointer_stable> sstorage; // NOLINT
 
     testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<entt::storage_type_t<int>, entt::storage_type_t<double>>, entt::exclude_t<>>, decltype(entt::basic_view{istorage, dstorage})>();
     testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<const entt::storage_type_t<int>, entt::storage_type_t<double>>, entt::exclude_t<>>, decltype(entt::basic_view{std::as_const(istorage), dstorage})>();
@@ -1353,7 +1351,7 @@ TEST(MultiComponentView, StableTypeWithExcludedComponent) {
     const auto other = registry.create();
 
     registry.emplace<test::pointer_stable>(entity, 0);
-    registry.emplace<test::pointer_stable>(other, 42);
+    registry.emplace<test::pointer_stable>(other, 42); // NOLINT
     registry.emplace<int>(entity);
 
     ASSERT_EQ(view.size_hint(), 2u);
@@ -1398,8 +1396,8 @@ TEST(MultiComponentView, SameComponentTypes) {
     const entt::entity e0{42u};
     const entt::entity e1{3u};
 
-    storage.emplace(e0, 7);
-    other.emplace(e0, 9);
+    storage.emplace(e0, 7); // NOLINT
+    other.emplace(e0, 9);   // NOLINT
     other.emplace(e1, 1);
 
     ASSERT_TRUE(view.contains(e0));

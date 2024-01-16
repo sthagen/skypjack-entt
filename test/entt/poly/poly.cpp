@@ -17,7 +17,7 @@ struct common_type: Base {
         entt::poly_call<1>(*this, v);
     }
 
-    int get() const {
+    [[nodiscard]] int get() const {
         return static_cast<int>(entt::poly_call<2>(*this));
     }
 
@@ -25,12 +25,12 @@ struct common_type: Base {
         entt::poly_call<3>(*this);
     }
 
-    int mul(int v) const {
+    [[nodiscard]] int mul(int v) const {
         return static_cast<int>(entt::poly_call<4>(*this, v));
     }
 
-    int rand() const {
-        return static_cast<int>(entt::poly_call<5>(*this));
+    [[nodiscard]] int rand() const {
+        return static_cast<int>(entt::poly_call<5>(*this)); // NOLINT
     }
 };
 
@@ -40,14 +40,18 @@ struct common_members {
         self.set(self.get() - 1);
     }
 
-    static double mul(const Type &self, double v) {
+    [[nodiscard]] static double mul(const Type &self, double v) {
         return v * self.get();
     }
 };
 
-static int absolutely_random() {
-    return 42;
+namespace {
+
+[[nodiscard]] int absolutely_random() {
+    return 4;
 }
+
+} // namespace
 
 template<typename Type>
 using common_impl = entt::value_list<
@@ -92,7 +96,7 @@ struct DeducedEmbedded
     : entt::type_list<> {
     template<typename Base>
     struct type: Base {
-        int get() const {
+        [[nodiscard]] int get() const {
             return entt::poly_call<0>(*this);
         }
     };
@@ -106,7 +110,7 @@ struct DefinedEmbedded
     template<typename Base>
     struct type: Base {
         // non-const get on purpose
-        int get() {
+        [[nodiscard]] int get() {
             return entt::poly_call<0>(*this);
         }
     };
@@ -129,7 +133,7 @@ struct impl {
         value = v;
     }
 
-    int get() const {
+    [[nodiscard]] int get() const {
         return value;
     }
 
@@ -184,7 +188,7 @@ TYPED_TEST(Poly, Functionalities) {
     ASSERT_EQ(alias.data(), &instance);
     ASSERT_EQ(std::as_const(alias).data(), &instance);
 
-    ASSERT_EQ(value->rand(), 42);
+    ASSERT_EQ(value->rand(), 4);
 
     empty = impl{};
 
@@ -221,7 +225,7 @@ TYPED_TEST(Poly, Functionalities) {
     poly_type move = std::move(copy);
 
     ASSERT_TRUE(move);
-    ASSERT_TRUE(copy);
+    ASSERT_TRUE(copy); // NOLINT
     ASSERT_EQ(move->get(), 3);
 
     move.reset();
@@ -386,32 +390,32 @@ TYPED_TEST(Poly, SBOVsZeroedSBOSize) {
 
 TYPED_TEST(Poly, SboAlignment) {
     constexpr auto alignment = alignof(over_aligned);
-    typename TestFixture::template type<alignment, alignment> sbo[2]{over_aligned{}, over_aligned{}};
+    typename TestFixture::template type<alignment, alignment> sbo[2]{over_aligned{}, over_aligned{}}; // NOLINT
     const auto *data = sbo[0].data();
 
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[0u].data()) % alignment) == 0u);
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[1u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[0u].data()) % alignment) == 0u); // NOLINT
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[1u].data()) % alignment) == 0u); // NOLINT
 
     std::swap(sbo[0], sbo[1]);
 
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[0u].data()) % alignment) == 0u);
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[1u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[0u].data()) % alignment) == 0u); // NOLINT
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(sbo[1u].data()) % alignment) == 0u); // NOLINT
 
     ASSERT_NE(data, sbo[1].data());
 }
 
 TYPED_TEST(Poly, NoSboAlignment) {
     constexpr auto alignment = alignof(over_aligned);
-    typename TestFixture::template type<alignment> nosbo[2]{over_aligned{}, over_aligned{}};
+    typename TestFixture::template type<alignment> nosbo[2]{over_aligned{}, over_aligned{}}; // NOLINT
     const auto *data = nosbo[0].data();
 
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[0u].data()) % alignment) == 0u);
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[1u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[0u].data()) % alignment) == 0u); // NOLINT
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[1u].data()) % alignment) == 0u); // NOLINT
 
     std::swap(nosbo[0], nosbo[1]);
 
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[0u].data()) % alignment) == 0u);
-    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[1u].data()) % alignment) == 0u);
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[0u].data()) % alignment) == 0u); // NOLINT
+    ASSERT_TRUE((reinterpret_cast<std::uintptr_t>(nosbo[1u].data()) % alignment) == 0u); // NOLINT
 
     ASSERT_EQ(data, nosbo[1].data());
 }

@@ -21,17 +21,17 @@ struct shadow {
 };
 
 TEST(BasicSnapshot, Constructors) {
-    ASSERT_FALSE(std::is_default_constructible_v<entt::basic_snapshot<entt::registry>>);
-    ASSERT_FALSE(std::is_copy_constructible_v<entt::basic_snapshot<entt::registry>>);
-    ASSERT_FALSE(std::is_copy_assignable_v<entt::basic_snapshot<entt::registry>>);
-    ASSERT_TRUE(std::is_move_constructible_v<entt::basic_snapshot<entt::registry>>);
-    ASSERT_TRUE(std::is_move_assignable_v<entt::basic_snapshot<entt::registry>>);
+    static_assert(!std::is_default_constructible_v<entt::basic_snapshot<entt::registry>>, "Default constructible type not allowed");
+    static_assert(!std::is_copy_constructible_v<entt::basic_snapshot<entt::registry>>, "Copy constructible type not allowed");
+    static_assert(!std::is_copy_assignable_v<entt::basic_snapshot<entt::registry>>, "Copy assignable type not allowed");
+    static_assert(std::is_move_constructible_v<entt::basic_snapshot<entt::registry>>, "Move constructible type required");
+    static_assert(std::is_move_assignable_v<entt::basic_snapshot<entt::registry>>, "Move assignable type required");
 
-    entt::registry registry;
+    const entt::registry registry;
     entt::basic_snapshot snapshot{registry};
     entt::basic_snapshot other{std::move(snapshot)};
 
-    ASSERT_NO_FATAL_FAILURE(snapshot = std::move(other));
+    ASSERT_NO_THROW(snapshot = std::move(other));
 }
 
 TEST(BasicSnapshot, GetEntityType) {
@@ -39,7 +39,7 @@ TEST(BasicSnapshot, GetEntityType) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::registry registry;
-    entt::basic_snapshot snapshot{registry};
+    const entt::basic_snapshot snapshot{registry};
     const auto &storage = registry.storage<entt::entity>();
 
     std::vector<entt::any> data{};
@@ -55,7 +55,7 @@ TEST(BasicSnapshot, GetEntityType) {
     ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(&data[1u]), nullptr);
     ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[1u]), storage.free_list());
 
-    entt::entity entity[3u];
+    entt::entity entity[3u]; // NOLINT
 
     registry.create(std::begin(entity), std::end(entity));
     registry.destroy(entity[1u]);
@@ -86,11 +86,11 @@ TEST(BasicSnapshot, GetType) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::registry registry;
-    entt::basic_snapshot snapshot{registry};
+    const entt::basic_snapshot snapshot{registry};
     const auto &storage = registry.storage<int>();
 
-    entt::entity entity[3u];
-    const int values[3u]{1, 2, 3};
+    entt::entity entity[3u];       // NOLINT
+    const int values[3u]{1, 2, 3}; // NOLINT
 
     registry.create(std::begin(entity), std::end(entity));
     registry.insert<int>(std::begin(entity), std::end(entity), std::begin(values));
@@ -132,10 +132,10 @@ TEST(BasicSnapshot, GetEmptyType) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::registry registry;
-    entt::basic_snapshot snapshot{registry};
+    const entt::basic_snapshot snapshot{registry};
     const auto &storage = registry.storage<test::empty>();
 
-    entt::entity entity[3u];
+    entt::entity entity[3u]; // NOLINT
 
     registry.create(std::begin(entity), std::end(entity));
     registry.insert<test::empty>(std::begin(entity), std::end(entity));
@@ -171,10 +171,10 @@ TEST(BasicSnapshot, GetTypeSparse) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::registry registry;
-    entt::basic_snapshot snapshot{registry};
+    const entt::basic_snapshot snapshot{registry};
 
-    entt::entity entity[3u];
-    const int values[3u]{1, 2, 3};
+    entt::entity entity[3u];       // NOLINT
+    const int values[3u]{1, 2, 3}; // NOLINT
 
     registry.create(std::begin(entity), std::end(entity));
     registry.insert<int>(std::begin(entity), std::end(entity), std::begin(values));
@@ -215,24 +215,24 @@ TEST(BasicSnapshot, GetTypeSparse) {
 }
 
 TEST(BasicSnapshotLoader, Constructors) {
-    ASSERT_FALSE(std::is_default_constructible_v<entt::basic_snapshot_loader<entt::registry>>);
-    ASSERT_FALSE(std::is_copy_constructible_v<entt::basic_snapshot_loader<entt::registry>>);
-    ASSERT_FALSE(std::is_copy_assignable_v<entt::basic_snapshot_loader<entt::registry>>);
-    ASSERT_TRUE(std::is_move_constructible_v<entt::basic_snapshot_loader<entt::registry>>);
-    ASSERT_TRUE(std::is_move_assignable_v<entt::basic_snapshot_loader<entt::registry>>);
+    static_assert(!std::is_default_constructible_v<entt::basic_snapshot_loader<entt::registry>>, "Default constructible type not allowed");
+    static_assert(!std::is_copy_constructible_v<entt::basic_snapshot_loader<entt::registry>>, "Copy constructible type not allowed");
+    static_assert(!std::is_copy_assignable_v<entt::basic_snapshot_loader<entt::registry>>, "Copy assignable type not allowed");
+    static_assert(std::is_move_constructible_v<entt::basic_snapshot_loader<entt::registry>>, "Move constructible type required");
+    static_assert(std::is_move_assignable_v<entt::basic_snapshot_loader<entt::registry>>, "Move assignable type required");
 
     entt::registry registry;
     entt::basic_snapshot_loader loader{registry};
     entt::basic_snapshot_loader other{std::move(loader)};
 
-    ASSERT_NO_FATAL_FAILURE(loader = std::move(other));
+    ASSERT_NO_THROW(loader = std::move(other));
 }
 
 ENTT_DEBUG_TEST(BasicSnapshotLoaderDeathTest, Constructors) {
     entt::registry registry;
     registry.emplace<int>(registry.create());
 
-    ASSERT_DEATH([[maybe_unused]] entt::basic_snapshot_loader loader{registry}, "");
+    ASSERT_DEATH([[maybe_unused]] const entt::basic_snapshot_loader loader{registry}, "");
 }
 
 TEST(BasicSnapshotLoader, GetEntityType) {
@@ -245,7 +245,7 @@ TEST(BasicSnapshotLoader, GetEntityType) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[3u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u), traits_type::construct(1u, 1u)};
+    const entt::entity entity[3u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u), traits_type::construct(1u, 1u)}; // NOLINT
 
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
@@ -296,8 +296,8 @@ TEST(BasicSnapshotLoader, GetType) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
-    const int values[2u]{1, 3};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
+    const int values[2u]{1, 3};                                                                    // NOLINT
 
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
@@ -344,7 +344,7 @@ TEST(BasicSnapshotLoader, GetEmptyType) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
 
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
@@ -385,8 +385,8 @@ TEST(BasicSnapshotLoader, GetTypeSparse) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
-    const int values[2u]{1, 3};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
+    const int values[2u]{1, 3};                                                                    // NOLINT
 
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
@@ -462,7 +462,7 @@ TEST(BasicSnapshotLoader, Orphans) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
     const int value = 42;
 
     ASSERT_FALSE(registry.valid(entity[0u]));
@@ -491,17 +491,17 @@ TEST(BasicSnapshotLoader, Orphans) {
 }
 
 TEST(BasicContinuousLoader, Constructors) {
-    ASSERT_FALSE(std::is_default_constructible_v<entt::basic_continuous_loader<entt::registry>>);
-    ASSERT_FALSE(std::is_copy_constructible_v<entt::basic_continuous_loader<entt::registry>>);
-    ASSERT_FALSE(std::is_copy_assignable_v<entt::basic_continuous_loader<entt::registry>>);
-    ASSERT_TRUE(std::is_move_constructible_v<entt::basic_continuous_loader<entt::registry>>);
-    ASSERT_TRUE(std::is_move_assignable_v<entt::basic_continuous_loader<entt::registry>>);
+    static_assert(!std::is_default_constructible_v<entt::basic_continuous_loader<entt::registry>>, "Default constructible type not allowed");
+    static_assert(!std::is_copy_constructible_v<entt::basic_continuous_loader<entt::registry>>, "Copy constructible type not allowed");
+    static_assert(!std::is_copy_assignable_v<entt::basic_continuous_loader<entt::registry>>, "Copy assignable type not allowed");
+    static_assert(std::is_move_constructible_v<entt::basic_continuous_loader<entt::registry>>, "Move constructible type required");
+    static_assert(std::is_move_assignable_v<entt::basic_continuous_loader<entt::registry>>, "Move assignable type required");
 
     entt::registry registry;
     entt::basic_continuous_loader loader{registry};
     entt::basic_continuous_loader other{std::move(loader)};
 
-    ASSERT_NO_FATAL_FAILURE(loader = std::move(other));
+    ASSERT_NO_THROW(loader = std::move(other));
 }
 
 TEST(BasicContinuousLoader, GetEntityType) {
@@ -514,7 +514,7 @@ TEST(BasicContinuousLoader, GetEntityType) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[3u]{traits_type::construct(1u, 0u), traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
+    const entt::entity entity[3u]{traits_type::construct(1u, 0u), traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
 
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
@@ -649,8 +649,8 @@ TEST(BasicContinuousLoader, GetType) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
-    const int values[2u]{1, 3};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
+    const int values[2u]{1, 3};                                                                    // NOLINT
 
     ASSERT_FALSE(loader.contains(entity[0u]));
     ASSERT_FALSE(loader.contains(entity[1u]));
@@ -705,7 +705,7 @@ TEST(BasicContinuousLoader, GetTypeExtended) {
     const auto &storage = registry.storage<shadow>();
 
     std::vector<entt::any> data{};
-    const entt::entity entity[2u]{traits_type::construct(0u, 1u), traits_type::construct(1u, 1u)};
+    const entt::entity entity[2u]{traits_type::construct(0u, 1u), traits_type::construct(1u, 1u)}; // NOLINT
     const shadow value{entity[0u]};
 
     auto archive = [&loader, &data, pos = 0u](auto &elem) mutable {
@@ -759,7 +759,7 @@ TEST(BasicContinuousLoader, GetEmptyType) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
 
     ASSERT_FALSE(loader.contains(entity[0u]));
     ASSERT_FALSE(loader.contains(entity[1u]));
@@ -809,8 +809,8 @@ TEST(BasicContinuousLoader, GetTypeSparse) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
-    const int values[2u]{1, 3};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
+    const int values[2u]{1, 3};                                                                    // NOLINT
 
     ASSERT_FALSE(loader.contains(entity[0u]));
     ASSERT_FALSE(loader.contains(entity[1u]));
@@ -895,7 +895,7 @@ TEST(BasicContinuousLoader, Orphans) {
 
     std::vector<entt::any> data{};
     auto archive = [&data, pos = 0u](auto &elem) mutable { elem = entt::any_cast<std::remove_reference_t<decltype(elem)>>(data[pos++]); };
-    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)};
+    const entt::entity entity[2u]{traits_type::construct(0u, 0u), traits_type::construct(2u, 0u)}; // NOLINT
     const int value = 42;
 
     ASSERT_FALSE(registry.valid(entity[0u]));

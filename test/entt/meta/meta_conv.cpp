@@ -15,7 +15,7 @@ struct clazz_t {
         return value;
     }
 
-    bool to_bool() const {
+    [[nodiscard]] bool to_bool() const {
         return (value != 0);
     }
 
@@ -44,7 +44,7 @@ struct MetaConv: ::testing::Test {
 
 TEST_F(MetaConv, Functionalities) {
     auto any = entt::resolve<clazz_t>().construct();
-    any.cast<clazz_t &>().value = 42;
+    any.cast<clazz_t &>().value = 42; // NOLINT
 
     const auto as_int = std::as_const(any).allow_cast<int>();
     const auto as_bool = std::as_const(any).allow_cast<bool>();

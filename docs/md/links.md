@@ -137,6 +137,8 @@ I hope the following lists can grow much more in the future.
     Interstellar Observation Network (a space shooter game).
   * [EnTT Boids](https://github.com/DanielEliasib/entt_boids): a simple boids
     implementation using `EnTT` and `Raylib`.
+  * [PalmRide: After Flight](https://store.steampowered.com/app/2812540/PalmRide_After_Flight/):
+    an on-rails shooter with retro outrun aesthetics.
 
 ## Engines and the like:
 
@@ -221,6 +223,8 @@ I hope the following lists can grow much more in the future.
     libary that combines its built-in reflection system with `ImGui`.
   * [Era Game Engine](https://github.com/EldarMuradov/EraGameEngine): a modern
     ECS-based game engine.
+  * [Core SDK of Trollworks engine](https://github.com/trollworks/sdk-core): 2D
+    game engine based on procrastination.
 
 ## Articles, videos and blog posts:
 

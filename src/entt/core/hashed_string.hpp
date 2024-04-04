@@ -131,7 +131,7 @@ public:
 
     /*! @brief Constructs an empty hashed string. */
     constexpr basic_hashed_string() noexcept
-        : base_type{} {}
+        : basic_hashed_string{nullptr, 0u} {}
 
     /**
      * @brief Constructs a hashed string from a string view.
@@ -167,7 +167,7 @@ public:
      * @return The size of the hashed string.
      */
     [[nodiscard]] constexpr size_type size() const noexcept {
-        return base_type::length; // NOLINT
+        return base_type::length;
     }
 
     /**
@@ -292,12 +292,6 @@ template<typename Char>
 [[nodiscard]] constexpr bool operator>=(const basic_hashed_string<Char> &lhs, const basic_hashed_string<Char> &rhs) noexcept {
     return !(lhs < rhs);
 }
-
-/*! @brief Aliases for common character types. */
-using hashed_string = basic_hashed_string<char>;
-
-/*! @brief Aliases for common character types. */
-using hashed_wstring = basic_hashed_string<wchar_t>;
 
 inline namespace literals {
 

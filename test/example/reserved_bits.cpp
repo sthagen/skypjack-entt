@@ -1,6 +1,10 @@
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <gtest/gtest.h>
+#include <entt/config/config.h>
 #include <entt/core/enum.hpp>
+#include <entt/core/fwd.hpp>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
 
@@ -9,7 +13,7 @@ enum class my_entity : entt::id_type {
     _entt_enum_as_bitmask
 };
 
-struct custom_entity_traits {
+struct entity_traits {
     using value_type = my_entity;
     using entity_type = std::uint32_t;
     using version_type = std::uint16_t;
@@ -18,7 +22,7 @@ struct custom_entity_traits {
 };
 
 template<>
-struct entt::entt_traits<my_entity>: entt::basic_entt_traits<custom_entity_traits> {
+struct entt::entt_traits<my_entity>: entt::basic_entt_traits<entity_traits> {
     static constexpr std::size_t page_size = ENTT_SPARSE_PAGE;
 };
 
@@ -34,8 +38,8 @@ TEST(Example, DisabledEntity) {
     entt::basic_registry<my_entity> registry{};
     auto view = registry.view<my_entity, int>();
 
-    const my_entity entity = registry.create(entt::basic_registry<my_entity>::traits_type::construct(42u, 12u));
-    const my_entity other = registry.create(entt::basic_registry<my_entity>::traits_type::construct(3u, 0u));
+    const my_entity entity = registry.create(entt::entt_traits<my_entity>::construct(4u, 1u));
+    const my_entity other = registry.create(entt::entt_traits<my_entity>::construct(3u, 0u));
 
     registry.emplace<int>(entity);
     registry.emplace<int>(other);

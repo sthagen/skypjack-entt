@@ -1,3 +1,5 @@
+#include <array>
+#include <iterator>
 #include <utility>
 #include <gtest/gtest.h>
 #include <entt/core/type_traits.hpp>
@@ -5,8 +7,8 @@
 #include <entt/meta/policy.hpp>
 #include <entt/meta/resolve.hpp>
 #include <entt/meta/utility.hpp>
-#include "../common/config.h"
-#include "../common/empty.h"
+#include "../../common/config.h"
+#include "../../common/empty.h"
 
 struct clazz {
     void setter(int v) {
@@ -55,7 +57,7 @@ struct MetaUtility: ::testing::Test {
 using MetaUtilityDeathTest = MetaUtility;
 
 TEST_F(MetaUtility, MetaDispatch) {
-    int value = 42; // NOLINT
+    int value = 2;
 
     auto as_void = entt::meta_dispatch<entt::as_void_t>(value);
     auto as_ref = entt::meta_dispatch<entt::as_ref_t>(value);
@@ -72,13 +74,13 @@ TEST_F(MetaUtility, MetaDispatch) {
     ASSERT_EQ(as_cref.try_cast<int>(), nullptr);
     ASSERT_NE(as_cref.try_cast<const int>(), nullptr);
 
-    ASSERT_EQ(as_is.cast<int>(), 42);
-    ASSERT_EQ(as_ref.cast<int>(), 42);
-    ASSERT_EQ(as_cref.cast<int>(), 42);
+    ASSERT_EQ(as_is.cast<int>(), 2);
+    ASSERT_EQ(as_ref.cast<int>(), 2);
+    ASSERT_EQ(as_cref.cast<int>(), 2);
 }
 
 TEST_F(MetaUtility, MetaDispatchMetaAny) {
-    entt::meta_any any{42}; // NOLINT
+    entt::meta_any any{2};
 
     auto from_any = entt::meta_dispatch(any);
     auto from_const_any = entt::meta_dispatch(std::as_const(any));
@@ -89,12 +91,12 @@ TEST_F(MetaUtility, MetaDispatchMetaAny) {
     ASSERT_NE(from_any.try_cast<int>(), nullptr);
     ASSERT_NE(from_const_any.try_cast<int>(), nullptr);
 
-    ASSERT_EQ(from_any.cast<int>(), 42);
-    ASSERT_EQ(from_const_any.cast<int>(), 42);
+    ASSERT_EQ(from_any.cast<int>(), 2);
+    ASSERT_EQ(from_const_any.cast<int>(), 2);
 }
 
 TEST_F(MetaUtility, MetaDispatchMetaAnyAsRef) {
-    entt::meta_any any{42}; // NOLINT
+    entt::meta_any any{2};
 
     auto from_any = entt::meta_dispatch(any.as_ref());
     auto from_const_any = entt::meta_dispatch(std::as_const(any).as_ref());
@@ -106,8 +108,8 @@ TEST_F(MetaUtility, MetaDispatchMetaAnyAsRef) {
     ASSERT_EQ(from_const_any.try_cast<int>(), nullptr);
     ASSERT_NE(from_const_any.try_cast<const int>(), nullptr);
 
-    ASSERT_EQ(from_any.cast<int>(), 42);
-    ASSERT_EQ(from_const_any.cast<int>(), 42);
+    ASSERT_EQ(from_any.cast<int>(), 2);
+    ASSERT_EQ(from_const_any.cast<int>(), 2);
 }
 
 TEST_F(MetaUtility, MetaArg) {
@@ -125,10 +127,10 @@ TEST_F(MetaUtility, MetaSetter) {
     clazz instance{};
 
     ASSERT_FALSE((entt::meta_setter<clazz, &clazz::static_setter>(instance, instance)));
-    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::static_setter>(std::as_const(instance), 42)));
-    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::static_setter>(invalid, 42)));
-    ASSERT_TRUE((entt::meta_setter<clazz, &clazz::static_setter>(instance, 42)));
-    ASSERT_EQ(instance.member, 42);
+    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::static_setter>(std::as_const(instance), 4)));
+    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::static_setter>(invalid, 4)));
+    ASSERT_TRUE((entt::meta_setter<clazz, &clazz::static_setter>(instance, 4)));
+    ASSERT_EQ(instance.member, 4);
 
     ASSERT_FALSE((entt::meta_setter<clazz, &clazz::setter>(instance, instance)));
     ASSERT_FALSE((entt::meta_setter<clazz, &clazz::setter>(std::as_const(instance), 3)));
@@ -137,12 +139,12 @@ TEST_F(MetaUtility, MetaSetter) {
     ASSERT_EQ(instance.member, 3);
 
     ASSERT_FALSE((entt::meta_setter<clazz, &clazz::member>(instance, instance)));
-    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::member>(invalid, 99)));
-    ASSERT_TRUE((entt::meta_setter<clazz, &clazz::member>(instance, 99)));
-    ASSERT_EQ(instance.member, 99);
+    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::member>(invalid, 8)));
+    ASSERT_TRUE((entt::meta_setter<clazz, &clazz::member>(instance, 8)));
+    ASSERT_EQ(instance.member, 8);
 
-    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::cmember>(instance, 99)));
-    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::cmember>(invalid, 99)));
+    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::cmember>(instance, 8)));
+    ASSERT_FALSE((entt::meta_setter<clazz, &clazz::cmember>(invalid, 8)));
     ASSERT_EQ(instance.cmember, 0);
 
     ASSERT_FALSE((entt::meta_setter<clazz, &clazz::value>(instance, instance)));
@@ -182,87 +184,87 @@ TEST_F(MetaUtility, MetaGetter) {
     ASSERT_EQ((entt::meta_getter<clazz, &clazz::cvalue>(invalid)).cast<int>(), 0);
     ASSERT_EQ((entt::meta_getter<clazz, &clazz::cvalue>(instance)).cast<int>(), 0);
 
-    ASSERT_EQ((entt::meta_getter<clazz, 42>(invalid)).cast<int>(), 42);
-    ASSERT_EQ((entt::meta_getter<clazz, 42>(instance)).cast<int>(), 42);
+    ASSERT_EQ((entt::meta_getter<clazz, 1>(invalid)).cast<int>(), 1);
+    ASSERT_EQ((entt::meta_getter<clazz, 1>(instance)).cast<int>(), 1);
 }
 
 TEST_F(MetaUtility, MetaInvokeWithCandidate) {
-    entt::meta_any args[2u]{clazz{}, 42}; // NOLINT
-    args[0u].cast<clazz &>().value = 99;  // NOLINT
+    std::array args{entt::meta_any{clazz{}}, entt::meta_any{4}};
+    args[0u].cast<clazz &>().value = 3;
 
-    ASSERT_FALSE((entt::meta_invoke<clazz>({}, &clazz::setter, nullptr)));
+    ASSERT_FALSE((entt::meta_invoke<clazz>({}, &clazz::setter, std::next(args.data()))));
     ASSERT_FALSE((entt::meta_invoke<clazz>({}, &clazz::getter, nullptr)));
 
-    ASSERT_TRUE((entt::meta_invoke<clazz>(args[0u], &clazz::setter, args + 1u))); // NOLINT
-    ASSERT_FALSE((entt::meta_invoke<clazz>(args[0u], &clazz::setter, args)));     // NOLINT
-    ASSERT_EQ((entt::meta_invoke<clazz>(args[0u], &clazz::getter, nullptr)).cast<int>(), 42);
+    ASSERT_TRUE((entt::meta_invoke<clazz>(args[0u], &clazz::setter, std::next(args.data()))));
+    ASSERT_FALSE((entt::meta_invoke<clazz>(args[0u], &clazz::setter, args.data())));
+    ASSERT_EQ((entt::meta_invoke<clazz>(args[0u], &clazz::getter, nullptr)).cast<int>(), 4);
     ASSERT_FALSE((entt::meta_invoke<clazz>(args[1u], &clazz::getter, nullptr)));
 
-    ASSERT_EQ((entt::meta_invoke<clazz>({}, &clazz::get_value, nullptr)).cast<int>(), 99);
+    ASSERT_EQ((entt::meta_invoke<clazz>({}, &clazz::get_value, nullptr)).cast<int>(), 3);
     ASSERT_TRUE((entt::meta_invoke<clazz>({}, &clazz::reset_value, nullptr)));
     ASSERT_EQ(args[0u].cast<clazz &>().value, 0);
 
     const auto setter = [](int &value) { value = 3; };
     const auto getter = [](int value) { return value * 2; };
 
-    ASSERT_TRUE(entt::meta_invoke<test::empty>({}, setter, args + 1u));              // NOLINT
-    ASSERT_EQ(entt::meta_invoke<test::empty>({}, getter, args + 1u).cast<int>(), 6); // NOLINT
+    ASSERT_TRUE(entt::meta_invoke<test::empty>({}, setter, std::next(args.data())));
+    ASSERT_EQ(entt::meta_invoke<test::empty>({}, getter, std::next(args.data())).cast<int>(), 6);
 }
 
 TEST_F(MetaUtility, MetaInvoke) {
-    entt::meta_any args[2u]{clazz{}, 42}; // NOLINT
-    args[0u].cast<clazz &>().value = 99;  // NOLINT
+    std::array args{entt::meta_any{clazz{}}, entt::meta_any{4}};
+    args[0u].cast<clazz &>().value = 3;
 
-    ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::setter>({}, nullptr)));
+    ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::setter>({}, std::next(args.data()))));
     ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::getter>({}, nullptr)));
 
-    ASSERT_TRUE((entt::meta_invoke<clazz, &clazz::setter>(args[0u], args + 1u))); // NOLINT
-    ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::setter>(args[0u], args)));     // NOLINT
-    ASSERT_EQ((entt::meta_invoke<clazz, &clazz::getter>(args[0u], nullptr)).cast<int>(), 42);
+    ASSERT_TRUE((entt::meta_invoke<clazz, &clazz::setter>(args[0u], std::next(args.data()))));
+    ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::setter>(args[0u], args.data())));
+    ASSERT_EQ((entt::meta_invoke<clazz, &clazz::getter>(args[0u], nullptr)).cast<int>(), 4);
     ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::getter>(args[1u], nullptr)));
 
-    ASSERT_EQ((entt::meta_invoke<clazz, &clazz::get_value>({}, nullptr)).cast<int>(), 99);
+    ASSERT_EQ((entt::meta_invoke<clazz, &clazz::get_value>({}, nullptr)).cast<int>(), 3);
     ASSERT_TRUE((entt::meta_invoke<clazz, &clazz::reset_value>({}, nullptr)));
     ASSERT_EQ(args[0u].cast<clazz &>().value, 0);
 }
 
 TEST_F(MetaUtility, MetaConstructArgsOnly) {
-    entt::meta_any args[2u]{clazz{}, 42};                         // NOLINT
-    const auto any = entt::meta_construct<clazz, int>(args + 1u); // NOLINT
+    std::array args{entt::meta_any{clazz{}}, entt::meta_any{4}};
+    const auto any = entt::meta_construct<clazz, int>(std::next(args.data()));
 
     ASSERT_TRUE(any);
-    ASSERT_FALSE((entt::meta_construct<clazz, int>(args))); // NOLINT
-    ASSERT_EQ(any.cast<const clazz &>().member, 42);
+    ASSERT_FALSE((entt::meta_construct<clazz, int>(args.data())));
+    ASSERT_EQ(any.cast<const clazz &>().member, 4);
 }
 
 TEST_F(MetaUtility, MetaConstructWithCandidate) {
-    entt::meta_any args[2u]{clazz{}, 42};                                     // NOLINT
-    const auto any = entt::meta_construct<clazz>(&clazz::factory, args + 1u); // NOLINT
+    std::array args{entt::meta_any{clazz{}}, entt::meta_any{4}};
+    const auto any = entt::meta_construct<clazz>(&clazz::factory, std::next(args.data()));
 
     ASSERT_TRUE(any);
-    ASSERT_FALSE((entt::meta_construct<clazz>(&clazz::factory, args))); // NOLINT
-    ASSERT_EQ(any.cast<const clazz &>().member, 42);
+    ASSERT_FALSE((entt::meta_construct<clazz>(&clazz::factory, args.data())));
+    ASSERT_EQ(any.cast<const clazz &>().member, 4);
 
     ASSERT_EQ(args[0u].cast<const clazz &>().member, 0);
-    ASSERT_TRUE((entt::meta_construct<clazz>(&clazz::static_setter, args))); // NOLINT
-    ASSERT_EQ(args[0u].cast<const clazz &>().member, 42);
+    ASSERT_TRUE((entt::meta_construct<clazz>(&clazz::static_setter, args.data())));
+    ASSERT_EQ(args[0u].cast<const clazz &>().member, 4);
 
     const auto setter = [](int &value) { value = 3; };
     const auto builder = [](int value) { return value * 2; };
 
-    ASSERT_TRUE(entt::meta_construct<test::empty>(setter, args + 1u));               // NOLINT
-    ASSERT_EQ(entt::meta_construct<test::empty>(builder, args + 1u).cast<int>(), 6); // NOLINT
+    ASSERT_TRUE(entt::meta_construct<test::empty>(setter, std::next(args.data())));
+    ASSERT_EQ(entt::meta_construct<test::empty>(builder, std::next(args.data())).cast<int>(), 6);
 }
 
 TEST_F(MetaUtility, MetaConstruct) {
-    entt::meta_any args[2u]{clazz{}, 42};                                     // NOLINT
-    const auto any = entt::meta_construct<clazz, &clazz::factory>(args + 1u); // NOLINT
+    std::array args{entt::meta_any{clazz{}}, entt::meta_any{4}};
+    const auto any = entt::meta_construct<clazz, &clazz::factory>(std::next(args.data()));
 
     ASSERT_TRUE(any);
-    ASSERT_FALSE((entt::meta_construct<clazz, &clazz::factory>(args))); // NOLINT
-    ASSERT_EQ(any.cast<const clazz &>().member, 42);
+    ASSERT_FALSE((entt::meta_construct<clazz, &clazz::factory>(args.data())));
+    ASSERT_EQ(any.cast<const clazz &>().member, 4);
 
     ASSERT_EQ(args[0u].cast<const clazz &>().member, 0);
-    ASSERT_TRUE((entt::meta_construct<clazz, &clazz::static_setter>(args))); // NOLINT
-    ASSERT_EQ(args[0u].cast<const clazz &>().member, 42);
+    ASSERT_TRUE((entt::meta_construct<clazz, &clazz::static_setter>(args.data())));
+    ASSERT_EQ(args[0u].cast<const clazz &>().member, 4);
 }

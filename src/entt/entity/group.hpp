@@ -5,14 +5,14 @@
 #include <type_traits>
 #include <utility>
 #include "../config/config.h"
+#include "../core/algorithm.hpp"
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
+#include "component.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
-#include "sparse_set.hpp"
-#include "storage.hpp"
 
 namespace entt {
 
@@ -26,7 +26,7 @@ template<typename It, typename... Owned, typename... Get>
 class extended_group_iterator<It, owned_t<Owned...>, get_t<Get...>> {
     template<typename Type>
     auto index_to_element([[maybe_unused]] Type &cpool) const {
-        if constexpr(Type::traits_type::page_size == 0u) {
+        if constexpr(component_traits<typename Type::value_type>::page_size == 0u) {
             return std::make_tuple();
         } else {
             return std::forward_as_tuple(cpool.rbegin()[it.index()]);
@@ -103,33 +103,34 @@ class group_handler;
 template<typename... Owned, typename... Get, typename... Exclude>
 class group_handler<owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> final: public group_descriptor {
     // nasty workaround for an issue with the toolset v141 that doesn't accept a fold expression here
-    static_assert(!std::disjunction_v<std::bool_constant<Owned::traits_type::in_place_delete>...>, "Groups do not support in-place delete");
+    static_assert(!std::disjunction_v<std::bool_constant<component_traits<typename Owned::value_type>::in_place_delete>...>, "Groups do not support in-place delete");
     static_assert(!std::disjunction_v<std::is_const<Owned>..., std::is_const<Get>..., std::is_const<Exclude>...>, "Const storage type not allowed");
 
     using base_type = std::common_type_t<typename Owned::base_type..., typename Get::base_type..., typename Exclude::base_type...>;
     using entity_type = typename base_type::entity_type;
 
-    void swap_elements(const std::size_t pos, const entity_type entt) {
-        std::apply([pos, entt](auto *...cpool) { (cpool->swap_elements(cpool->data()[pos], entt), ...); }, pools);
+    template<std::size_t... Index>
+    void swap_elements(const std::size_t pos, const entity_type entt, std::index_sequence<Index...>) {
+        (std::get<Index>(pools)->swap_elements(std::get<Index>(pools)->data()[pos], entt), ...);
     }
 
     void push_on_construct(const entity_type entt) {
-        if(std::apply([entt, len = len](auto *cpool, auto *...other) { return cpool->contains(entt) && !(cpool->index(entt) < len) && (other->contains(entt) && ...); }, pools)
+        if(std::apply([entt, pos = len](auto *cpool, auto *...other) { return cpool->contains(entt) && !(cpool->index(entt) < pos) && (other->contains(entt) && ...); }, pools)
            && std::apply([entt](auto *...cpool) { return (!cpool->contains(entt) && ...); }, filter)) {
-            swap_elements(len++, entt);
+            swap_elements(len++, entt, std::index_sequence_for<Owned...>{});
         }
     }
 
     void push_on_destroy(const entity_type entt) {
-        if(std::apply([entt, len = len](auto *cpool, auto *...other) { return cpool->contains(entt) && !(cpool->index(entt) < len) && (other->contains(entt) && ...); }, pools)
+        if(std::apply([entt, pos = len](auto *cpool, auto *...other) { return cpool->contains(entt) && !(cpool->index(entt) < pos) && (other->contains(entt) && ...); }, pools)
            && std::apply([entt](auto *...cpool) { return (0u + ... + cpool->contains(entt)) == 1u; }, filter)) {
-            swap_elements(len++, entt);
+            swap_elements(len++, entt, std::index_sequence_for<Owned...>{});
         }
     }
 
     void remove_if(const entity_type entt) {
         if(std::get<0>(pools)->contains(entt) && (std::get<0>(pools)->index(entt) < len)) {
-            swap_elements(--len, entt);
+            swap_elements(--len, entt, std::index_sequence_for<Owned...>{});
         }
     }
 
@@ -153,7 +154,7 @@ public:
         size_type cnt = 0u;
 
         for(auto pos = 0u; pos < length; ++pos) {
-            cnt += ((elem[pos] == entt::type_hash<typename Owned::value_type>::value()) || ...);
+            cnt += ((elem[pos] == entt::type_hash<typename Owned::element_type>::value()) || ...);
         }
 
         return cnt;
@@ -163,13 +164,11 @@ public:
         return len;
     }
 
-    template<typename Type>
-    Type pools_as() const noexcept {
+    auto pools_as_tuple() const noexcept {
         return pools;
     }
 
-    template<typename Type>
-    Type filter_as() const noexcept {
+    auto filter_as_tuple() const noexcept {
         return filter;
     }
 
@@ -231,13 +230,11 @@ public:
         return elem;
     }
 
-    template<typename Type>
-    Type pools_as() const noexcept {
+    auto pools_as_tuple() const noexcept {
         return pools;
     }
 
-    template<typename Type>
-    Type filter_as() const noexcept {
+    auto filter_as_tuple() const noexcept {
         return filter;
     }
 
@@ -271,7 +268,7 @@ class basic_group;
  * Iterators aren't invalidated if:
  *
  * * New elements are added to the storage.
- * * The entity currently pointed is modified (for example, components are added
+ * * The entity currently pointed is modified (for example, elements are added
  *   or removed from it).
  * * The entity currently pointed is destroyed.
  *
@@ -287,16 +284,16 @@ class basic_group<owned_t<>, get_t<Get...>, exclude_t<Exclude...>> {
     using underlying_type = typename base_type::entity_type;
 
     template<typename Type>
-    static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Get::value_type..., typename Exclude::value_type...>>;
+    static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Get::element_type..., typename Exclude::element_type...>>;
 
     auto pools() const noexcept {
         using return_type = std::tuple<Get *...>;
-        return descriptor ? descriptor->template pools_as<return_type>() : return_type{};
+        return descriptor ? descriptor->pools_as_tuple() : return_type{};
     }
 
     auto filter() const noexcept {
         using return_type = std::tuple<Exclude *...>;
-        return descriptor ? descriptor->template filter_as<return_type>() : return_type{};
+        return descriptor ? descriptor->filter_as_tuple() : return_type{};
     }
 
 public:
@@ -335,9 +332,9 @@ public:
     }
 
     /**
-     * @brief Returns the storage for a given component type, if any.
-     * @tparam Type Type of component of which to return the storage.
-     * @return The storage for the given component type.
+     * @brief Returns the storage for a given element type, if any.
+     * @tparam Type Type of element of which to return the storage.
+     * @return The storage for the given element type.
      */
     template<typename Type>
     [[nodiscard]] auto *storage() const noexcept {
@@ -490,11 +487,11 @@ public:
     }
 
     /**
-     * @brief Returns the components assigned to the given entity.
-     * @tparam Type Type of the component to get.
-     * @tparam Other Other types of components to get.
+     * @brief Returns the elements assigned to the given entity.
+     * @tparam Type Type of the element to get.
+     * @tparam Other Other types of elements to get.
      * @param entt A valid identifier.
-     * @return The components assigned to the entity.
+     * @return The elements assigned to the entity.
      */
     template<typename Type, typename... Other>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
@@ -502,10 +499,10 @@ public:
     }
 
     /**
-     * @brief Returns the components assigned to the given entity.
-     * @tparam Index Indexes of the components to get.
+     * @brief Returns the elements assigned to the given entity.
+     * @tparam Index Indexes of the elements to get.
      * @param entt A valid identifier.
-     * @return The components assigned to the entity.
+     * @return The elements assigned to the entity.
      */
     template<std::size_t... Index>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
@@ -521,12 +518,12 @@ public:
     }
 
     /**
-     * @brief Iterates entities and components and applies the given function
+     * @brief Iterates entities and elements and applies the given function
      * object to them.
      *
      * The function object is invoked for each entity. It is provided with the
-     * entity itself and a set of references to non-empty components. The
-     * _constness_ of the components is as requested.<br/>
+     * entity itself and a set of references to non-empty elements. The
+     * _constness_ of the elements is as requested.<br/>
      * The signature of the function must be equivalent to one of the following
      * forms:
      *
@@ -557,8 +554,8 @@ public:
      * @brief Returns an iterable object to use to _visit_ a group.
      *
      * The iterable object returns tuples that contain the current entity and a
-     * set of references to its non-empty components. The _constness_ of the
-     * components is as requested.
+     * set of references to its non-empty elements. The _constness_ of the
+     * elements is as requested.
      *
      * @note
      * Empty types aren't explicitly instantiated and therefore they are never
@@ -595,8 +592,8 @@ public:
      * * An iterator past the last element of the range to sort.
      * * A comparison function to use to compare the elements.
      *
-     * @tparam Type Optional type of component to compare.
-     * @tparam Other Other optional types of components to compare.
+     * @tparam Type Optional type of element to compare.
+     * @tparam Other Other optional types of elements to compare.
      * @tparam Compare Type of comparison function object.
      * @tparam Sort Type of sort function object.
      * @tparam Args Types of arguments to forward to the sort function object.
@@ -614,7 +611,7 @@ public:
      *
      * @sa sort
      *
-     * @tparam Index Optional indexes of components to compare.
+     * @tparam Index Optional indexes of elements to compare.
      * @tparam Compare Type of comparison function object.
      * @tparam Sort Type of sort function object.
      * @tparam Args Types of arguments to forward to the sort function object.
@@ -659,14 +656,6 @@ public:
         }
     }
 
-    /**
-     * @brief Sort entities according to their order in a range.
-     * @param other The storage to use to impose the order.
-     */
-    [[deprecated("use iterator based sort_as instead")]] void sort_as(const common_type &other) const {
-        sort_as(other.begin(), other.end());
-    }
-
 private:
     handler *descriptor;
 };
@@ -679,7 +668,7 @@ private:
  *
  * * It's guaranteed that the entity list is tightly packed in memory for fast
  *   iterations.
- * * It's guaranteed that all components in the owned storage are tightly packed
+ * * It's guaranteed that all elements in the owned storage are tightly packed
  *   in memory for even faster iterations and to allow direct access.
  * * They stay true to the order of the owned storage and all instances have the
  *   same order in memory.
@@ -691,7 +680,7 @@ private:
  * Iterators aren't invalidated if:
  *
  * * New elements are added to the storage.
- * * The entity currently pointed is modified (for example, components are added
+ * * The entity currently pointed is modified (for example, elements are added
  *   or removed from it).
  * * The entity currently pointed is destroyed.
  *
@@ -708,16 +697,16 @@ class basic_group<owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> {
     using underlying_type = typename base_type::entity_type;
 
     template<typename Type>
-    static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Owned::value_type..., typename Get::value_type..., typename Exclude::value_type...>>;
+    static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Owned::element_type..., typename Get::element_type..., typename Exclude::element_type...>>;
 
     auto pools() const noexcept {
         using return_type = std::tuple<Owned *..., Get *...>;
-        return descriptor ? descriptor->template pools_as<return_type>() : return_type{};
+        return descriptor ? descriptor->pools_as_tuple() : return_type{};
     }
 
     auto filter() const noexcept {
         using return_type = std::tuple<Exclude *...>;
-        return descriptor ? descriptor->template filter_as<return_type>() : return_type{};
+        return descriptor ? descriptor->filter_as_tuple() : return_type{};
     }
 
 public:
@@ -756,9 +745,9 @@ public:
     }
 
     /**
-     * @brief Returns the storage for a given component type, if any.
-     * @tparam Type Type of component of which to return the storage.
-     * @return The storage for the given component type.
+     * @brief Returns the storage for a given element type, if any.
+     * @tparam Type Type of element of which to return the storage.
+     * @return The storage for the given element type.
      */
     template<typename Type>
     [[nodiscard]] auto *storage() const noexcept {
@@ -896,11 +885,11 @@ public:
     }
 
     /**
-     * @brief Returns the components assigned to the given entity.
-     * @tparam Type Type of the component to get.
-     * @tparam Other Other types of components to get.
+     * @brief Returns the elements assigned to the given entity.
+     * @tparam Type Type of the element to get.
+     * @tparam Other Other types of elements to get.
      * @param entt A valid identifier.
-     * @return The components assigned to the entity.
+     * @return The elements assigned to the entity.
      */
     template<typename Type, typename... Other>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
@@ -908,10 +897,10 @@ public:
     }
 
     /**
-     * @brief Returns the components assigned to the given entity.
-     * @tparam Index Indexes of the components to get.
+     * @brief Returns the elements assigned to the given entity.
+     * @tparam Index Indexes of the elements to get.
      * @param entt A valid identifier.
-     * @return The components assigned to the entity.
+     * @return The elements assigned to the entity.
      */
     template<std::size_t... Index>
     [[nodiscard]] decltype(auto) get(const entity_type entt) const {
@@ -927,12 +916,12 @@ public:
     }
 
     /**
-     * @brief Iterates entities and components and applies the given function
+     * @brief Iterates entities and elements and applies the given function
      * object to them.
      *
      * The function object is invoked for each entity. It is provided with the
-     * entity itself and a set of references to non-empty components. The
-     * _constness_ of the components is as requested.<br/>
+     * entity itself and a set of references to non-empty elements. The
+     * _constness_ of the elements is as requested.<br/>
      * The signature of the function must be equivalent to one of the following
      * forms:
      *
@@ -963,8 +952,8 @@ public:
      * @brief Returns an iterable object to use to _visit_ a group.
      *
      * The iterable object returns tuples that contain the current entity and a
-     * set of references to its non-empty components. The _constness_ of the
-     * components is as requested.
+     * set of references to its non-empty elements. The _constness_ of the
+     * elements is as requested.
      *
      * @note
      * Empty types aren't explicitly instantiated and therefore they are never
@@ -974,7 +963,7 @@ public:
      */
     [[nodiscard]] iterable each() const noexcept {
         const auto cpools = pools();
-        return {{begin(), cpools}, {end(), cpools}};
+        return iterable{{begin(), cpools}, {end(), cpools}};
     }
 
     /**
@@ -1002,8 +991,8 @@ public:
      * * An iterator past the last element of the range to sort.
      * * A comparison function to use to compare the elements.
      *
-     * @tparam Type Optional type of component to compare.
-     * @tparam Other Other optional types of components to compare.
+     * @tparam Type Optional type of element to compare.
+     * @tparam Other Other optional types of elements to compare.
      * @tparam Compare Type of comparison function object.
      * @tparam Sort Type of sort function object.
      * @tparam Args Types of arguments to forward to the sort function object.
@@ -1021,7 +1010,7 @@ public:
      *
      * @sa sort
      *
-     * @tparam Index Optional indexes of components to compare.
+     * @tparam Index Optional indexes of elements to compare.
      * @tparam Compare Type of comparison function object.
      * @tparam Sort Type of sort function object.
      * @tparam Args Types of arguments to forward to the sort function object.

@@ -143,7 +143,6 @@ public:
         data = &instance;
     }
 
-    [[nodiscard]] inline bool key_only() const noexcept;
     [[nodiscard]] inline meta_type key_type() const noexcept;
     [[nodiscard]] inline meta_type mapped_type() const noexcept;
     [[nodiscard]] inline meta_type value_type() const noexcept;
@@ -604,11 +603,6 @@ public:
     /*! @copydoc any::as_ref */
     [[nodiscard]] meta_any as_ref() const noexcept {
         return meta_any{*ctx, *this, storage.as_ref()};
-    }
-
-    /*! @copydoc any::owner */
-    [[deprecated("use policy() and meta_any_policy instead")]] [[nodiscard]] bool owner() const noexcept {
-        return (storage.policy() == any_policy::owner);
     }
 
     /**
@@ -1245,7 +1239,7 @@ public:
      * @return True if the underlying type is a pointer, false otherwise.
      */
     [[nodiscard]] bool is_pointer() const noexcept {
-        return node.info && (node.info->hash() != remove_pointer().info().hash());
+        return static_cast<bool>(node.traits & internal::meta_traits::is_pointer);
     }
 
     /**
@@ -1254,7 +1248,7 @@ public:
      * doesn't refer to a pointer type.
      */
     [[nodiscard]] meta_type remove_pointer() const noexcept {
-        return {*ctx, node.remove_pointer(internal::meta_context::from(*ctx))}; // NOLINT
+        return {*ctx, node.remove_pointer(internal::meta_context::from(*ctx))};
     }
 
     /**
@@ -1871,8 +1865,7 @@ inline meta_sequence_container::iterator meta_sequence_container::erase(iterator
 }
 
 /**
- * @brief Returns a reference to the element at a given location of a container
- * (no bounds checking is performed).
+ * @brief Returns a reference to the element at a given location of a container.
  * @param pos The position of the element to return.
  * @return A reference to the requested element properly wrapped.
  */
@@ -1888,14 +1881,6 @@ inline meta_sequence_container::iterator meta_sequence_container::erase(iterator
  */
 [[nodiscard]] inline meta_sequence_container::operator bool() const noexcept {
     return (data != nullptr);
-}
-
-/**
- * @brief Returns true if a container is also key-only, false otherwise.
- * @return True if the associative container is also key-only, false otherwise.
- */
-[[deprecated("use mapped_type() instead")]] [[nodiscard]] inline bool meta_associative_container::key_only() const noexcept {
-    return (mapped_type_node == nullptr);
 }
 
 /**

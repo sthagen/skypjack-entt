@@ -1,17 +1,33 @@
+#include <cstddef>
+#include <cstdint>
 #include <gtest/gtest.h>
+#include <entt/config/config.h>
 #include <entt/entity/entity.hpp>
-#include "../common/custom_entity.h"
+#include "../../common/entity.h"
 
-struct custom_entity_traits {
-    using value_type = test::custom_entity;
+struct entity_traits {
+    using value_type = test::entity;
     using entity_type = std::uint32_t;
     using version_type = std::uint16_t;
     static constexpr entity_type entity_mask = 0x3FFFF; // 18b
     static constexpr entity_type version_mask = 0x0FFF; // 12b
 };
 
+struct other_entity_traits {
+    using value_type = test::other_entity;
+    using entity_type = std::uint32_t;
+    using version_type = std::uint16_t;
+    static constexpr entity_type entity_mask = 0xFFFFFFFF; // 32b
+    static constexpr entity_type version_mask = 0x00;      // 0b
+};
+
 template<>
-struct entt::entt_traits<test::custom_entity>: entt::basic_entt_traits<custom_entity_traits> {
+struct entt::entt_traits<test::entity>: entt::basic_entt_traits<entity_traits> {
+    static constexpr std::size_t page_size = ENTT_SPARSE_PAGE;
+};
+
+template<>
+struct entt::entt_traits<test::other_entity>: entt::basic_entt_traits<other_entity_traits> {
     static constexpr std::size_t page_size = ENTT_SPARSE_PAGE;
 };
 
@@ -20,7 +36,7 @@ struct Entity: testing::Test {
     using type = Type;
 };
 
-using EntityTypes = ::testing::Types<entt::entity, test::custom_entity>;
+using EntityTypes = ::testing::Types<entt::entity, test::entity, test::other_entity>;
 
 TYPED_TEST_SUITE(Entity, EntityTypes, );
 
@@ -31,21 +47,27 @@ TYPED_TEST(Entity, Traits) {
     constexpr entity_type tombstone{entt::tombstone};
     constexpr entity_type null{entt::null};
 
-    const entity_type entity = traits_type::construct(42u, 1u);
+    const entity_type entity = traits_type::construct(4u, 1u);
     const entity_type other = traits_type::construct(3u, 0u);
 
     ASSERT_EQ(entt::to_integral(entity), entt::to_integral(entity));
     ASSERT_NE(entt::to_integral(entity), entt::to_integral<entity_type>(entt::null));
     ASSERT_NE(entt::to_integral(entity), entt::to_integral(entity_type{}));
 
-    ASSERT_EQ(entt::to_entity(entity), 42u);
-    ASSERT_EQ(entt::to_version(entity), 1u);
+    ASSERT_EQ(entt::to_entity(entity), 4u);
+    ASSERT_EQ(entt::to_version(entity), !!traits_type::version_mask);
+
     ASSERT_EQ(entt::to_entity(other), 3u);
     ASSERT_EQ(entt::to_version(other), 0u);
 
     ASSERT_EQ(traits_type::construct(entt::to_entity(entity), entt::to_version(entity)), entity);
     ASSERT_EQ(traits_type::construct(entt::to_entity(other), entt::to_version(other)), other);
-    ASSERT_NE(traits_type::construct(entt::to_entity(entity), {}), entity);
+
+    if constexpr(traits_type::version_mask == 0u) {
+        ASSERT_EQ(traits_type::construct(entt::to_entity(entity), entt::to_version(other)), entity);
+    } else {
+        ASSERT_NE(traits_type::construct(entt::to_entity(entity), entt::to_version(other)), entity);
+    }
 
     ASSERT_EQ(traits_type::construct(entt::to_entity(other), entt::to_version(entity)), traits_type::combine(entt::to_integral(other), entt::to_integral(entity)));
 
@@ -104,7 +126,7 @@ TYPED_TEST(Entity, Null) {
     ASSERT_TRUE(entt::null == entt::null);
     ASSERT_FALSE(entt::null != entt::null);
 
-    const entity_type entity{42u};
+    const entity_type entity{4u};
 
     ASSERT_EQ(traits_type::combine(entt::null, entt::to_integral(entity)), (traits_type::construct(entt::to_entity(null), entt::to_version(entity))));
     ASSERT_EQ(traits_type::combine(entt::null, entt::to_integral(null)), null);
@@ -127,7 +149,7 @@ TYPED_TEST(Entity, Tombstone) {
     ASSERT_TRUE(entt::tombstone == entt::tombstone);
     ASSERT_FALSE(entt::tombstone != entt::tombstone);
 
-    const entity_type entity{42u};
+    const entity_type entity{4u};
 
     ASSERT_EQ(traits_type::combine(entt::to_integral(entity), entt::tombstone), (traits_type::construct(entt::to_entity(entity), entt::to_version(tombstone))));
     ASSERT_EQ(traits_type::combine(entt::tombstone, entt::to_integral(tombstone)), tombstone);

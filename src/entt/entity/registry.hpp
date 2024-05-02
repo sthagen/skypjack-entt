@@ -99,7 +99,7 @@ public:
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
-        return {it->first, *it->second};
+        return operator[](0);
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
@@ -1067,23 +1067,24 @@ public:
     template<typename... Owned, typename... Get, typename... Exclude>
     basic_group<owned_t<storage_for_type<Owned>...>, get_t<storage_for_type<Get>...>, exclude_t<storage_for_type<Exclude>...>>
     group(get_t<Get...> = get_t{}, exclude_t<Exclude...> = exclude_t{}) {
-        using handler_type = typename basic_group<owned_t<storage_for_type<Owned>...>, get_t<storage_for_type<Get>...>, exclude_t<storage_for_type<Exclude>...>>::handler;
+        using group_type = basic_group<owned_t<storage_for_type<Owned>...>, get_t<storage_for_type<Get>...>, exclude_t<storage_for_type<Exclude>...>>;
+        using handler_type = typename group_type::handler;
 
-        if(auto it = groups.find(type_hash<handler_type>::value()); it != groups.cend()) {
+        if(auto it = groups.find(group_type::group_id()); it != groups.cend()) {
             return {*std::static_pointer_cast<handler_type>(it->second)};
         }
 
         std::shared_ptr<handler_type> handler{};
 
         if constexpr(sizeof...(Owned) == 0u) {
-            handler = std::allocate_shared<handler_type>(get_allocator(), get_allocator(), assure<std::remove_const_t<Get>>()..., assure<std::remove_const_t<Exclude>>()...);
+            handler = std::allocate_shared<handler_type>(get_allocator(), get_allocator(), std::forward_as_tuple(assure<std::remove_const_t<Get>>()...), std::forward_as_tuple(assure<std::remove_const_t<Exclude>>()...));
         } else {
-            handler = std::allocate_shared<handler_type>(get_allocator(), assure<std::remove_const_t<Owned>>()..., assure<std::remove_const_t<Get>>()..., assure<std::remove_const_t<Exclude>>()...);
+            handler = std::allocate_shared<handler_type>(get_allocator(), std::forward_as_tuple(assure<std::remove_const_t<Owned>>()..., assure<std::remove_const_t<Get>>()...), std::forward_as_tuple(assure<std::remove_const_t<Exclude>>()...));
             [[maybe_unused]] const id_type elem[]{type_hash<std::remove_const_t<Owned>>::value()..., type_hash<std::remove_const_t<Get>>::value()..., type_hash<std::remove_const_t<Exclude>>::value()...};
             ENTT_ASSERT(std::all_of(groups.cbegin(), groups.cend(), [&elem](const auto &data) { return data.second->owned(elem, sizeof...(Owned)) == 0u; }), "Conflicting groups");
         }
 
-        groups.emplace(type_hash<handler_type>::value(), handler);
+        groups.emplace(group_type::group_id(), handler);
         return {*handler};
     }
 
@@ -1091,9 +1092,10 @@ public:
     template<typename... Owned, typename... Get, typename... Exclude>
     basic_group<owned_t<storage_for_type<const Owned>...>, get_t<storage_for_type<const Get>...>, exclude_t<storage_for_type<const Exclude>...>>
     group_if_exists(get_t<Get...> = get_t{}, exclude_t<Exclude...> = exclude_t{}) const {
-        using handler_type = typename basic_group<owned_t<storage_for_type<const Owned>...>, get_t<storage_for_type<const Get>...>, exclude_t<storage_for_type<const Exclude>...>>::handler;
+        using group_type = basic_group<owned_t<storage_for_type<const Owned>...>, get_t<storage_for_type<const Get>...>, exclude_t<storage_for_type<const Exclude>...>>;
+        using handler_type = typename group_type::handler;
 
-        if(auto it = groups.find(type_hash<handler_type>::value()); it != groups.cend()) {
+        if(auto it = groups.find(group_type::group_id()); it != groups.cend()) {
             return {*std::static_pointer_cast<handler_type>(it->second)};
         }
 

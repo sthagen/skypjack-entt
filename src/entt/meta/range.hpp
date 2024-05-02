@@ -15,10 +15,10 @@ namespace internal {
 
 template<typename Type, typename It>
 struct meta_range_iterator final {
-    using difference_type = std::ptrdiff_t;
     using value_type = std::pair<id_type, Type>;
     using pointer = input_iterator_pointer<value_type>;
     using reference = value_type;
+    using difference_type = std::ptrdiff_t;
     using iterator_category = std::input_iterator_tag;
     using iterator_concept = std::random_access_iterator_tag;
 
@@ -75,7 +75,7 @@ struct meta_range_iterator final {
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
-        return {it->first, Type{*ctx, it->second}};
+        return operator[](0);
     }
 
     template<typename... Args>

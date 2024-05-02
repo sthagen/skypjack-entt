@@ -15,6 +15,7 @@
 #include "../../common/aggregate.h"
 #include "../../common/config.h"
 #include "../../common/linter.hpp"
+#include "../../common/new_delete.h"
 #include "../../common/pointer_stable.h"
 #include "../../common/throwing_allocator.hpp"
 #include "../../common/throwing_type.hpp"
@@ -68,6 +69,8 @@ struct entt::component_traits<std::unordered_set<char>> {
 
 template<typename Type>
 struct Storage: testing::Test {
+    static_assert(entt::component_traits<Type>::page_size != 0u, "Empty type not allowed");
+
     using type = Type;
 };
 
@@ -318,6 +321,7 @@ TYPED_TEST(Storage, ConstIterator) {
 
     iterator cend{pool.cbegin()};
     iterator cbegin{};
+
     cbegin = pool.cend();
     std::swap(cbegin, cend);
 
@@ -382,6 +386,7 @@ TYPED_TEST(Storage, ReverseIterator) {
 
     reverse_iterator end{pool.rbegin()};
     reverse_iterator begin{};
+
     begin = pool.rend();
     std::swap(begin, end);
 
@@ -422,6 +427,7 @@ TYPED_TEST(Storage, ReverseIterator) {
     ASSERT_EQ(end.base().index(), 0);
 
     pool.emplace(entt::entity{3}, 4);
+    begin = pool.rbegin();
     end = pool.rend();
 
     ASSERT_EQ(begin.base().index(), -1);
@@ -444,6 +450,7 @@ TYPED_TEST(Storage, ConstReverseIterator) {
 
     const_reverse_iterator cend{pool.crbegin()};
     const_reverse_iterator cbegin{};
+
     cbegin = pool.crend();
     std::swap(cbegin, cend);
 
@@ -486,6 +493,7 @@ TYPED_TEST(Storage, ConstReverseIterator) {
     ASSERT_EQ(cend.base().index(), 0);
 
     pool.emplace(entt::entity{3}, 4);
+    cbegin = pool.crbegin();
     cend = pool.crend();
 
     ASSERT_EQ(cbegin.base().index(), -1);
@@ -1681,6 +1689,16 @@ TEST(Storage, CreateFromConstructor) {
 
     ASSERT_EQ(pool.get(entity).child, other);
     ASSERT_EQ(pool.get(other).child, static_cast<entt::entity>(entt::null));
+}
+
+TEST(Storage, ClassLevelNewDelete) {
+    entt::storage<test::new_delete> pool;
+    const entt::entity entity{0u};
+
+    // yeah, that's for code coverage purposes only :)
+    pool.emplace(entity, *std::make_unique<test::new_delete>(test::new_delete{3}));
+
+    ASSERT_EQ(pool.get(entity).value, 3);
 }
 
 TYPED_TEST(Storage, CustomAllocator) {

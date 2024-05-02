@@ -77,7 +77,7 @@ struct sparse_set_iterator final {
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
-        return packed->data() + index();
+        return std::addressof(operator[](0));
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
@@ -370,14 +370,14 @@ protected:
     }
 
 public:
+    /*! @brief Allocator type. */
+    using allocator_type = Allocator;
     /*! @brief Underlying entity identifier. */
     using entity_type = typename traits_type::value_type;
     /*! @brief Underlying version type. */
     using version_type = typename traits_type::version_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
-    /*! @brief Allocator type. */
-    using allocator_type = Allocator;
     /*! @brief Pointer type to contained entities. */
     using pointer = typename packed_container_type::const_pointer;
     /*! @brief Random access iterator type. */
@@ -446,7 +446,7 @@ public:
           info{other.info},
           mode{other.mode},
           head{std::exchange(other.head, policy_to_head())} {
-        ENTT_ASSERT(alloc_traits::is_always_equal::value || packed.get_allocator() == other.packed.get_allocator(), "Copying a sparse set is not allowed");
+        ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a sparse set is not allowed");
     }
 
     /*! @brief Default destructor. */
@@ -460,7 +460,7 @@ public:
      * @return This sparse set.
      */
     basic_sparse_set &operator=(basic_sparse_set &&other) noexcept {
-        ENTT_ASSERT(alloc_traits::is_always_equal::value || packed.get_allocator() == other.packed.get_allocator(), "Copying a sparse set is not allowed");
+        ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a sparse set is not allowed");
 
         release_sparse_pages();
         sparse = std::move(other.sparse);
@@ -715,7 +715,7 @@ public:
      * @return The entity at specified location.
      */
     [[nodiscard]] entity_type operator[](const size_type pos) const noexcept {
-        ENTT_ASSERT(pos < packed.size(), "Position is out of bounds");
+        ENTT_ASSERT(pos < packed.size(), "Index out of bounds");
         return packed[pos];
     }
 
@@ -988,7 +988,8 @@ public:
      */
     template<typename Compare, typename Sort = std_sort, typename... Args>
     void sort(Compare compare, Sort algo = Sort{}, Args &&...args) {
-        sort_n((mode == deletion_policy::swap_only) ? head : packed.size(), std::move(compare), std::move(algo), std::forward<Args>(args)...);
+        const size_type len[]{packed.size(), head};
+        sort_n(len[mode == deletion_policy::swap_only], std::move(compare), std::move(algo), std::forward<Args>(args)...);
     }
 
     /**
@@ -1007,7 +1008,8 @@ public:
     template<typename It>
     iterator sort_as(It first, It last) {
         ENTT_ASSERT((mode != deletion_policy::in_place) || (head == max_size), "Sorting with tombstones not allowed");
-        auto it = (mode == deletion_policy::swap_only) ? (end() - static_cast<typename iterator::difference_type>(head)) : begin();
+        const size_type len[]{packed.size(), head};
+        auto it = end() - static_cast<typename iterator::difference_type>(len[mode == deletion_policy::swap_only]);
 
         for(const auto other = end(); (it != other) && (first != last); ++first) {
             if(const auto curr = *first; contains(curr)) {

@@ -129,10 +129,10 @@ template<typename LhsType, auto... LhsArgs, typename RhsType, auto... RhsArgs>
 template<typename It, typename... Type>
 struct extended_view_iterator final {
     using iterator_type = It;
-    using difference_type = std::ptrdiff_t;
     using value_type = decltype(std::tuple_cat(std::make_tuple(*std::declval<It>()), std::declval<Type>().get_as_tuple({})...));
     using pointer = input_iterator_pointer<value_type>;
     using reference = value_type;
+    using difference_type = std::ptrdiff_t;
     using iterator_category = std::input_iterator_tag;
     using iterator_concept = std::forward_iterator_tag;
 
@@ -216,6 +216,13 @@ class basic_common_view {
     template<typename Return, typename View, typename Other, std::size_t... VGet, std::size_t... VExclude, std::size_t... OGet, std::size_t... OExclude>
     friend Return internal::view_pack(const View &, const Other &, std::index_sequence<VGet...>, std::index_sequence<VExclude...>, std::index_sequence<OGet...>, std::index_sequence<OExclude...>);
 
+    auto offset() const noexcept {
+        ENTT_ASSERT(index != Get, "Invalid view");
+        const auto *view = pools[index];
+        const size_type len[]{view->size(), view->free_list()};
+        return len[view->policy() == deletion_policy::swap_only];
+    }
+
 protected:
     /*! @cond TURN_OFF_DOXYGEN */
     basic_common_view() noexcept = default;
@@ -251,7 +258,7 @@ public:
     using entity_type = typename Type::entity_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
-    /*! @brief Bidirectional iterator type. */
+    /*! @brief Forward iterator type. */
     using iterator = internal::view_iterator<common_type, Get, Exclude>;
 
     /*! @brief Updates the internal leading view if required. */
@@ -288,12 +295,7 @@ public:
      * @return An iterator to the first entity of the view.
      */
     [[nodiscard]] iterator begin() const noexcept {
-        if(index != Get) {
-            const auto it = (pools[index]->policy() == deletion_policy::swap_only) ? (pools[index]->end() - pools[index]->free_list()) : pools[index]->begin();
-            return iterator{it, pools, filter, index};
-        }
-
-        return iterator{};
+        return (index != Get) ? iterator{pools[index]->end() - static_cast<typename iterator::difference_type>(offset()), pools, filter, index} : iterator{};
     }
 
     /**
@@ -321,10 +323,10 @@ public:
      */
     [[nodiscard]] entity_type back() const noexcept {
         if(index != Get) {
-            size_type pos{};
-            const size_type last = (pools[index]->policy() == deletion_policy::swap_only) ? pools[index]->free_list() : pools[index]->size();
-            for(; pos != last && !contains((*pools[index])[pos]); ++pos) {}
-            return pos == last ? null : (*pools[index])[pos];
+            auto it = pools[index]->rbegin();
+            const auto last = it + static_cast<typename iterator::difference_type>(offset());
+            for(; it != last && !contains(*it); ++it) {}
+            return it == last ? null : *it;
         }
 
         return null;
@@ -356,8 +358,8 @@ public:
     [[nodiscard]] bool contains(const entity_type entt) const noexcept {
         return (index != Get)
                && internal::all_of(pools.begin(), pools.end(), entt)
-               && ((pools[index]->policy() != deletion_policy::swap_only) || (pools[index]->index(entt) < pools[index]->free_list()))
-               && internal::none_of(filter.begin(), filter.end(), entt);
+               && internal::none_of(filter.begin(), filter.end(), entt)
+               && pools[index]->index(entt) < offset();
     }
 
 protected:
@@ -426,7 +428,7 @@ public:
     using entity_type = typename base_type::entity_type;
     /*! @brief Unsigned integer type. */
     using size_type = typename base_type::size_type;
-    /*! @brief Bidirectional iterator type. */
+    /*! @brief Forward iterator type. */
     using iterator = typename base_type::iterator;
     /*! @brief Iterable view type. */
     using iterable = iterable_adaptor<internal::extended_view_iterator<iterator, Get...>>;
@@ -635,7 +637,7 @@ public:
     using size_type = std::size_t;
     /*! @brief Random access iterator type. */
     using iterator = typename common_type::iterator;
-    /*! @brief Reversed iterator type. */
+    /*! @brief Reverse iterator type. */
     using reverse_iterator = typename common_type::reverse_iterator;
 
     /**
@@ -776,7 +778,7 @@ public:
     using size_type = typename base_type::size_type;
     /*! @brief Random access iterator type. */
     using iterator = typename base_type::iterator;
-    /*! @brief Reversed iterator type. */
+    /*! @brief Reverse iterator type. */
     using reverse_iterator = typename base_type::reverse_iterator;
     /*! @brief Iterable view type. */
     using iterable = decltype(std::declval<Get>().each());

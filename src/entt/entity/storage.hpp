@@ -94,9 +94,7 @@ public:
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
-        const auto pos = index();
-        constexpr auto page_size = component_traits<typename Container::value_type>::page_size;
-        return (*payload)[pos / page_size] + fast_mod(pos, page_size);
+        return std::addressof(operator[](0));
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
@@ -154,10 +152,10 @@ class extended_storage_iterator final {
 
 public:
     using iterator_type = It;
-    using difference_type = std::ptrdiff_t;
     using value_type = decltype(std::tuple_cat(std::make_tuple(*std::declval<It>()), std::forward_as_tuple(*std::declval<Other>()...)));
     using pointer = input_iterator_pointer<value_type>;
     using reference = value_type;
+    using difference_type = std::ptrdiff_t;
     using iterator_category = std::input_iterator_tag;
     using iterator_concept = std::forward_iterator_tag;
 
@@ -391,6 +389,8 @@ protected:
     }
 
 public:
+    /*! @brief Allocator type. */
+    using allocator_type = Allocator;
     /*! @brief Base type. */
     using base_type = underlying_type;
     /*! @brief Element type. */
@@ -401,8 +401,6 @@ public:
     using entity_type = Entity;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
-    /*! @brief Allocator type. */
-    using allocator_type = Allocator;
     /*! @brief Pointer type to contained elements. */
     using pointer = typename container_type::pointer;
     /*! @brief Constant pointer type to contained elements. */
@@ -452,7 +450,7 @@ public:
     basic_storage(basic_storage &&other, const allocator_type &allocator) noexcept
         : base_type{std::move(other), allocator},
           payload{std::move(other.payload), allocator} {
-        ENTT_ASSERT(alloc_traits::is_always_equal::value || payload.get_allocator() == other.payload.get_allocator(), "Copying a storage is not allowed");
+        ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a storage is not allowed");
     }
 
     /*! @brief Default destructor. */
@@ -466,7 +464,7 @@ public:
      * @return This storage.
      */
     basic_storage &operator=(basic_storage &&other) noexcept {
-        ENTT_ASSERT(alloc_traits::is_always_equal::value || payload.get_allocator() == other.payload.get_allocator(), "Copying a storage is not allowed");
+        ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a storage is not allowed");
 
         shrink_to_size(0u);
         base_type::operator=(std::move(other));
@@ -779,6 +777,8 @@ class basic_storage<Type, Entity, Allocator, std::enable_if_t<component_traits<T
     using traits_type = component_traits<Type>;
 
 public:
+    /*! @brief Allocator type. */
+    using allocator_type = Allocator;
     /*! @brief Base type. */
     using base_type = basic_sparse_set<Entity, typename alloc_traits::template rebind_alloc<Entity>>;
     /*! @brief Element type. */
@@ -789,8 +789,6 @@ public:
     using entity_type = Entity;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
-    /*! @brief Allocator type. */
-    using allocator_type = Allocator;
     /*! @brief Extended iterable storage proxy. */
     using iterable = iterable_adaptor<internal::extended_storage_iterator<typename base_type::iterator>>;
     /*! @brief Constant extended iterable storage proxy. */
@@ -959,7 +957,7 @@ class basic_storage<Entity, Entity, Allocator>
         entity_type entt = null;
 
         do {
-            ENTT_ASSERT(placeholder < traits_type::to_entity(null), "Invalid element");
+            ENTT_ASSERT(placeholder < traits_type::to_entity(null), "No more entities available");
             entt = traits_type::combine(static_cast<typename traits_type::entity_type>(placeholder++), {});
         } while(base_type::current(entt) != traits_type::to_version(tombstone) && entt != null);
 
@@ -983,6 +981,8 @@ protected:
     }
 
 public:
+    /*! @brief Allocator type. */
+    using allocator_type = Allocator;
     /*! @brief Base type. */
     using base_type = basic_sparse_set<Entity, Allocator>;
     /*! @brief Element type. */
@@ -991,8 +991,6 @@ public:
     using entity_type = Entity;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
-    /*! @brief Allocator type. */
-    using allocator_type = Allocator;
     /*! @brief Extended iterable storage proxy. */
     using iterable = iterable_adaptor<internal::extended_storage_iterator<typename base_type::iterator>>;
     /*! @brief Constant extended iterable storage proxy. */

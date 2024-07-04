@@ -10,7 +10,7 @@
 #include "../config/config.h"
 #include "../core/algorithm.hpp"
 #include "../core/any.hpp"
-#include "../core/memory.hpp"
+#include "../core/bit.hpp"
 #include "../core/type_info.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
@@ -33,7 +33,7 @@ struct sparse_set_iterator final {
           offset{} {}
 
     constexpr sparse_set_iterator(const Container &ref, const difference_type idx) noexcept
-        : packed{std::addressof(ref)},
+        : packed{&ref},
           offset{idx} {}
 
     constexpr sparse_set_iterator &operator++() noexcept {
@@ -73,7 +73,7 @@ struct sparse_set_iterator final {
     }
 
     [[nodiscard]] constexpr reference operator[](const difference_type value) const noexcept {
-        return packed->data()[index() - value];
+        return (*packed)[index() - value];
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
@@ -81,7 +81,7 @@ struct sparse_set_iterator final {
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
-        return *operator->();
+        return operator[](0);
     }
 
     [[nodiscard]] constexpr pointer data() const noexcept {
@@ -136,7 +136,7 @@ template<typename Container>
 /*! @endcond */
 
 /**
- * @brief Basic sparse set implementation.
+ * @brief Sparse set implementation.
  *
  * Sparse set or packed array or whatever is the name users give it.<br/>
  * Two arrays: an _external_ one and an _internal_ one; a _sparse_ one and a
@@ -214,18 +214,18 @@ class basic_sparse_set {
         }
     }
 
-    void swap_at(const std::size_t from, const std::size_t to) {
-        auto &lhs = packed[from];
-        auto &rhs = packed[to];
+    void swap_at(const std::size_t lhs, const std::size_t rhs) {
+        auto &from = packed[lhs];
+        auto &to = packed[rhs];
 
-        sparse_ref(lhs) = traits_type::combine(static_cast<typename traits_type::entity_type>(to), traits_type::to_integral(lhs));
-        sparse_ref(rhs) = traits_type::combine(static_cast<typename traits_type::entity_type>(from), traits_type::to_integral(rhs));
+        sparse_ref(from) = traits_type::combine(static_cast<typename traits_type::entity_type>(rhs), traits_type::to_integral(from));
+        sparse_ref(to) = traits_type::combine(static_cast<typename traits_type::entity_type>(lhs), traits_type::to_integral(to));
 
-        std::swap(lhs, rhs);
+        std::swap(from, to);
     }
 
 private:
-    virtual const void *get_at(const std::size_t) const {
+    [[nodiscard]] virtual const void *get_at(const std::size_t) const {
         return nullptr;
     }
 
@@ -398,7 +398,7 @@ public:
      * @param allocator The allocator to use.
      */
     explicit basic_sparse_set(const allocator_type &allocator)
-        : basic_sparse_set{type_id<void>(), deletion_policy::swap_and_pop, allocator} {}
+        : basic_sparse_set{deletion_policy::swap_and_pop, allocator} {}
 
     /**
      * @brief Constructs an empty container with the given policy and allocator.
@@ -424,6 +424,9 @@ public:
         ENTT_ASSERT(traits_type::version_mask || mode != deletion_policy::in_place, "Policy does not support zero-sized versions");
     }
 
+    /*! @brief Default copy constructor, deleted on purpose. */
+    basic_sparse_set(const basic_sparse_set &) = delete;
+
     /**
      * @brief Move constructor.
      * @param other The instance to move from.
@@ -440,7 +443,7 @@ public:
      * @param other The instance to move from.
      * @param allocator The allocator to use.
      */
-    basic_sparse_set(basic_sparse_set &&other, const allocator_type &allocator) noexcept
+    basic_sparse_set(basic_sparse_set &&other, const allocator_type &allocator)
         : sparse{std::move(other.sparse), allocator},
           packed{std::move(other.packed), allocator},
           info{other.info},
@@ -450,9 +453,15 @@ public:
     }
 
     /*! @brief Default destructor. */
-    virtual ~basic_sparse_set() {
+    virtual ~basic_sparse_set() noexcept {
         release_sparse_pages();
     }
+
+    /**
+     * @brief Default copy assignment operator, deleted on purpose.
+     * @return This sparse set.
+     */
+    basic_sparse_set &operator=(const basic_sparse_set &) = delete;
 
     /**
      * @brief Move assignment operator.
@@ -1038,11 +1047,12 @@ public:
      * @brief Returned value type, if any.
      * @return Returned value type, if any.
      */
-    const type_info &type() const noexcept {
+    [[nodiscard]] const type_info &type() const noexcept {
         return *info;
     }
 
     /*! @brief Forwards variables to derived classes, if any. */
+    // NOLINTNEXTLINE(performance-unnecessary-value-param)
     virtual void bind(any) noexcept {}
 
 private:

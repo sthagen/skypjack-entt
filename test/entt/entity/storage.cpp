@@ -39,7 +39,7 @@ struct update_from_destructor {
         return *this;
     }
 
-    ~update_from_destructor() {
+    ~update_from_destructor() noexcept {
         if(target != entt::null && storage->contains(target)) {
             storage->erase(target);
         }
@@ -65,6 +65,12 @@ template<>
 struct entt::component_traits<std::unordered_set<char>> {
     static constexpr auto in_place_delete = true;
     static constexpr auto page_size = 4u;
+};
+
+template<>
+struct entt::component_traits<int> {
+    static constexpr auto in_place_delete = false;
+    static constexpr auto page_size = 128u;
 };
 
 template<typename Type>
@@ -533,16 +539,17 @@ TYPED_TEST(Storage, IteratorPageSizeAwareness) {
     using traits_type = entt::component_traits<value_type>;
     entt::storage<value_type> pool;
 
-    const value_type check{2};
+    static_assert(!std::is_same_v<value_type, int> || (traits_type::page_size != entt::component_traits<value_type *>::page_size), "Different page size required");
 
     for(unsigned int next{}; next < traits_type::page_size; ++next) {
         pool.emplace(entt::entity{next});
     }
 
-    pool.emplace(entt::entity{traits_type::page_size}, check);
+    pool.emplace(entt::entity{traits_type::page_size});
 
     // test the proper use of component traits by the storage iterator
-    ASSERT_EQ(*pool.begin(), check);
+    ASSERT_EQ(&pool.begin()[0], pool.raw()[1u]);
+    ASSERT_EQ(&pool.begin()[traits_type::page_size], pool.raw()[0u]);
 }
 
 TYPED_TEST(Storage, Getters) {

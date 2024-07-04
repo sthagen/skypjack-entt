@@ -574,7 +574,7 @@ inline constexpr bool value_list_contains_v = value_list_contains<List, Value>::
 
 /*! @brief Primary template isn't defined on purpose. */
 template<typename...>
-class value_list_diff;
+struct value_list_diff;
 
 /**
  * @brief Computes the difference between two value lists.
@@ -582,12 +582,9 @@ class value_list_diff;
  * @tparam Other Values provided by the second value list.
  */
 template<auto... Value, auto... Other>
-class value_list_diff<value_list<Value...>, value_list<Other...>> {
-    using v141_toolset_workaround = value_list<Other...>;
-
-public:
+struct value_list_diff<value_list<Value...>, value_list<Other...>> {
     /*! @brief A value list that is the difference between the two value lists. */
-    using type = value_list_cat_t<std::conditional_t<value_list_contains_v<v141_toolset_workaround, Value>, value_list<>, value_list<Value>>...>;
+    using type = value_list_cat_t<std::conditional_t<value_list_contains_v<value_list<Other...>, Value>, value_list<>, value_list<Value>>...>;
 };
 
 /**
@@ -774,12 +771,8 @@ template<typename Type>
 [[nodiscard]] constexpr bool dispatch_is_equality_comparable() {
     if constexpr(std::is_array_v<Type>) {
         return false;
-    } else if constexpr(is_iterator_v<Type>) {
-        return maybe_equality_comparable<Type>(0);
-    } else if constexpr(has_value_type<Type>::value) {
-        if constexpr(std::is_same_v<typename Type::value_type, Type>) {
-            return maybe_equality_comparable<Type>(0);
-        } else if constexpr(dispatch_is_equality_comparable<typename Type::value_type>()) {
+    } else if constexpr(!is_iterator_v<Type> && has_value_type<Type>::value) {
+        if constexpr(std::is_same_v<typename Type::value_type, Type> || dispatch_is_equality_comparable<typename Type::value_type>()) {
             return maybe_equality_comparable<Type>(0);
         } else {
             return false;

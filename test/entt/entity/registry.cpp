@@ -19,6 +19,7 @@
 #include "../../common/config.h"
 #include "../../common/empty.h"
 #include "../../common/entity.h"
+#include "../../common/mixin.hpp"
 #include "../../common/non_default_constructible.h"
 #include "../../common/pointer_stable.h"
 
@@ -70,7 +71,7 @@ struct destruction_order {
     destruction_order(const destruction_order &) = delete;
     destruction_order &operator=(const destruction_order &) = delete;
 
-    ~destruction_order() {
+    ~destruction_order() noexcept {
         *ctx_check = *ctx_check && (registry->ctx().find<ctx_check_type>() != nullptr);
     }
 
@@ -329,7 +330,7 @@ TEST(Registry, StorageIterable) {
         testing::StaticAssertTypeEq<decltype(id), entt::id_type>();
 
         ASSERT_TRUE(pool.contains(entity));
-        ASSERT_EQ(std::addressof(storage), std::addressof(pool));
+        ASSERT_EQ(&storage, &pool);
         ASSERT_EQ(id, "other"_hs);
     }
 }
@@ -348,7 +349,7 @@ TEST(Registry, ConstStorageIterable) {
         testing::StaticAssertTypeEq<decltype(curr.first), entt::id_type>();
 
         ASSERT_TRUE(curr.second.contains(entity));
-        ASSERT_EQ(std::addressof(storage), std::addressof(curr.second));
+        ASSERT_EQ(&storage, &curr.second);
         ASSERT_EQ(curr.first, "other"_hs);
     }
 }
@@ -388,7 +389,7 @@ TEST(Registry, RegistryStorageIterator) {
     ASSERT_EQ(end + (begin - end), iterable.begin());
 
     ASSERT_EQ(begin[0u].first, iterable.begin()->first);
-    ASSERT_EQ(std::addressof(begin[0u].second), std::addressof((*iterable.begin()).second));
+    ASSERT_EQ(&begin[0u].second, &(*iterable.begin()).second);
 
     ASSERT_LT(begin, end);
     ASSERT_LE(begin, iterable.begin());
@@ -435,7 +436,7 @@ TEST(Registry, RegistryConstStorageIterator) {
     ASSERT_EQ(end + (begin - end), iterable.begin());
 
     ASSERT_EQ(begin[0u].first, iterable.begin()->first);
-    ASSERT_EQ(std::addressof(begin[0u].second), std::addressof((*iterable.begin()).second));
+    ASSERT_EQ(&begin[0u].second, &(*iterable.begin()).second);
 
     ASSERT_LT(begin, end);
     ASSERT_LE(begin, iterable.begin());
@@ -452,7 +453,7 @@ TEST(Registry, RegistryStorageIteratorConversion) {
     registry.storage<int>();
 
     auto proxy = registry.storage();
-    auto cproxy = std::as_const(registry).storage();
+    [[maybe_unused]] auto cproxy = std::as_const(registry).storage();
 
     const typename decltype(proxy)::iterator it = proxy.begin();
     typename decltype(cproxy)::iterator cit = it;
@@ -524,7 +525,10 @@ ENTT_DEBUG_TEST(RegistryDeathTest, Storage) {
     registry.storage<test::empty>("other"_hs);
 
     ASSERT_DEATH(registry.storage<int>("other"_hs), "");
-    ASSERT_DEATH(std::as_const(registry).storage<int>("other"_hs), "");
+    ASSERT_DEATH([[maybe_unused]] const auto *storage = std::as_const(registry).storage<int>("other"_hs), "");
+
+    ASSERT_DEATH(registry.storage<entt::entity>("other"_hs), "");
+    ASSERT_DEATH([[maybe_unused]] const auto *storage = std::as_const(registry).storage<entt::entity>("other"_hs), "");
 }
 
 TEST(Registry, Identifiers) {
@@ -957,7 +961,7 @@ TEST(Registry, StableEmplace) {
     ASSERT_EQ(registry.emplace<int>(registry.create(), 1), 1);
 }
 
-TEST(RegistryDeathTest, Emplace) {
+ENTT_DEBUG_TEST(RegistryDeathTest, Emplace) {
     entt::registry registry{};
     const auto entity = registry.create();
 
@@ -1003,7 +1007,7 @@ TEST(Registry, Insert) {
     ASSERT_EQ(registry.get<float>(entity[2u]), 2.f);
 }
 
-TEST(RegistryDeathTest, Insert) {
+ENTT_DEBUG_TEST(RegistryDeathTest, Insert) {
     entt::registry registry{};
     const std::array entity{registry.create()};
     const std::array value{0};
@@ -1039,7 +1043,7 @@ TEST(Registry, EmplaceOrReplaceAggregate) {
     ASSERT_EQ(instance.value, 1);
 }
 
-TEST(RegistryDeathTest, EmplaceOrReplace) {
+ENTT_DEBUG_TEST(RegistryDeathTest, EmplaceOrReplace) {
     entt::registry registry{};
     const auto entity = registry.create();
 
@@ -1447,7 +1451,7 @@ TEST(Registry, GetOrEmplace) {
     ASSERT_EQ(registry.get<int>(entity), 3);
 }
 
-TEST(RegistryDeathTest, GetOrEmplace) {
+ENTT_DEBUG_TEST(RegistryDeathTest, GetOrEmplace) {
     entt::registry registry{};
     const auto entity = registry.create();
 
@@ -2147,7 +2151,7 @@ TEST(Registry, SortSingle) {
         ASSERT_EQ(registry.get<int>(entity), --val);
     }
 
-    registry.sort<int>(std::less<int>{});
+    registry.sort<int>(std::less<>{});
 
     for(auto entity: registry.view<int>()) {
         ASSERT_EQ(registry.get<int>(entity), val++);
@@ -2174,7 +2178,7 @@ TEST(Registry, SortMulti) {
         ASSERT_EQ(registry.get<int>(entity), --ival);
     }
 
-    registry.sort<unsigned int>(std::less<unsigned int>{});
+    registry.sort<unsigned int>(std::less<>{});
     registry.sort<int, unsigned int>();
 
     for(auto entity: registry.view<unsigned int>()) {
@@ -2196,7 +2200,7 @@ TEST(Registry, SortEmpty) {
     ASSERT_LT(registry.storage<test::empty>().data()[0], registry.storage<test::empty>().data()[1]);
     ASSERT_LT(registry.storage<test::empty>().data()[1], registry.storage<test::empty>().data()[2]);
 
-    registry.sort<test::empty>(std::less<entt::entity>{});
+    registry.sort<test::empty>(std::less<>{});
 
     ASSERT_GT(registry.storage<test::empty>().data()[0], registry.storage<test::empty>().data()[1]);
     ASSERT_GT(registry.storage<test::empty>().data()[1], registry.storage<test::empty>().data()[2]);
@@ -2419,6 +2423,22 @@ TEST(Registry, ScramblingPoolsIsAllowed) {
     registry.view<const int>().each([](const auto entity, const auto &value) {
         ASSERT_EQ(static_cast<int>(entt::to_integral(entity)), value);
     });
+}
+
+TEST(Registry, AssureMixinLoop) {
+    entt::registry registry{};
+    const auto entity = registry.create();
+
+    ASSERT_EQ(std::as_const(registry).storage<test::assure_loop>(), nullptr);
+    ASSERT_EQ(std::as_const(registry).storage<int>(), nullptr);
+
+    registry.emplace<test::assure_loop>(entity);
+
+    ASSERT_NE(std::as_const(registry).storage<test::assure_loop>(), nullptr);
+    ASSERT_NE(std::as_const(registry).storage<int>(), nullptr);
+
+    ASSERT_TRUE(registry.all_of<test::assure_loop>(entity));
+    ASSERT_FALSE(registry.all_of<int>(entity));
 }
 
 TEST(Registry, VoidType) {

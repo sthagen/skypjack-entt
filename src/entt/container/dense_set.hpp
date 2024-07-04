@@ -12,8 +12,8 @@
 #include <utility>
 #include <vector>
 #include "../config/config.h"
+#include "../core/bit.hpp"
 #include "../core/compressed_pair.hpp"
-#include "../core/memory.hpp"
 #include "../core/type_traits.hpp"
 #include "fwd.hpp"
 
@@ -89,7 +89,7 @@ public:
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
-        return *operator->();
+        return operator[](0);
     }
 
     template<typename Lhs, typename Rhs>
@@ -271,7 +271,7 @@ class dense_set {
 
     void move_and_pop(const std::size_t pos) {
         if(const auto last = size() - 1u; pos != last) {
-            size_type *curr = sparse.first().data() + value_to_bucket(packed.first().back().second);
+            size_type *curr = &sparse.first()[value_to_bucket(packed.first().back().second)];
             packed.first()[pos] = std::move(packed.first().back());
             for(; *curr != last; curr = &packed.first()[*curr].first) {}
             *curr = pos;
@@ -352,8 +352,7 @@ public:
      */
     explicit dense_set(const size_type cnt, const hasher &hash = hasher{}, const key_equal &equal = key_equal{}, const allocator_type &allocator = allocator_type{})
         : sparse{allocator, hash},
-          packed{allocator, equal},
-          threshold{default_threshold} {
+          packed{allocator, equal} {
         rehash(cnt);
     }
 
@@ -382,6 +381,9 @@ public:
         : sparse{std::piecewise_construct, std::forward_as_tuple(std::move(other.sparse.first()), allocator), std::forward_as_tuple(std::move(other.sparse.second()))},
           packed{std::piecewise_construct, std::forward_as_tuple(std::move(other.packed.first()), allocator), std::forward_as_tuple(std::move(other.packed.second()))},
           threshold{other.threshold} {}
+
+    /*! @brief Default destructor. */
+    ~dense_set() noexcept = default;
 
     /**
      * @brief Default copy assignment operator.
@@ -609,7 +611,7 @@ public:
      * @return Number of elements removed (either 0 or 1).
      */
     size_type erase(const value_type &value) {
-        for(size_type *curr = sparse.first().data() + value_to_bucket(value); *curr != (std::numeric_limits<size_type>::max)(); curr = &packed.first()[*curr].first) {
+        for(size_type *curr = &sparse.first()[value_to_bucket(value)]; *curr != (std::numeric_limits<size_type>::max)(); curr = &packed.first()[*curr].first) {
             if(packed.second()(packed.first()[*curr].second, value)) {
                 const auto index = *curr;
                 *curr = packed.first()[*curr].first;
@@ -917,7 +919,7 @@ public:
 private:
     compressed_pair<sparse_container_type, hasher> sparse;
     compressed_pair<packed_container_type, key_equal> packed;
-    float threshold;
+    float threshold{default_threshold};
 };
 
 } // namespace entt

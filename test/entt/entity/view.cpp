@@ -363,41 +363,68 @@ TEST(SingleStorageView, IterableViewAlgorithmCompatibility) {
 
 TEST(SingleStorageView, StableType) {
     entt::storage<test::pointer_stable> storage{};
-    entt::basic_view view{storage};
+    entt::basic_view<entt::get_t<entt::storage<test::pointer_stable>>, entt::exclude_t<>> view{};
     const std::array entity{entt::entity{1}, entt::entity{3}};
 
-    storage.emplace(entity[0u]);
-    storage.emplace(entity[1u]);
+    ASSERT_EQ(view.front(), static_cast<entt::entity>(entt::null));
+    ASSERT_EQ(view.back(), static_cast<entt::entity>(entt::null));
+    ASSERT_EQ(view.find(entity[0u]), view.end());
+
+    view.storage(storage);
+
+    storage.emplace(entity[0u], 0);
+    storage.emplace(entity[1u], 1);
     storage.erase(entity[0u]);
 
     ASSERT_EQ(view.size_hint(), 2u);
+    ASSERT_EQ(view->size(), 2u);
+
     ASSERT_FALSE(view.contains(entity[0u]));
+    ASSERT_FALSE(view->contains(entity[0u]));
     ASSERT_TRUE(view.contains(entity[1u]));
 
-    ASSERT_EQ(view.front(), entity[1u]);
-    ASSERT_EQ(view.back(), entity[1u]);
+    ASSERT_EQ(std::distance(view.begin(), view.end()), 1);
+    ASSERT_EQ(std::distance(view->begin(), view->end()), 2);
 
     ASSERT_EQ(*view.begin(), entity[1u]);
     ASSERT_EQ(++view.begin(), view.end());
 
-    view.each([&entity](const auto entt, test::pointer_stable) {
-        ASSERT_EQ(entity[1u], entt);
-    });
+    ASSERT_EQ(view.front(), entity[1u]);
+    ASSERT_EQ(view.back(), entity[1u]);
 
-    view.each([check = true](test::pointer_stable) mutable {
-        ASSERT_TRUE(check);
-        check = false;
-    });
+    ASSERT_EQ(view.find(entity[0u]), view.end());
+    ASSERT_NE(view.find(entity[1u]), view.end());
 
-    for(auto [entt, st]: view.each()) {
+    for(auto [entt, elem]: view.each()) {
         testing::StaticAssertTypeEq<decltype(entt), entt::entity>();
-        testing::StaticAssertTypeEq<decltype(st), test::pointer_stable &>();
-        ASSERT_EQ(entity[1u], entt);
+        testing::StaticAssertTypeEq<decltype(elem), test::pointer_stable &>();
+        ASSERT_EQ(entt, entity[1u]);
     }
+
+    view.each([&](const auto entt, const auto &elem) {
+        ASSERT_EQ(elem, view->get(entity[1u]));
+        ASSERT_EQ(entt, entity[1u]);
+    });
+
+    view.each([&](const auto &elem) {
+        ASSERT_EQ(elem, view->get(entity[1u]));
+    });
+
+    storage.erase(view.begin(), view.end());
+
+    ASSERT_EQ(view.size_hint(), 2u);
+    ASSERT_EQ(view->size(), 2u);
+
+    ASSERT_EQ(std::distance(view.begin(), view.end()), 0);
+    ASSERT_EQ(std::distance(view->begin(), view->end()), 2);
+
+    ASSERT_EQ(view.front(), static_cast<entt::entity>(entt::null));
+    ASSERT_EQ(view.back(), static_cast<entt::entity>(entt::null));
 
     storage.compact();
 
-    ASSERT_EQ(view.size_hint(), 1u);
+    ASSERT_EQ(view.size_hint(), 0u);
+    ASSERT_EQ(view->size(), 0u);
 }
 
 TEST(SingleStorageView, Storage) {
@@ -515,23 +542,55 @@ TEST(SingleStorageView, SwapStorage) {
 
 TEST(SingleStorageView, StorageEntity) {
     entt::storage<entt::entity> storage{};
-    entt::basic_view view{storage};
+    entt::basic_view<entt::get_t<entt::storage<entt::entity>>, entt::exclude_t<>> view{};
     const std::array entity{storage.emplace(), storage.emplace()};
+
+    ASSERT_EQ(view.front(), static_cast<entt::entity>(entt::null));
+    ASSERT_EQ(view.back(), static_cast<entt::entity>(entt::null));
+    ASSERT_EQ(view.find(entity[0u]), view.end());
+
+    view.storage(storage);
 
     storage.erase(entity[0u]);
     storage.bump(entity[0u]);
 
+    ASSERT_EQ(view.size(), 1u);
+    ASSERT_EQ(view->size(), 2u);
+
+    ASSERT_FALSE(view.empty());
+    ASSERT_FALSE(view->empty());
+
     ASSERT_FALSE(view.contains(entity[0u]));
+    ASSERT_TRUE(view->contains(entity[0u]));
     ASSERT_TRUE(view.contains(entity[1u]));
+
+    ASSERT_NE(view.begin(), view->begin());
+    ASSERT_EQ(view.end(), view->end());
+
+    ASSERT_EQ(std::distance(view.begin(), view.end()), 1);
+    ASSERT_EQ(std::distance(view->begin(), view->end()), 2);
+
+    ASSERT_EQ(*view.begin(), entity[1u]);
+    ASSERT_EQ(*view->begin(), entity[0u]);
+
+    ASSERT_EQ(++view->begin(), view.begin());
+    ASSERT_EQ(++view.begin(), view.end());
+
+    ASSERT_EQ(view.rbegin(), view->rbegin());
+    ASSERT_NE(view.rend(), view->rend());
+
+    ASSERT_EQ(std::distance(view.rbegin(), view.rend()), 1);
+    ASSERT_EQ(std::distance(view->rbegin(), view->rend()), 2);
+
+    ASSERT_EQ(++view.rbegin(), view.rend());
+    ASSERT_EQ(++view.rend(), view->rend());
 
     ASSERT_EQ(view.front(), entity[1u]);
     ASSERT_EQ(view.back(), entity[1u]);
 
-    ASSERT_EQ(view.size_hint(), 2u);
-    ASSERT_NE(view.begin(), view.end());
-
-    ASSERT_EQ(std::distance(view.begin(), view.end()), 1);
-    ASSERT_EQ(*view.begin(), entity[1u]);
+    ASSERT_EQ(view.find(entity[0u]), view.end());
+    ASSERT_NE(view->find(entity[0u]), view.end());
+    ASSERT_NE(view.find(entity[1u]), view.end());
 
     for(auto elem: view.each()) {
         ASSERT_EQ(std::get<0>(elem), entity[1u]);
@@ -540,6 +599,22 @@ TEST(SingleStorageView, StorageEntity) {
     view.each([&entity](auto entt) {
         ASSERT_EQ(entt, entity[1u]);
     });
+
+    view.each([&]() {
+        storage.erase(entity[1u]);
+    });
+
+    ASSERT_EQ(view.size(), 0u);
+    ASSERT_EQ(view->size(), 2u);
+
+    ASSERT_TRUE(view.empty());
+    ASSERT_FALSE(view->empty());
+
+    ASSERT_EQ(std::distance(view.begin(), view.end()), 0);
+    ASSERT_EQ(std::distance(view->begin(), view->end()), 2);
+
+    ASSERT_EQ(view.front(), static_cast<entt::entity>(entt::null));
+    ASSERT_EQ(view.back(), static_cast<entt::entity>(entt::null));
 }
 
 TEST(MultiStorageView, Functionalities) {
@@ -1451,25 +1526,23 @@ TEST(MultiStorageView, StorageEntityExcludeOnly) {
 }
 
 TEST(View, Pipe) {
-    std::tuple<entt::storage<int>, entt::storage<char>, entt::storage<double>, entt::storage<test::empty>, entt::storage<test::pointer_stable>, entt::storage<float>> storage{};
+    std::tuple<entt::storage<int>, entt::storage<double>, entt::storage<test::empty>, entt::storage<test::pointer_stable>, entt::storage<float>> storage{};
     const std::array entity{entt::entity{1}, entt::entity{3}};
 
     std::get<0>(storage).emplace(entity[0u]);
     std::get<1>(storage).emplace(entity[0u]);
     std::get<2>(storage).emplace(entity[0u]);
-    std::get<3>(storage).emplace(entity[0u]);
 
     std::get<0>(storage).emplace(entity[1u]);
-    std::get<1>(storage).emplace(entity[1u]);
-    std::get<4>(storage).emplace(entity[1u]);
+    std::get<3>(storage).emplace(entity[1u]);
 
-    entt::basic_view view1{std::forward_as_tuple(std::get<0>(storage)), std::forward_as_tuple(std::as_const(std::get<2>(storage)))};
-    entt::basic_view view2{std::forward_as_tuple(std::as_const(std::get<1>(storage))), std::forward_as_tuple(std::get<5>(storage))};
-    entt::basic_view view3{std::get<3>(storage)};
-    entt::basic_view view4{std::get<4>(storage)};
+    entt::basic_view view1{std::forward_as_tuple(std::get<0>(storage)), std::forward_as_tuple(std::as_const(std::get<1>(storage)))};
+    entt::basic_view view2{std::forward_as_tuple(std::as_const(std::get<0>(storage))), std::forward_as_tuple(std::get<4>(storage))};
+    entt::basic_view view3{std::get<2>(storage)};
+    entt::basic_view view4{std::get<3>(storage)};
 
-    testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<entt::storage<int>, const entt::storage<char>>, entt::exclude_t<const entt::storage<double>, entt::storage<float>>>, decltype(view1 | view2)>();
-    testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<const entt::storage<char>, entt::storage<int>>, entt::exclude_t<entt::storage<float>, const entt::storage<double>>>, decltype(view2 | view1)>();
+    testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<entt::storage<int>, const entt::storage<int>>, entt::exclude_t<const entt::storage<double>, entt::storage<float>>>, decltype(view1 | view2)>();
+    testing::StaticAssertTypeEq<entt::basic_view<entt::get_t<const entt::storage<int>, entt::storage<int>>, entt::exclude_t<entt::storage<float>, const entt::storage<double>>>, decltype(view2 | view1)>();
     testing::StaticAssertTypeEq<decltype((view3 | view2) | view1), decltype(view3 | (view2 | view1))>();
 
     ASSERT_FALSE((view1 | view2).contains(entity[0u]));
@@ -1503,6 +1576,6 @@ TEST(View, Pipe) {
     ASSERT_NE(pack14.storage<test::pointer_stable>(), nullptr);
 
     ASSERT_EQ(pack32.storage<test::empty>(), nullptr);
-    ASSERT_NE(pack32.storage<const char>(), nullptr);
+    ASSERT_NE(pack32.storage<const int>(), nullptr);
     ASSERT_NE(pack32.storage<float>(), nullptr);
 }

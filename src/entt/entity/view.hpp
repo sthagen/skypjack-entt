@@ -222,9 +222,7 @@ class basic_common_view {
 
     [[nodiscard]] auto offset() const noexcept {
         ENTT_ASSERT(index != Get, "Invalid view");
-        const auto *view = pools[index];
-        const size_type len[]{view->size(), view->free_list()};
-        return len[view->policy() == deletion_policy::swap_only];
+        return (pools[index]->policy() == deletion_policy::swap_only) ? pools[index]->free_list() : pools[index]->size();
     }
 
     void unchecked_refresh() noexcept {
@@ -248,6 +246,29 @@ protected:
           filter{excl},
           index{Get} {
         unchecked_refresh();
+    }
+
+    template<std::size_t Index>
+    const Type *storage() const noexcept {
+        if constexpr(Index < Get) {
+            return pools[Index];
+        } else {
+            return filter[Index - Get];
+        }
+    }
+
+    template<std::size_t Index>
+    void storage(const Type *elem) noexcept {
+        if constexpr(Index < Get) {
+            pools[Index] = elem;
+            refresh();
+        } else {
+            filter[Index - Get] = elem;
+        }
+    }
+
+    bool none_of(const typename Type::entity_type entt) const noexcept {
+        return internal::none_of(filter.begin(), filter.end(), entt);
     }
 
     void use(const std::size_t pos) noexcept {
@@ -366,12 +387,10 @@ public:
                && pools[index]->index(entt) < offset();
     }
 
-protected:
-    /*! @cond TURN_OFF_DOXYGEN */
+private:
     std::array<const common_type *, Get> pools{};
     std::array<const common_type *, Exclude> filter{};
     size_type index{Get};
-    /*! @endcond */
 };
 
 /**
@@ -387,7 +406,7 @@ protected:
  * @tparam Exclude Types of storage used to filter the view.
  */
 template<typename... Get, typename... Exclude>
-class basic_view<get_t<Get...>, exclude_t<Exclude...>, std::enable_if_t<(sizeof...(Get) + sizeof...(Exclude) > 1) || (type_list_element_t<0u, type_list<Get...>>::storage_policy != deletion_policy::swap_and_pop)>>
+class basic_view<get_t<Get...>, exclude_t<Exclude...>, std::enable_if_t<(sizeof...(Get) + sizeof...(Exclude) > 1)>>
     : public basic_common_view<std::common_type_t<typename Get::base_type..., typename Exclude::base_type...>, sizeof...(Get), sizeof...(Exclude)> {
     using base_type = basic_common_view<std::common_type_t<typename Get::base_type..., typename Exclude::base_type...>, sizeof...(Get), sizeof...(Exclude)>;
 
@@ -413,7 +432,7 @@ class basic_view<get_t<Get...>, exclude_t<Exclude...>, std::enable_if_t<(sizeof.
         static constexpr bool tombstone_check_required = ((sizeof...(Get) == 1u) && ... && (Get::storage_policy == deletion_policy::in_place));
 
         for(const auto curr: storage<Curr>()->each()) {
-            if(const auto entt = std::get<0>(curr); (!tombstone_check_required || (entt != tombstone)) && ((Curr == Index || this->pools[Index]->contains(entt)) && ...) && internal::none_of(this->filter.begin(), this->filter.end(), entt)) {
+            if(const auto entt = std::get<0>(curr); (!tombstone_check_required || (entt != tombstone)) && ((Curr == Index || base_type::template storage<Index>()->contains(entt)) && ...) && base_type::none_of(entt)) {
                 if constexpr(is_applicable_v<Func, decltype(std::tuple_cat(std::tuple<entity_type>{}, std::declval<basic_view>().get({})))>) {
                     std::apply(func, std::tuple_cat(std::make_tuple(entt), dispatch_get<Curr, Index>(curr)...));
                 } else {
@@ -425,7 +444,9 @@ class basic_view<get_t<Get...>, exclude_t<Exclude...>, std::enable_if_t<(sizeof.
 
     template<typename Func, std::size_t... Index>
     void pick_and_each(Func &func, std::index_sequence<Index...> seq) const {
-        ((Index == this->index ? each<Index>(func, seq) : void()), ...);
+        if(const auto *view = base_type::handle(); view != nullptr) {
+            ((view == base_type::template storage<Index>() ? each<Index>(func, seq) : void()), ...);
+        }
     }
 
 public:
@@ -497,12 +518,7 @@ public:
     template<std::size_t Index>
     [[nodiscard]] auto *storage() const noexcept {
         using type = type_list_element_t<Index, type_list<Get..., Exclude...>>;
-
-        if constexpr(Index < sizeof...(Get)) {
-            return static_cast<type *>(const_cast<constness_as_t<common_type, type> *>(this->pools[Index]));
-        } else {
-            return static_cast<type *>(const_cast<constness_as_t<common_type, type> *>(this->filter[Index - sizeof...(Get)]));
-        }
+        return static_cast<type *>(const_cast<constness_as_t<common_type, type> *>(base_type::template storage<Index>()));
     }
 
     /**
@@ -524,13 +540,7 @@ public:
     template<std::size_t Index, typename Type>
     void storage(Type &elem) noexcept {
         static_assert(std::is_convertible_v<Type &, type_list_element_t<Index, type_list<Get..., Exclude...>> &>, "Unexpected type");
-
-        if constexpr(Index < sizeof...(Get)) {
-            this->pools[Index] = &elem;
-            base_type::refresh();
-        } else {
-            this->filter[Index - sizeof...(Get)] = &elem;
-        }
+        base_type::template storage<Index>(&elem);
     }
 
     /**
@@ -622,15 +632,18 @@ public:
  * @brief Basic storage view implementation.
  * @warning For internal use only, backward compatibility not guaranteed.
  * @tparam Type Common type among all storage types.
+ * @tparam Policy Storage policy.
  */
-template<typename Type>
-class basic_swap_and_pop_view {
+template<typename Type, deletion_policy Policy>
+class basic_storage_view {
 protected:
     /*! @cond TURN_OFF_DOXYGEN */
-    basic_swap_and_pop_view() noexcept = default;
+    basic_storage_view() noexcept = default;
 
-    basic_swap_and_pop_view(const Type *value) noexcept
-        : leading{value} {}
+    basic_storage_view(const Type *value) noexcept
+        : leading{value} {
+        ENTT_ASSERT(leading->policy() == Policy, "Unexpected storage policy");
+    }
     /*! @endcond */
 
 public:
@@ -641,9 +654,9 @@ public:
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Random access iterator type. */
-    using iterator = typename common_type::iterator;
+    using iterator = std::conditional_t<Policy == deletion_policy::in_place, internal::view_iterator<common_type, 1u, 0u>, typename common_type::iterator>;
     /*! @brief Reverse iterator type. */
-    using reverse_iterator = typename common_type::reverse_iterator;
+    using reverse_iterator = std::conditional_t<Policy == deletion_policy::in_place, void, typename common_type::reverse_iterator>;
 
     /**
      * @brief Returns the leading storage of a view, if any.
@@ -655,18 +668,42 @@ public:
 
     /**
      * @brief Returns the number of entities that have the given element.
+     * @tparam Pol Dummy template parameter used for sfinae purposes only.
      * @return Number of entities that have the given element.
      */
-    [[nodiscard]] size_type size() const noexcept {
+    template<typename..., deletion_policy Pol = Policy>
+    [[nodiscard]] std::enable_if_t<Pol != deletion_policy::in_place, size_type> size() const noexcept {
+        if constexpr(Policy == deletion_policy::swap_and_pop) {
+            return leading ? leading->size() : size_type{};
+        } else {
+            static_assert(Policy == deletion_policy::swap_only, "Unexpected storage policy");
+            return leading ? leading->free_list() : size_type{};
+        }
+    }
+
+    /**
+     * @brief Estimates the number of entities iterated by the view.
+     * @tparam Pol Dummy template parameter used for sfinae purposes only.
+     * @return Estimated number of entities iterated by the view.
+     */
+    template<typename..., deletion_policy Pol = Policy>
+    [[nodiscard]] std::enable_if_t<Pol == deletion_policy::in_place, size_type> size_hint() const noexcept {
         return leading ? leading->size() : size_type{};
     }
 
     /**
      * @brief Checks whether a view is empty.
+     * @tparam Pol Dummy template parameter used for sfinae purposes only.
      * @return True if the view is empty, false otherwise.
      */
-    [[nodiscard]] bool empty() const noexcept {
-        return !leading || leading->empty();
+    template<typename..., deletion_policy Pol = Policy>
+    [[nodiscard]] std::enable_if_t<Pol != deletion_policy::in_place, bool> empty() const noexcept {
+        if constexpr(Policy == deletion_policy::swap_and_pop) {
+            return !leading || leading->empty();
+        } else {
+            static_assert(Policy == deletion_policy::swap_only, "Unexpected storage policy");
+            return !leading || (leading->free_list() == 0u);
+        }
     }
 
     /**
@@ -677,7 +714,14 @@ public:
      * @return An iterator to the first entity of the view.
      */
     [[nodiscard]] iterator begin() const noexcept {
-        return leading ? leading->begin() : iterator{};
+        if constexpr(Policy == deletion_policy::swap_and_pop) {
+            return leading ? leading->begin() : iterator{};
+        } else if constexpr(Policy == deletion_policy::swap_only) {
+            return leading ? (leading->end() - leading->free_list()) : iterator{};
+        } else {
+            static_assert(Policy == deletion_policy::in_place, "Unexpected storage policy");
+            return leading ? iterator{leading->begin(), {leading}, {}, 0u} : iterator{};
+        }
     }
 
     /**
@@ -685,7 +729,12 @@ public:
      * @return An iterator to the entity following the last entity of the view.
      */
     [[nodiscard]] iterator end() const noexcept {
-        return leading ? leading->end() : iterator{};
+        if constexpr(Policy == deletion_policy::swap_and_pop || Policy == deletion_policy::swap_only) {
+            return leading ? leading->end() : iterator{};
+        } else {
+            static_assert(Policy == deletion_policy::in_place, "Unexpected storage policy");
+            return leading ? iterator{leading->end(), {leading}, {}, 0u} : iterator{};
+        }
     }
 
     /**
@@ -693,20 +742,29 @@ public:
      *
      * If the view is empty, the returned iterator will be equal to `rend()`.
      *
+     * @tparam Pol Dummy template parameter used for sfinae purposes only.
      * @return An iterator to the first entity of the reversed view.
      */
-    [[nodiscard]] reverse_iterator rbegin() const noexcept {
+    template<typename..., deletion_policy Pol = Policy>
+    [[nodiscard]] std::enable_if_t<Pol != deletion_policy::in_place, reverse_iterator> rbegin() const noexcept {
         return leading ? leading->rbegin() : reverse_iterator{};
     }
 
     /**
      * @brief Returns an iterator that is past the last entity of the reversed
      * view.
+     * @tparam Pol Dummy template parameter used for sfinae purposes only.
      * @return An iterator to the entity following the last entity of the
      * reversed view.
      */
-    [[nodiscard]] reverse_iterator rend() const noexcept {
-        return leading ? leading->rend() : reverse_iterator{};
+    template<typename..., deletion_policy Pol = Policy>
+    [[nodiscard]] std::enable_if_t<Pol != deletion_policy::in_place, reverse_iterator> rend() const noexcept {
+        if constexpr(Policy == deletion_policy::swap_and_pop) {
+            return leading ? leading->rend() : reverse_iterator{};
+        } else {
+            static_assert(Policy == deletion_policy::swap_only, "Unexpected storage policy");
+            return leading ? (leading->rbegin() + leading->free_list()) : reverse_iterator{};
+        }
     }
 
     /**
@@ -715,7 +773,15 @@ public:
      * otherwise.
      */
     [[nodiscard]] entity_type front() const noexcept {
-        return empty() ? null : *leading->begin();
+        if constexpr(Policy == deletion_policy::swap_and_pop) {
+            return empty() ? null : *leading->begin();
+        } else if constexpr(Policy == deletion_policy::swap_only) {
+            return empty() ? null : *(leading->end() - leading->free_list());
+        } else {
+            static_assert(Policy == deletion_policy::in_place, "Unexpected storage policy");
+            const auto it = begin();
+            return (it == end()) ? null : *it;
+        }
     }
 
     /**
@@ -724,7 +790,20 @@ public:
      * otherwise.
      */
     [[nodiscard]] entity_type back() const noexcept {
-        return empty() ? null : *leading->rbegin();
+        if constexpr(Policy == deletion_policy::swap_and_pop || Policy == deletion_policy::swap_only) {
+            return empty() ? null : *leading->rbegin();
+        } else {
+            static_assert(Policy == deletion_policy::in_place, "Unexpected storage policy");
+
+            if(leading) {
+                auto it = leading->rbegin();
+                const auto last = leading->rend();
+                for(; (it != last) && (*it == tombstone); ++it) {}
+                return it == last ? null : *it;
+            }
+
+            return null;
+        }
     }
 
     /**
@@ -734,7 +813,15 @@ public:
      * iterator otherwise.
      */
     [[nodiscard]] iterator find(const entity_type entt) const noexcept {
-        return leading ? leading->find(entt) : iterator{};
+        if constexpr(Policy == deletion_policy::swap_and_pop) {
+            return leading ? leading->find(entt) : iterator{};
+        } else if constexpr(Policy == deletion_policy::swap_only) {
+            const auto it = leading ? leading->find(entt) : iterator{};
+            return leading && (static_cast<size_type>(it.index()) < leading->free_list()) ? it : iterator{};
+        } else {
+            const auto it = leading ? leading->find(entt) : typename common_type::iterator{};
+            return iterator{it, {leading}, {}, 0u};
+        }
     }
 
     /**
@@ -751,7 +838,12 @@ public:
      * @return True if the view contains the given entity, false otherwise.
      */
     [[nodiscard]] bool contains(const entity_type entt) const noexcept {
-        return leading && leading->contains(entt);
+        if constexpr(Policy == deletion_policy::swap_and_pop || Policy == deletion_policy::in_place) {
+            return leading && leading->contains(entt);
+        } else {
+            static_assert(Policy == deletion_policy::swap_only, "Unexpected storage policy");
+            return leading && leading->contains(entt) && (leading->index(entt) < leading->free_list());
+        }
     }
 
 private:
@@ -769,9 +861,9 @@ private:
  * @tparam Get Type of storage iterated by the view.
  */
 template<typename Get>
-class basic_view<get_t<Get>, exclude_t<>, std::enable_if_t<Get::storage_policy == deletion_policy::swap_and_pop>>
-    : public basic_swap_and_pop_view<typename Get::base_type> {
-    using base_type = basic_swap_and_pop_view<typename Get::base_type>;
+class basic_view<get_t<Get>, exclude_t<>>
+    : public basic_storage_view<typename Get::base_type, Get::storage_policy> {
+    using base_type = basic_storage_view<typename Get::base_type, Get::storage_policy>;
 
 public:
     /*! @brief Common type among all storage types. */
@@ -785,7 +877,7 @@ public:
     /*! @brief Reverse iterator type. */
     using reverse_iterator = typename base_type::reverse_iterator;
     /*! @brief Iterable view type. */
-    using iterable = decltype(std::declval<Get>().each());
+    using iterable = std::conditional_t<Get::storage_policy == deletion_policy::in_place, iterable_adaptor<internal::extended_view_iterator<iterator, Get>>, decltype(std::declval<Get>().each())>;
 
     /*! @brief Default constructor to use to create empty, invalid views. */
     basic_view() noexcept
@@ -825,7 +917,7 @@ public:
     template<std::size_t Index>
     [[nodiscard]] auto *storage() const noexcept {
         static_assert(Index == 0u, "Index out of bounds");
-        return static_cast<Get *>(const_cast<constness_as_t<common_type, Get> *>(this->handle()));
+        return static_cast<Get *>(const_cast<constness_as_t<common_type, Get> *>(base_type::handle()));
     }
 
     /**
@@ -908,19 +1000,27 @@ public:
      */
     template<typename Func>
     void each(Func func) const {
-        if(auto *elem = storage(); elem) {
-            if constexpr(is_applicable_v<Func, decltype(*elem->each().begin())>) {
-                for(const auto pack: elem->each()) {
-                    std::apply(func, pack);
-                }
-            } else if constexpr(std::is_invocable_v<Func, decltype(*elem->begin())>) {
-                for(auto &&curr: *elem) {
-                    func(curr);
-                }
-            } else {
-                for(size_type pos = elem->size(); pos; --pos) {
+        if constexpr(is_applicable_v<Func, decltype(std::tuple_cat(std::tuple<entity_type>{}, std::declval<basic_view>().get({})))>) {
+            for(const auto pack: each()) {
+                std::apply(func, pack);
+            }
+        } else if constexpr(Get::storage_policy == deletion_policy::swap_and_pop || Get::storage_policy == deletion_policy::swap_only) {
+            if constexpr(std::is_void_v<typename Get::value_type>) {
+                for(size_type pos = base_type::size(); pos; --pos) {
                     func();
                 }
+            } else {
+                if(const auto len = base_type::size(); len != 0u) {
+                    for(auto last = storage()->end(), first = last - len; first != last; ++first) {
+                        func(*first);
+                    }
+                }
+            }
+        } else {
+            static_assert(Get::storage_policy == deletion_policy::in_place, "Unexpected storage policy");
+
+            for(const auto pack: each()) {
+                std::apply([&func](const auto, auto &&...elem) { func(std::forward<decltype(elem)>(elem)...); }, pack);
             }
         }
     }
@@ -935,8 +1035,12 @@ public:
      * @return An iterable object to use to _visit_ the view.
      */
     [[nodiscard]] iterable each() const noexcept {
-        auto *elem = storage();
-        return elem ? elem->each() : iterable{};
+        if constexpr(Get::storage_policy == deletion_policy::swap_and_pop || Get::storage_policy == deletion_policy::swap_only) {
+            return base_type::handle() ? storage()->each() : iterable{};
+        } else {
+            static_assert(Get::storage_policy == deletion_policy::in_place, "Unexpected storage policy");
+            return iterable{base_type::begin(), base_type::end()};
+        }
     }
 
     /**

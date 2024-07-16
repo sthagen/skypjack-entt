@@ -20,7 +20,6 @@ TODO:
 * view: update natvis as needed after the last rework, merge pools/filter in the same array, drop check (?) and turn view into a position
 * view: type-only view_iterator (dyn get/excl sizes), type-only basic_common_view (dyn get/excl sizes with pointer to array from derived)
 * combine version-mask-vs-version-bits tricks with reserved bits to allow things like enabling/disabling
-* review all // NOLINT
 * self contained entity traits to avoid explicit specializations (ie enum constants)
 * auto type info data from types if present
 * test: push sharing types further
@@ -30,13 +29,18 @@ TODO:
   - documentation for reserved entities
 * storage entity: no emplace/insert, rename and add a fast range-push from above
 * view: propagate tombostone check request to iterator
-* review the short-circuit model now that all storage are freely available
-* more test around views and storage entity - ie view ::back
 * table: pop back to support swap and pop, single column access, empty type optimization
 * checkout tools workflow
 * review constrained noexcept-ness (ie sigh)
 * offer 16b from meta_traits to users or change type
 * registry::view const invokes refresh multiple times implicitly
-* decouple all non-storage classes from component_traits
-* group, runtime view: avoid using registry when testing
-* improve front for multi-type view
+* improve front (no multiple checks) and back (ie no contains) for multi-type view
+* cleanup common view from tricks to handle single swap-only and in-place, if constexpr branches
+* consider returning subrange for swap-only sparse sets or consider using filtered each for in-place storage (smilar to storage entity), cleanup views
+* exploit ref/cref in any to avoid invoking the vtable if possible
+* review meta properties and details, maybe a dense map is too much
+* self assignment support for any and meta_any
+* meta support for use defined traits (room for them on meta traits)
+* entity based component_traits
+* seek functions for meta factory (data/func/whatever)
+* investigate using any rather than shared<void> for meta properties

@@ -110,6 +110,7 @@ struct MetaData: ::testing::Test {
         entt::meta<clazz>()
             .type("clazz"_hs)
             .data<&clazz::i, entt::as_ref_t>("i"_hs)
+            .custom<char>('c')
             .traits(test::meta_traits::one | test::meta_traits::two | test::meta_traits::three)
             .prop(3u, 0)
             .data<&clazz::i, entt::as_cref_t>("ci"_hs)
@@ -200,6 +201,23 @@ TEST_F(MetaData, UserTraits) {
     ASSERT_EQ(entt::resolve<clazz>().data("j"_hs).traits<test::meta_traits>(), test::meta_traits::one);
     ASSERT_EQ(entt::resolve<clazz>().data("h"_hs).traits<test::meta_traits>(), test::meta_traits::two);
     ASSERT_EQ(entt::resolve<clazz>().data("k"_hs).traits<test::meta_traits>(), test::meta_traits::three);
+}
+
+TEST_F(MetaData, Custom) {
+    using namespace entt::literals;
+
+    ASSERT_EQ(*static_cast<const char *>(entt::resolve<clazz>().data("i"_hs).custom()), 'c');
+    ASSERT_EQ(static_cast<const char &>(entt::resolve<clazz>().data("i"_hs).custom()), 'c');
+
+    ASSERT_EQ(static_cast<const int *>(entt::resolve<clazz>().data("i"_hs).custom()), nullptr);
+    ASSERT_EQ(static_cast<const int *>(entt::resolve<clazz>().data("j"_hs).custom()), nullptr);
+}
+
+ENTT_DEBUG_TEST_F(MetaDataDeathTest, Custom) {
+    using namespace entt::literals;
+
+    ASSERT_DEATH([[maybe_unused]] const int &value = entt::resolve<clazz>().data("i"_hs).custom(), "");
+    ASSERT_DEATH([[maybe_unused]] const char &value = entt::resolve<clazz>().data("j"_hs).custom(), "");
 }
 
 TEST_F(MetaData, Const) {

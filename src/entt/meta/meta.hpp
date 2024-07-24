@@ -9,7 +9,6 @@
 #include <utility>
 #include "../config/config.h"
 #include "../core/any.hpp"
-#include "../core/bit.hpp"
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
 #include "../core/type_info.hpp"
@@ -827,6 +826,41 @@ private:
     return !(lhs == rhs);
 }
 
+/*! @brief Opaque wrapper for user defined data of any type. */
+struct meta_custom {
+    /*! @brief Default constructor. */
+    meta_custom() noexcept = default;
+
+    /**
+     * @brief Basic constructor for meta objects.
+     * @param curr The underlying node with which to construct the instance.
+     */
+    meta_custom(internal::meta_custom_node curr) noexcept
+        : node{std::move(curr)} {}
+
+    /**
+     * @brief Generic conversion operator.
+     * @tparam Type Type to which conversion is requested.
+     */
+    template<typename Type>
+    [[nodiscard]] operator const Type *() const noexcept {
+        return (type_id<Type>().hash() == node.type) ? std::static_pointer_cast<Type>(node.data).get() : nullptr;
+    }
+
+    /**
+     * @brief Generic conversion operator.
+     * @tparam Type Type to which conversion is requested.
+     */
+    template<typename Type>
+    [[nodiscard]] operator const Type &() const noexcept {
+        ENTT_ASSERT(type_id<Type>().hash() == node.type, "Invalid type");
+        return *std::static_pointer_cast<Type>(node.data);
+    }
+
+private:
+    internal::meta_custom_node node{};
+};
+
 /*! @brief Opaque wrapper for data members. */
 struct meta_data {
     /*! @brief Unsigned integer type. */
@@ -925,9 +959,15 @@ struct meta_data {
      */
     template<typename Type>
     [[nodiscard]] Type traits() const noexcept {
-        static_assert(std::is_enum_v<Type>, "Invalid enum type");
-        constexpr auto shift = popcount(static_cast<std::underlying_type_t<internal::meta_traits>>(internal::meta_traits::_user_defined_traits));
-        return Type{static_cast<std::underlying_type_t<Type>>(static_cast<std::underlying_type_t<internal::meta_traits>>(node->traits) >> shift)};
+        return internal::meta_to_user_traits<Type>(node->traits);
+    }
+
+    /**
+     * @brief Returns user defined data for a given meta object.
+     * @return User defined arbitrary data.
+     */
+    [[nodiscard]] meta_custom custom() const noexcept {
+        return {node->custom};
     }
 
     /**
@@ -1052,16 +1092,15 @@ struct meta_func {
         return it != node->prop.cend() ? meta_prop{*ctx, it->second} : meta_prop{};
     }
 
-    /**
-     * @brief Returns all meta traits for a given meta object.
-     * @tparam Type The type to convert the meta traits to.
-     * @return The registered meta traits, if any.
-     */
+    /*! @copydoc meta_data::traits */
     template<typename Type>
     [[nodiscard]] Type traits() const noexcept {
-        static_assert(std::is_enum_v<Type>, "Invalid enum type");
-        constexpr auto shift = popcount(static_cast<std::underlying_type_t<internal::meta_traits>>(internal::meta_traits::_user_defined_traits));
-        return Type{static_cast<std::underlying_type_t<Type>>(static_cast<std::underlying_type_t<internal::meta_traits>>(node->traits) >> shift)};
+        return internal::meta_to_user_traits<Type>(node->traits);
+    }
+
+    /*! @copydoc meta_data::custom */
+    [[nodiscard]] meta_custom custom() const noexcept {
+        return {node->custom};
     }
 
     /**
@@ -1528,16 +1567,15 @@ public:
         return elem ? meta_prop{*ctx, *elem} : meta_prop{};
     }
 
-    /**
-     * @brief Returns all meta traits for a given meta object.
-     * @tparam Type The type to convert the meta traits to.
-     * @return The registered meta traits, if any.
-     */
+    /*! @copydoc meta_data::traits */
     template<typename Type>
     [[nodiscard]] Type traits() const noexcept {
-        static_assert(std::is_enum_v<Type>, "Invalid enum type");
-        constexpr auto shift = popcount(static_cast<std::underlying_type_t<internal::meta_traits>>(internal::meta_traits::_user_defined_traits));
-        return Type{static_cast<std::underlying_type_t<Type>>(static_cast<std::underlying_type_t<internal::meta_traits>>(node.traits) >> shift)};
+        return internal::meta_to_user_traits<Type>(node.traits);
+    }
+
+    /*! @copydoc meta_data::custom */
+    [[nodiscard]] meta_custom custom() const noexcept {
+        return {node.custom};
     }
 
     /**

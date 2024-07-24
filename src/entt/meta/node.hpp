@@ -8,6 +8,7 @@
 #include "../config/config.h"
 #include "../container/dense_map.hpp"
 #include "../core/attribute.h"
+#include "../core/bit.hpp"
 #include "../core/enum.hpp"
 #include "../core/fwd.hpp"
 #include "../core/type_info.hpp"
@@ -43,7 +44,26 @@ enum class meta_traits : std::uint32_t {
     _entt_enum_as_bitmask = 0xFFFF
 };
 
+template<typename Type>
+[[nodiscard]] auto meta_to_user_traits(const meta_traits traits) noexcept {
+    static_assert(std::is_enum_v<Type>, "Invalid enum type");
+    constexpr auto shift = popcount(static_cast<std::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
+    return Type{static_cast<std::underlying_type_t<Type>>(static_cast<std::underlying_type_t<meta_traits>>(traits) >> shift)};
+}
+
+template<typename Type>
+[[nodiscard]] auto user_to_meta_traits(const Type value) noexcept {
+    static_assert(std::is_enum_v<Type>, "Invalid enum type");
+    constexpr auto shift = popcount(static_cast<std::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
+    return meta_traits{static_cast<std::underlying_type_t<internal::meta_traits>>(static_cast<std::underlying_type_t<Type>>(value)) << shift};
+}
+
 struct meta_type_node;
+
+struct meta_custom_node {
+    id_type type;
+    std::shared_ptr<void> data;
+};
 
 struct meta_prop_node {
     meta_type_node (*type)(const meta_context &) noexcept {};
@@ -81,6 +101,7 @@ struct meta_data_node {
     bool (*set)(meta_handle, meta_any){};
     meta_any (*get)(const meta_ctx &, meta_handle){};
     dense_map<id_type, meta_prop_node, identity> prop{};
+    meta_custom_node custom{};
 };
 
 struct meta_func_node {
@@ -93,6 +114,7 @@ struct meta_func_node {
     meta_any (*invoke)(const meta_ctx &, meta_handle, meta_any *const){};
     std::shared_ptr<meta_func_node> next{};
     dense_map<id_type, meta_prop_node, identity> prop{};
+    meta_custom_node custom{};
 };
 
 struct meta_template_node {
@@ -127,6 +149,7 @@ struct meta_type_node {
     meta_template_node templ{};
     meta_dtor_node dtor{};
     std::shared_ptr<meta_type_descriptor> details{};
+    meta_custom_node custom{};
 };
 
 template<auto Member>

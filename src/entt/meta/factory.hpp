@@ -28,122 +28,132 @@ namespace entt {
 namespace internal {
 
 class basic_meta_factory {
+    using invoke_type = std::remove_pointer_t<decltype(meta_func_node::invoke)>;
+
+    auto *find_overload() {
+        auto *curr = &details->func[bucket];
+
+        while(curr->invoke != invoke) {
+            curr = curr->next.get();
+        }
+
+        return curr;
+    }
+
 protected:
     void type(const id_type id) noexcept {
-        auto &&elem = internal::meta_context::from(*ctx).value[parent];
+        auto &&elem = meta_context::from(*ctx).value[parent];
         ENTT_ASSERT(elem.id == id || !resolve(*ctx, id), "Duplicate identifier");
+        invoke = nullptr;
         bucket = parent;
         elem.id = id;
     }
 
     void base(const id_type id, meta_base_node node) {
         details->base.insert_or_assign(id, node);
+        invoke = nullptr;
         bucket = parent;
     }
 
     void conv(const id_type id, meta_conv_node node) {
         details->conv.insert_or_assign(id, node);
+        invoke = nullptr;
         bucket = parent;
     }
 
     void ctor(const id_type id, meta_ctor_node node) {
         details->ctor.insert_or_assign(id, node);
+        invoke = nullptr;
         bucket = parent;
     }
 
     void dtor(meta_dtor_node node) {
-        internal::meta_context::from(*ctx).value[parent].dtor = node;
+        meta_context::from(*ctx).value[parent].dtor = node;
+        invoke = nullptr;
         bucket = parent;
-    }
-
-    void data(const id_type id) {
-        ENTT_ASSERT(details->data.find(id) != details->data.cend(), "Invalid id");
-        is_data = true;
-        bucket = id;
     }
 
     void data(const id_type id, meta_data_node node) {
         details->data.insert_or_assign(id, std::move(node));
-        is_data = true;
-        bucket = id;
-    }
-
-    void func(const id_type id) {
-        ENTT_ASSERT(details->func.find(id) != details->func.cend(), "Invalid id");
-        is_data = false;
+        invoke = nullptr;
         bucket = id;
     }
 
     void func(const id_type id, meta_func_node node) {
-        is_data = false;
-        bucket = id;
+        if(auto it = details->func.find(id); it == details->func.end()) {
+            auto &&elem = details->func.insert_or_assign(id, std::move(node)).first;
+            invoke = elem->second.invoke;
+            bucket = id;
+        } else {
+            auto *curr = &it->second;
 
-        if(auto it = details->func.find(id); it != details->func.end()) {
-            for(auto *curr = &it->second; curr; curr = curr->next.get()) {
-                if(curr->invoke == node.invoke) {
-                    node.next = std::move(curr->next);
-                    *curr = std::move(node);
-                    return;
-                }
+            while(curr->invoke != node.invoke && curr->next) {
+                curr = curr->next.get();
             }
 
-            // locally overloaded function
-            node.next = std::make_shared<meta_func_node>(std::move(details->func[id]));
-        }
+            if(curr->invoke != node.invoke) {
+                curr->next = std::make_shared<meta_func_node>();
+                curr = curr->next.get();
+            }
 
-        details->func.insert_or_assign(id, std::move(node));
+            node.next = std::move(curr->next);
+            *curr = std::move(node);
+
+            invoke = curr->invoke;
+            bucket = id;
+        }
     }
 
-    void prop(const id_type key, internal::meta_prop_node value) {
+    void prop(const id_type key, meta_prop_node value) {
         if(bucket == parent) {
             details->prop[key] = std::move(value);
-        } else if(is_data) {
+        } else if(invoke == nullptr) {
             details->data[bucket].prop[key] = std::move(value);
         } else {
-            details->func[bucket].prop[key] = std::move(value);
+            find_overload()->prop[key] = std::move(value);
         }
     }
 
-    void traits(const internal::meta_traits value) {
+    void traits(const meta_traits value) {
         if(bucket == parent) {
-            internal::meta_context::from(*ctx).value[parent].traits |= value;
-        } else if(is_data) {
+            meta_context::from(*ctx).value[bucket].traits |= value;
+        } else if(invoke == nullptr) {
             details->data[bucket].traits |= value;
         } else {
-            details->func[bucket].traits |= value;
+            find_overload()->traits |= value;
         }
     }
 
     void custom(meta_custom_node node) {
         if(bucket == parent) {
-            internal::meta_context::from(*ctx).value[parent].custom = std::move(node);
-        } else if(is_data) {
+            meta_context::from(*ctx).value[bucket].custom = std::move(node);
+        } else if(invoke == nullptr) {
             details->data[bucket].custom = std::move(node);
         } else {
-            details->func[bucket].custom = std::move(node);
+            find_overload()->custom = std::move(node);
         }
     }
 
 public:
-    basic_meta_factory(const type_info &info, meta_ctx &area)
+    basic_meta_factory(const id_type id, meta_ctx &area)
         : ctx{&area},
-          parent{info.hash()},
-          bucket{parent} {
-        auto &&elem = internal::meta_context::from(*ctx).value[parent];
+          parent{id},
+          bucket{id} {
+        auto &&elem = meta_context::from(*ctx).value[parent];
 
         if(!elem.details) {
-            elem.details = std::make_shared<internal::meta_type_descriptor>();
+            elem.details = std::make_shared<meta_type_descriptor>();
         }
 
-        details = elem.details;
+        details = elem.details.get();
     }
 
 private:
     meta_ctx *ctx{};
-    std::shared_ptr<meta_type_descriptor> details{};
-    const id_type parent{};
+    id_type parent{};
     id_type bucket{};
-    bool is_data{};
+    invoke_type *invoke{};
+    meta_type_descriptor *details{};
 };
 
 } // namespace internal
@@ -185,7 +195,7 @@ public:
      * @param area The context into which to construct meta types.
      */
     meta_factory(meta_ctx &area) noexcept
-        : internal::basic_meta_factory{type_id<Type>(), area} {}
+        : internal::basic_meta_factory{type_id<Type>().hash(), area} {}
 
     /**
      * @brief Assigns a custom unique identifier to a meta type.
@@ -320,16 +330,6 @@ public:
     }
 
     /**
-     * @brief Seeks an arbitrary meta data in a meta type.
-     * @param id Unique identifier.
-     * @return A meta factory for the parent type.
-     */
-    meta_factory data(const id_type id) noexcept {
-        base_type::data(id);
-        return *this;
-    }
-
-    /**
      * @brief Assigns a meta data to a meta type.
      *
      * Both data members and static and global variables, as well as constants
@@ -455,16 +455,6 @@ public:
     template<typename Setter, auto Getter, typename Policy = as_is_t>
     meta_factory data(const id_type id) noexcept {
         data<Setter, Getter, Policy>(id, std::make_index_sequence<Setter::size>{});
-        return *this;
-    }
-
-    /**
-     * @brief Seeks an arbitrary meta function in a meta type.
-     * @param id Unique identifier.
-     * @return A meta factory for the parent type.
-     */
-    meta_factory func(const id_type id) noexcept {
-        base_type::func(id);
         return *this;
     }
 

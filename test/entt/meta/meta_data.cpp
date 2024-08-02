@@ -203,6 +203,14 @@ TEST_F(MetaData, UserTraits) {
     ASSERT_EQ(entt::resolve<clazz>().data("k"_hs).traits<test::meta_traits>(), test::meta_traits::three);
 }
 
+ENTT_DEBUG_TEST_F(MetaDataDeathTest, UserTraits) {
+    using namespace entt::literals;
+
+    using traits_type = entt::internal::meta_traits;
+    constexpr auto value = traits_type{static_cast<std::underlying_type_t<traits_type>>(traits_type::_user_defined_traits) + 1u};
+    ASSERT_DEATH(entt::meta<clazz>().data<&clazz::i>("j"_hs).traits(value), "");
+}
+
 TEST_F(MetaData, Custom) {
     using namespace entt::literals;
 
@@ -694,6 +702,16 @@ TEST_F(MetaData, ReRegistration) {
     ASSERT_EQ(node.details->data.size(), 2u);
     ASSERT_TRUE(type.data("value"_hs));
     ASSERT_TRUE(type.data("field"_hs));
+
+    entt::meta<base>()
+        .data<&base::value>("field"_hs)
+        .traits(test::meta_traits::one)
+        .custom<int>(3)
+        // this should not overwrite traits and custom data
+        .data<&base::value>("field"_hs);
+
+    ASSERT_EQ(type.data("field"_hs).traits<test::meta_traits>(), test::meta_traits::one);
+    ASSERT_NE(static_cast<const int *>(type.data("field"_hs).custom()), nullptr);
 }
 
 TEST_F(MetaData, CollisionAndReuse) {

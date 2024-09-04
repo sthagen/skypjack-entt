@@ -5,8 +5,8 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
+#include <vector>
 #include "../config/config.h"
-#include "../container/dense_map.hpp"
 #include "../core/attribute.h"
 #include "../core/bit.hpp"
 #include "../core/enum.hpp"
@@ -68,22 +68,26 @@ struct meta_custom_node {
 };
 
 struct meta_prop_node {
+    id_type id{};
     meta_type_node (*type)(const meta_context &) noexcept {};
     std::shared_ptr<void> value{};
 };
 
 struct meta_base_node {
-    meta_type_node (*type)(const meta_context &) noexcept {};
+    id_type type{};
+    meta_type_node (*resolve)(const meta_context &) noexcept {};
     const void *(*cast)(const void *) noexcept {};
 };
 
 struct meta_conv_node {
+    id_type type{};
     meta_any (*conv)(const meta_ctx &, const void *){};
 };
 
 struct meta_ctor_node {
     using size_type = std::size_t;
 
+    id_type id{};
     size_type arity{0u};
     meta_type (*arg)(const meta_ctx &, const size_type) noexcept {};
     meta_any (*invoke)(const meta_ctx &, meta_any *const){};
@@ -96,6 +100,7 @@ struct meta_dtor_node {
 struct meta_data_node {
     using size_type = std::size_t;
 
+    id_type id{};
     meta_traits traits{meta_traits::is_none};
     size_type arity{0u};
     meta_type_node (*type)(const meta_context &) noexcept {};
@@ -103,12 +108,13 @@ struct meta_data_node {
     bool (*set)(meta_handle, meta_any){};
     meta_any (*get)(const meta_ctx &, meta_handle){};
     meta_custom_node custom{};
-    dense_map<id_type, meta_prop_node, identity> prop{};
+    std::vector<meta_prop_node> prop{};
 };
 
 struct meta_func_node {
     using size_type = std::size_t;
 
+    id_type id{};
     meta_traits traits{meta_traits::is_none};
     size_type arity{0u};
     meta_type_node (*ret)(const meta_context &) noexcept {};
@@ -116,24 +122,24 @@ struct meta_func_node {
     meta_any (*invoke)(const meta_ctx &, meta_handle, meta_any *const){};
     std::shared_ptr<meta_func_node> next{};
     meta_custom_node custom{};
-    dense_map<id_type, meta_prop_node, identity> prop{};
+    std::vector<meta_prop_node> prop{};
 };
 
 struct meta_template_node {
     using size_type = std::size_t;
 
     size_type arity{0u};
-    meta_type_node (*type)(const meta_context &) noexcept {};
+    meta_type_node (*resolve)(const meta_context &) noexcept {};
     meta_type_node (*arg)(const meta_context &, const size_type) noexcept {};
 };
 
 struct meta_type_descriptor {
-    dense_map<id_type, meta_ctor_node, identity> ctor{};
-    dense_map<id_type, meta_base_node, identity> base{};
-    dense_map<id_type, meta_conv_node, identity> conv{};
-    dense_map<id_type, meta_data_node, identity> data{};
-    dense_map<id_type, meta_func_node, identity> func{};
-    dense_map<id_type, meta_prop_node, identity> prop{};
+    std::vector<meta_ctor_node> ctor{};
+    std::vector<meta_base_node> base{};
+    std::vector<meta_conv_node> conv{};
+    std::vector<meta_data_node> data{};
+    std::vector<meta_func_node> func{};
+    std::vector<meta_prop_node> prop{};
 };
 
 struct meta_type_node {
@@ -154,21 +160,39 @@ struct meta_type_node {
     std::shared_ptr<meta_type_descriptor> details{};
 };
 
+template<auto Member, typename Type, typename Value>
+[[nodiscard]] auto *find_member(Type &from, const Value value) {
+    for(auto &&elem: from) {
+        if((elem.*Member) == value) {
+            return &elem;
+        }
+    }
+
+    return static_cast<typename Type::value_type *>(nullptr);
+}
+
+[[nodiscard]] inline auto *find_overload(meta_func_node *curr, std::remove_pointer_t<decltype(meta_func_node::invoke)> *const ref) {
+    while(curr && (curr->invoke != ref)) { curr = curr->next.get(); }
+    return curr;
+}
+
 template<auto Member>
 auto *look_for(const meta_context &context, const meta_type_node &node, const id_type id) {
+    using value_type = typename std::remove_reference_t<decltype((node.details.get()->*Member))>::value_type;
+
     if(node.details) {
-        if(const auto it = (node.details.get()->*Member).find(id); it != (node.details.get()->*Member).cend()) {
-            return &it->second;
+        if(auto *member = find_member<&value_type::id>((node.details.get()->*Member), id); member != nullptr) {
+            return member;
         }
 
         for(auto &&curr: node.details->base) {
-            if(auto *elem = look_for<Member>(context, curr.second.type(context), id); elem) {
+            if(auto *elem = look_for<Member>(context, curr.resolve(context), id); elem) {
                 return elem;
             }
         }
     }
 
-    return static_cast<typename std::remove_reference_t<decltype(node.details.get()->*Member)>::mapped_type *>(nullptr);
+    return static_cast<value_type *>(nullptr);
 }
 
 template<typename Type>
@@ -190,7 +214,7 @@ template<typename... Args>
 
     if(from.details) {
         for(auto &&curr: from.details->base) {
-            if(const void *elem = try_cast(context, curr.second.type(context), to, curr.second.cast(instance)); elem) {
+            if(const void *elem = try_cast(context, curr.resolve(context), to, curr.cast(instance)); elem) {
                 return elem;
             }
         }
@@ -206,12 +230,14 @@ template<typename Func>
     }
 
     if(from.details) {
-        if(auto it = from.details->conv.find(to.hash()); it != from.details->conv.cend()) {
-            return func(instance, it->second);
+        for(auto &&elem: from.details->conv) {
+            if(elem.type == to.hash()) {
+                return func(instance, elem);
+            }
         }
 
         for(auto &&curr: from.details->base) {
-            if(auto other = try_convert(context, curr.second.type(context), to, arithmetic_or_enum, curr.second.cast(instance), func); other) {
+            if(auto other = try_convert(context, curr.resolve(context), to, arithmetic_or_enum, curr.cast(instance), func); other) {
                 return other;
             }
         }

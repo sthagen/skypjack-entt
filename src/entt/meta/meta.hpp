@@ -948,8 +948,13 @@ struct meta_data {
      * @return The registered meta property for the given key, if any.
      */
     [[nodiscard]] meta_prop prop(const id_type key) const {
-        const auto it = node->prop.find(key);
-        return it != node->prop.cend() ? meta_prop{*ctx, it->second} : meta_prop{};
+        for(auto &&elem: node->prop) {
+            if(elem.id == key) {
+                return meta_prop{*ctx, elem};
+            }
+        }
+
+        return meta_prop{};
     }
 
     /**
@@ -1088,8 +1093,13 @@ struct meta_func {
      * @return The registered meta property for the given key, if any.
      */
     [[nodiscard]] meta_prop prop(const id_type key) const {
-        const auto it = node->prop.find(key);
-        return it != node->prop.cend() ? meta_prop{*ctx, it->second} : meta_prop{};
+        for(auto &&elem: node->prop) {
+            if(elem.id == key) {
+                return meta_prop{*ctx, elem};
+            }
+        }
+
+        return meta_prop{};
     }
 
     /*! @copydoc meta_data::traits */
@@ -1165,8 +1175,22 @@ class meta_type {
 
                     if(const auto &info = other.info(); info == type.info()) {
                         ++match;
-                    } else if(!((type.node.details && (type.node.details->base.contains(info.hash()) || type.node.details->conv.contains(info.hash()))) || (type.node.conversion_helper && other.node.conversion_helper))) {
-                        break;
+                    } else {
+                        bool can_continue = type.node.conversion_helper && other.node.conversion_helper;
+
+                        if(!can_continue && type.node.details) {
+                            for(std::size_t idx{}, last = type.node.details->base.size(); !can_continue && idx != last; ++idx) {
+                                can_continue = (type.node.details->base[idx].type == info.hash());
+                            }
+
+                            for(std::size_t idx{}, last = type.node.details->conv.size(); !can_continue && idx != last; ++idx) {
+                                can_continue = (type.node.details->conv[idx].type == info.hash());
+                            }
+                        }
+
+                        if(!can_continue) {
+                            break;
+                        }
                     }
                 }
                 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -1216,7 +1240,7 @@ public:
      * @param curr The underlying node with which to construct the instance.
      */
     meta_type(const meta_ctx &area, const internal::meta_base_node &curr) noexcept
-        : meta_type{area, curr.type(internal::meta_context::from(area))} {}
+        : meta_type{area, curr.resolve(internal::meta_context::from(area))} {}
 
     /**
      * @brief Returns the type info object of the underlying type.
@@ -1355,7 +1379,7 @@ public:
      * @return The tag for the class template of the underlying type.
      */
     [[nodiscard]] inline meta_type template_type() const noexcept {
-        return node.templ.type ? meta_type{*ctx, node.templ.type(internal::meta_context::from(*ctx))} : meta_type{};
+        return node.templ.resolve ? meta_type{*ctx, node.templ.resolve(internal::meta_context::from(*ctx))} : meta_type{};
     }
 
     /**
@@ -1444,7 +1468,7 @@ public:
      */
     [[nodiscard]] meta_any construct(meta_any *const args, const size_type sz) const {
         if(node.details) {
-            if(const auto *candidate = lookup(args, sz, false, [first = node.details->ctor.cbegin(), last = node.details->ctor.cend()]() mutable { return first == last ? nullptr : &(first++)->second; }); candidate) {
+            if(const auto *candidate = lookup(args, sz, false, [first = node.details->ctor.cbegin(), last = node.details->ctor.cend()]() mutable { return first == last ? nullptr : &*(first++); }); candidate) {
                 return candidate->invoke(*ctx, args);
             }
         }
@@ -1492,9 +1516,13 @@ public:
      */
     meta_any invoke(const id_type id, meta_handle instance, meta_any *const args, const size_type sz) const {
         if(node.details) {
-            if(auto it = node.details->func.find(id); it != node.details->func.cend()) {
-                if(const auto *candidate = lookup(args, sz, instance && (instance->data() == nullptr), [curr = &it->second]() mutable { return curr ? std::exchange(curr, curr->next.get()) : nullptr; }); candidate) {
-                    return candidate->invoke(*ctx, meta_handle{*ctx, std::move(instance)}, args);
+            for(auto &&elem: node.details->func) {
+                if(elem.id == id) {
+                    if(const auto *candidate = lookup(args, sz, instance && (instance->data() == nullptr), [curr = &elem]() mutable { return curr ? std::exchange(curr, curr->next.get()) : nullptr; }); candidate) {
+                        return candidate->invoke(*ctx, meta_handle{*ctx, std::move(instance)}, args);
+                    }
+
+                    break;
                 }
             }
         }

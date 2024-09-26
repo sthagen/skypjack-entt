@@ -18,6 +18,30 @@
 #include "../../common/throwing_allocator.hpp"
 #include "../../common/throwing_type.hpp"
 
+struct auto_signal final {
+    auto_signal(bool &cflag, bool &uflag, bool &dflag)
+        : created{&cflag},
+          updated{&uflag},
+          destroyed{&dflag} {}
+
+    inline static void on_construct(entt::registry &registry, const entt::entity entt) {
+        *registry.get<auto_signal>(entt).created = true;
+    }
+
+    inline static void on_update(entt::registry &registry, const entt::entity entt) {
+        *registry.get<auto_signal>(entt).updated = true;
+    }
+
+    inline static void on_destroy(entt::registry &registry, const entt::entity entt) {
+        *registry.get<auto_signal>(entt).destroyed = true;
+    }
+
+private:
+    bool *created{};
+    bool *updated{};
+    bool *destroyed{};
+};
+
 template<typename Registry>
 void listener(std::size_t &counter, Registry &, typename Registry::entity_type) {
     ++counter;
@@ -304,7 +328,7 @@ TYPED_TEST(SighMixin, Move) {
     std::size_t on_construct{};
     std::size_t on_destroy{};
 
-    pool.bind(entt::forward_as_any(registry));
+    pool.bind(registry);
     pool.on_construct().template connect<&listener<entt::registry>>(on_construct);
     pool.on_destroy().template connect<&listener<entt::registry>>(on_destroy);
 
@@ -337,13 +361,13 @@ TYPED_TEST(SighMixin, Move) {
     ASSERT_EQ(pool.get(entt::entity{3}), value_type{3});
 
     other = entt::sigh_mixin<entt::storage<value_type>>{};
-    other.bind(entt::forward_as_any(registry));
+    other.bind(registry);
 
     other.emplace(entt::entity{1}, 1);
     other = std::move(pool);
     test::is_initialized(pool);
 
-    ASSERT_TRUE(pool.empty());
+    ASSERT_FALSE(pool.empty());
     ASSERT_FALSE(other.empty());
 
     ASSERT_EQ(other.index(entt::entity{3}), 0u);
@@ -366,11 +390,11 @@ TYPED_TEST(SighMixin, Swap) {
     std::size_t on_construct{};
     std::size_t on_destroy{};
 
-    pool.bind(entt::forward_as_any(registry));
+    pool.bind(registry);
     pool.on_construct().template connect<&listener<entt::registry>>(on_construct);
     pool.on_destroy().template connect<&listener<entt::registry>>(on_destroy);
 
-    other.bind(entt::forward_as_any(registry));
+    other.bind(registry);
     other.on_construct().template connect<&listener<entt::registry>>(on_construct);
     other.on_destroy().template connect<&listener<entt::registry>>(on_destroy);
 
@@ -442,7 +466,7 @@ TYPED_TEST(SighMixin, CustomAllocator) {
     std::size_t on_construct{};
     std::size_t on_destroy{};
 
-    pool.bind(entt::forward_as_any(registry));
+    pool.bind(registry);
     pool.on_construct().template connect<&listener<registry_type>>(on_construct);
     pool.on_destroy().template connect<&listener<registry_type>>(on_destroy);
 
@@ -503,7 +527,7 @@ TYPED_TEST(SighMixin, ThrowingAllocator) {
     std::size_t on_construct{};
     std::size_t on_destroy{};
 
-    pool.bind(entt::forward_as_any(registry));
+    pool.bind(registry);
     pool.on_construct().template connect<&listener<registry_type>>(on_construct);
     pool.on_destroy().template connect<&listener<registry_type>>(on_destroy);
 
@@ -571,7 +595,7 @@ TEST(SighMixin, ThrowingComponent) {
     std::size_t on_construct{};
     std::size_t on_destroy{};
 
-    pool.bind(entt::forward_as_any(registry));
+    pool.bind(registry);
     pool.on_construct().connect<&listener<registry_type>>(on_construct);
     pool.on_destroy().connect<&listener<registry_type>>(on_destroy);
 
@@ -624,4 +648,37 @@ TEST(SighMixin, ThrowingComponent) {
 
     ASSERT_EQ(on_construct, 2u);
     ASSERT_EQ(on_destroy, 3u);
+}
+
+TEST(SighMixin, AutoSignal) {
+    entt::registry registry;
+    auto const entity = registry.create();
+
+    bool created{};
+    bool updated{};
+    bool destroyed{};
+
+    registry.emplace<auto_signal>(entity, created, updated, destroyed);
+    registry.replace<auto_signal>(entity, created, updated, destroyed);
+    registry.erase<auto_signal>(entity);
+
+    ASSERT_TRUE(created);
+    ASSERT_TRUE(updated);
+    ASSERT_TRUE(destroyed);
+
+    ASSERT_TRUE(registry.storage<auto_signal>().empty());
+    ASSERT_TRUE(registry.valid(entity));
+
+    created = updated = destroyed = false;
+
+    registry.emplace<auto_signal>(entity, created, updated, destroyed);
+    registry.replace<auto_signal>(entity, created, updated, destroyed);
+    registry.destroy(entity);
+
+    ASSERT_TRUE(created);
+    ASSERT_TRUE(updated);
+    ASSERT_TRUE(destroyed);
+
+    ASSERT_TRUE(registry.storage<auto_signal>().empty());
+    ASSERT_FALSE(registry.valid(entity));
 }

@@ -376,19 +376,17 @@ In all cases, the function type of a listener is equivalent to the following:
 void(entt::registry &, entt::entity);
 ```
 
-In all cases, listeners are provided with the registry that triggered the
-notification and the involved entity.
+All listeners are provided with the registry that triggered the notification and
+the involved entity. Note also that:
 
-Note also that:
-
-* Listeners for the construction signals are invoked **after** components have
-  been assigned to entities.
+* Listeners for construction signals are invoked **after** components have been
+  created.
 
 * Listeners designed to observe changes are invoked **after** components have
   been updated.
 
-* Listeners for the destruction signals are invoked **before** components have
-  been removed from entities.
+* Listeners for destruction signals are invoked **before** components have been
+  destroyed.
 
 There are also some limitations on what a listener can and cannot do:
 
@@ -435,7 +433,11 @@ registry.patch<entt::entity>(entity);
 ```
 
 Destroying an entity and then updating the version of an identifier **does not**
-give rise to these types of signals under any circumstances instead.
+give rise to these types of signals under any circumstances instead.<br/>
+Finally, note that listeners that _observe_ the destruction of an entity are
+invoked **after** all components have been removed, not **before**. This is
+because the entity would be invalidated before deleting its elements otherwise,
+making it difficult for the user to write component listeners.
 
 ### Listeners disconnection
 
@@ -1471,11 +1473,11 @@ the mixins. The latter can then make use of any information, which is set via
 `bind`:
 
 ```cpp
-base.bind(entt::forward_as_any(registry));
+base.bind(registry);
 ```
 
-The `bind` function accepts an `entt::any` object, that is a _typed type-erased_
-value.<br/>
+The `bind` function accepts any element by reference or by value and forwards it
+to derived classes.<br/>
 This is how a registry _passes_ itself to all pools that support signals and
 also why a storage keeps sending events without requiring the registry to be
 passed to it every time.

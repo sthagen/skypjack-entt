@@ -258,12 +258,6 @@ protected:
         : pools{value},
           filter{excl},
           index{Get} {
-        for(size_type pos{}; pos < Exclude; ++pos) {
-            if(filter[pos] == nullptr) {
-                filter[pos] = internal::view_placeholder<Type>();
-            }
-        }
-
         unchecked_refresh();
     }
 
@@ -274,19 +268,21 @@ protected:
     [[nodiscard]] const Type *storage(const std::size_t pos) const noexcept {
         if(pos < Get) {
             return pools[pos];
-        } else if(filter[pos - Get] != internal::view_placeholder<Type>()) {
-            return filter[pos - Get];
+        } else if(const auto idx = pos - Get; filter[idx] != internal::view_placeholder<Type>()) {
+            return filter[idx];
         }
 
         return nullptr;
     }
 
     void storage(const std::size_t pos, const Type *elem) noexcept {
+        ENTT_ASSERT(elem != nullptr, "Unexpected element");
+
         if(pos < Get) {
             pools[pos] = elem;
             refresh();
         } else {
-            filter[pos - Get] = (elem == nullptr) ? internal::view_placeholder<Type>() : elem;
+            filter[pos - Get] = elem;
         }
     }
 
@@ -429,7 +425,7 @@ private:
  * @tparam Exclude Types of storage used to filter the view.
  */
 template<typename... Get, typename... Exclude>
-class basic_view<get_t<Get...>, exclude_t<Exclude...>, std::enable_if_t<(sizeof...(Get) + sizeof...(Exclude) > 1)>>
+class basic_view<get_t<Get...>, exclude_t<Exclude...>, std::enable_if_t<(sizeof...(Get) != 0u)>>
     : public basic_common_view<std::common_type_t<typename Get::base_type..., typename Exclude::base_type...>, sizeof...(Get), sizeof...(Exclude)> {
     using base_type = basic_common_view<std::common_type_t<typename Get::base_type..., typename Exclude::base_type...>, sizeof...(Get), sizeof...(Exclude)>;
 

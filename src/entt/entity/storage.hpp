@@ -461,7 +461,8 @@ public:
     }
 
     /*! @brief Default destructor. */
-    ~basic_storage() noexcept override {
+    // NOLINTNEXTLINE(bugprone-exception-escape)
+    ~basic_storage() override {
         shrink_to_size(0u);
     }
 
@@ -478,9 +479,7 @@ public:
      */
     basic_storage &operator=(basic_storage &&other) noexcept {
         ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a storage is not allowed");
-        shrink_to_size(0u);
-        payload = std::move(other.payload);
-        base_type::operator=(std::move(other));
+        swap(other);
         return *this;
     }
 
@@ -488,7 +487,7 @@ public:
      * @brief Exchanges the contents with those of a given storage.
      * @param other Storage to exchange the content with.
      */
-    void swap(basic_storage &other) {
+    void swap(basic_storage &other) noexcept {
         using std::swap;
         swap(payload, other.payload);
         base_type::swap(other);
@@ -841,7 +840,7 @@ public:
         : base_type{std::move(other), allocator} {}
 
     /*! @brief Default destructor. */
-    ~basic_storage() noexcept override = default;
+    ~basic_storage() override = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.
@@ -1063,7 +1062,7 @@ public:
           placeholder{other.placeholder} {}
 
     /*! @brief Default destructor. */
-    ~basic_storage() noexcept override = default;
+    ~basic_storage() override = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.

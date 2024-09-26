@@ -11,6 +11,33 @@
 
 namespace entt {
 
+/*! @cond TURN_OFF_DOXYGEN */
+namespace internal {
+
+template<typename, typename, typename = void>
+struct has_on_construct final: std::false_type {};
+
+template<typename Type, typename Registry>
+struct has_on_construct<Type, Registry, std::void_t<decltype(Type::on_construct(std::declval<Registry &>(), std::declval<Registry>().create()))>>
+    : std::true_type {};
+
+template<typename, typename, typename = void>
+struct has_on_update final: std::false_type {};
+
+template<typename Type, typename Registry>
+struct has_on_update<Type, Registry, std::void_t<decltype(Type::on_update(std::declval<Registry &>(), std::declval<Registry>().create()))>>
+    : std::true_type {};
+
+template<typename, typename, typename = void>
+struct has_on_destroy final: std::false_type {};
+
+template<typename Type, typename Registry>
+struct has_on_destroy<Type, Registry, std::void_t<decltype(Type::on_destroy(std::declval<Registry &>(), std::declval<Registry>().create()))>>
+    : std::true_type {};
+
+} // namespace internal
+/*! @endcond */
+
 /**
  * @brief Mixin type used to add signal support to storage types.
  *
@@ -87,6 +114,12 @@ private:
         return it;
     }
 
+    void bind_any(any value) noexcept final {
+        auto *reg = any_cast<basic_registry_type>(&value);
+        owner = reg ? reg : owner;
+        underlying_type::bind_any(std::move(value));
+    }
+
 public:
     /*! @brief Allocator type. */
     using allocator_type = typename underlying_type::allocator_type;
@@ -108,7 +141,19 @@ public:
           owner{},
           construction{allocator},
           destruction{allocator},
-          update{allocator} {}
+          update{allocator} {
+        if constexpr(internal::has_on_construct<typename underlying_type::element_type, Registry>::value) {
+            entt::sink{construction}.template connect<&underlying_type::element_type::on_construct>();
+        }
+
+        if constexpr(internal::has_on_update<typename underlying_type::element_type, Registry>::value) {
+            entt::sink{update}.template connect<&underlying_type::element_type::on_update>();
+        }
+
+        if constexpr(internal::has_on_destroy<typename underlying_type::element_type, Registry>::value) {
+            entt::sink{destruction}.template connect<&underlying_type::element_type::on_destroy>();
+        }
+    }
 
     /*! @brief Default copy constructor, deleted on purpose. */
     basic_sigh_mixin(const basic_sigh_mixin &) = delete;
@@ -137,7 +182,7 @@ public:
           update{std::move(other.update), allocator} {}
 
     /*! @brief Default destructor. */
-    ~basic_sigh_mixin() noexcept override = default;
+    ~basic_sigh_mixin() override = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.
@@ -151,11 +196,7 @@ public:
      * @return This mixin.
      */
     basic_sigh_mixin &operator=(basic_sigh_mixin &&other) noexcept {
-        owner = other.owner;
-        construction = std::move(other.construction);
-        destruction = std::move(other.destruction);
-        update = std::move(other.update);
-        underlying_type::operator=(std::move(other));
+        swap(other);
         return *this;
     }
 
@@ -163,7 +204,7 @@ public:
      * @brief Exchanges the contents with those of a given storage.
      * @param other Storage to exchange the content with.
      */
-    void swap(basic_sigh_mixin &other) {
+    void swap(basic_sigh_mixin &other) noexcept {
         using std::swap;
         swap(owner, other.owner);
         swap(construction, other.construction);
@@ -294,16 +335,6 @@ public:
                 construction.publish(reg, underlying_type::operator[](from));
             }
         }
-    }
-
-    /**
-     * @brief Forwards variables to derived classes, if any.
-     * @param value A variable wrapped in an opaque container.
-     */
-    void bind(any value) noexcept final {
-        auto *reg = any_cast<basic_registry_type>(&value);
-        owner = reg ? reg : owner;
-        underlying_type::bind(std::move(value));
     }
 
 private:

@@ -16,7 +16,6 @@
   * [Policies: the more, the less](#policies-the-more-the-less)
   * [Named constants and enums](#named-constants-and-enums)
   * [User defined data](#user-defined-data)
-    * [Properties and meta objects](#properties-and-meta-objects)
     * [Traits](#traits)
     * [Custom data](#custom-data)
   * [Unregister types](#unregister-types)
@@ -841,14 +840,9 @@ object optimization performed by the `meta_any` class.
 ## User defined data
 
 Sometimes (for example, when it comes to creating an editor) it might be useful
-to attach _properties_, _traits_ or arbitrary _custom data_ to the meta objects
-created.
+to attach _traits_ or arbitrary _custom data_ to the meta objects created.
 
 The main difference between them is that:
-
-* Properties are usually key-only or key-value pairs with lower access
-  performance. They are deprecated today but have long been the only way to
-  bind user data with meta objects.
 
 * Traits are simple user-defined flags with much higher access performance. The
   library reserves up to 16 bits for traits, that is 16 flags for a bitmask or
@@ -859,51 +853,6 @@ The main difference between them is that:
 
 In all cases, this support is currently available only for meta types, meta data
 and meta functions.
-
-### Properties and meta objects
-
-Properties are set via a meta factory and are not editable once created:
-
-```cpp
-entt::meta<my_type>().prop("tooltip"_hs, "message");
-```
-
-They are always in the key/value form. The key is a numeric identifier, mostly
-similar to the identifier used to register meta objects. There are no
-restrictions on the type of the value instead, as long as it's movable.<br/>
-Key only properties are also supported out of the box:
-
-```cpp
-entt::meta<my_type>().prop(my_enum::key_only);
-```
-
-To attach multiple properties to a meta object, just invoke `prop` more than
-once.<br/>
-It's also possible to call `prop` at different times, as long as the factory is
-reset to the meta object of interest:
-
-```cpp
-entt::meta<my_type>()
-    .data<&my_type::data_member, entt::as_ref_t>("member"_hs)
-    .prop("key"_hs, value);
-```
-
-Once created, all meta objects offer a couple of member functions named `prop`
-to iterate all properties at once or to search a specific property by key:
-
-```cpp
-// iterate all properties of a meta type
-for(auto &&[id, prop]: entt::resolve<my_type>().prop()) {
-    // ...
-}
-
-// search for a given property by name
-auto prop = entt::resolve<my_type>().prop("tooltip"_hs);
-```
-
-Meta properties are objects having a fairly poor interface, all in all. They
-only provide the `value` member function to retrieve the contained value in the
-form of a `meta_any` object.
 
 ### Traits
 
@@ -952,7 +901,7 @@ passing the necessary arguments to construct it correctly.<br/>
 It's not possible to assign custom data at different times. Therefore, multiple
 calls to the `custom` function overwrite previous values. However, this value
 can be read from meta objects and used to update existing data with a factory,
-effectively extending them as needed.<br/>
+effectively updating them as needed.<br/>
 Likewise, users can also set custom data on meta objects later if needed, as
 long as the factory is reset to the meta object of interest:
 
@@ -963,14 +912,16 @@ entt::meta<my_type>()
 ```
 
 Once created, all meta objects offer a member function named `custom` to get the
-currently set value as a const reference or as a pointer to a const element:
+currently set value as a reference or as a pointer to an element:
 
 ```cpp
 const type_data &value = entt::resolve<my_type>().custom();
 ```
 
 Note that the returned object performs an extra check in debug before converting
-to the requested type, so as to avoid subtle bugs.
+to the requested type, so as to avoid subtle bugs.<br/>
+Only in the case of conversion to a pointer is this check safe and such that a
+null pointer is returned to inform the user of the failed attempt.
 
 ## Unregister types
 

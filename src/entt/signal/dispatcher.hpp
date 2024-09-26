@@ -21,7 +21,7 @@ namespace entt {
 namespace internal {
 
 struct basic_dispatcher_handler {
-    virtual ~basic_dispatcher_handler() noexcept = default;
+    virtual ~basic_dispatcher_handler() = default;
     virtual void publish() = 0;
     virtual void disconnect(void *) = 0;
     virtual void clear() noexcept = 0;
@@ -179,7 +179,7 @@ public:
     }
 
     /*! @brief Default destructor. */
-    ~basic_dispatcher() noexcept = default;
+    ~basic_dispatcher() = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.
@@ -194,7 +194,7 @@ public:
      */
     basic_dispatcher &operator=(basic_dispatcher &&other) noexcept {
         ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a dispatcher is not allowed");
-        pools = std::move(other.pools);
+        swap(other);
         return *this;
     }
 
@@ -202,7 +202,7 @@ public:
      * @brief Exchanges the contents with those of a given dispatcher.
      * @param other Dispatcher to exchange the content with.
      */
-    void swap(basic_dispatcher &other) {
+    void swap(basic_dispatcher &other) noexcept {
         using std::swap;
         swap(pools, other.pools);
     }

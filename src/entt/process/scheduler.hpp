@@ -18,7 +18,7 @@ namespace internal {
 
 template<typename Delta>
 struct basic_process_handler {
-    virtual ~basic_process_handler() noexcept = default;
+    virtual ~basic_process_handler() = default;
 
     virtual bool update(const Delta, void *) = 0;
     virtual void abort(const bool) = 0;
@@ -130,7 +130,7 @@ public:
     }
 
     /*! @brief Default destructor. */
-    ~basic_scheduler() noexcept = default;
+    ~basic_scheduler() = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.
@@ -145,7 +145,7 @@ public:
      */
     basic_scheduler &operator=(basic_scheduler &&other) noexcept {
         ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a scheduler is not allowed");
-        handlers = std::move(other.handlers);
+        swap(other);
         return *this;
     }
 
@@ -153,7 +153,7 @@ public:
      * @brief Exchanges the contents with those of a given scheduler.
      * @param other Scheduler to exchange the content with.
      */
-    void swap(basic_scheduler &other) {
+    void swap(basic_scheduler &other) noexcept {
         using std::swap;
         swap(handlers, other.handlers);
     }

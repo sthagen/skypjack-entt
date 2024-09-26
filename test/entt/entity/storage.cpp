@@ -39,7 +39,7 @@ struct update_from_destructor {
         return *this;
     }
 
-    ~update_from_destructor() noexcept {
+    ~update_from_destructor() {
         if(target != entt::null && storage->contains(target)) {
             storage->erase(target);
         }
@@ -151,7 +151,7 @@ TYPED_TEST(Storage, Move) {
     other = std::move(pool);
     test::is_initialized(pool);
 
-    ASSERT_TRUE(pool.empty());
+    ASSERT_FALSE(pool.empty());
     ASSERT_FALSE(other.empty());
 
     ASSERT_EQ(other.type(), entt::type_id<value_type>());

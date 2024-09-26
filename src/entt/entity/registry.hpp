@@ -262,7 +262,7 @@ class basic_registry {
                 }
 
                 pools.emplace(id, cpool);
-                cpool->bind(forward_as_any(*this));
+                cpool->bind(*this);
 
                 return static_cast<storage_type &>(*cpool);
             } else {
@@ -290,10 +290,10 @@ class basic_registry {
     }
 
     void rebind() {
-        entities.bind(forward_as_any(*this));
+        entities.bind(*this);
 
         for(auto &&curr: pools) {
-            curr.second->bind(forward_as_any(*this));
+            curr.second->bind(*this);
         }
     }
 
@@ -363,7 +363,7 @@ public:
     }
 
     /*! @brief Default destructor. */
-    ~basic_registry() noexcept = default;
+    ~basic_registry() = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.
@@ -377,13 +377,7 @@ public:
      * @return This registry.
      */
     basic_registry &operator=(basic_registry &&other) noexcept {
-        vars = std::move(other.vars);
-        pools = std::move(other.pools);
-        groups = std::move(other.groups);
-        entities = std::move(other.entities);
-
-        rebind();
-
+        swap(other);
         return *this;
     }
 
@@ -391,7 +385,7 @@ public:
      * @brief Exchanges the contents with those of a given registry.
      * @param other Registry to exchange the content with.
      */
-    void swap(basic_registry &other) {
+    void swap(basic_registry &other) noexcept {
         using std::swap;
 
         swap(vars, other.vars);
@@ -467,6 +461,16 @@ public:
     template<typename Type>
     [[nodiscard]] const storage_for_type<Type> *storage(const id_type id = type_hash<Type>::value()) const {
         return assure<Type>(id);
+    }
+
+    /**
+     * @brief Discards the storage associated with a given name, if any.
+     * @param id Name used to map the storage within the registry.
+     * @return True in case of success, false otherwise.
+     */
+    bool reset(const id_type id) {
+        ENTT_ASSERT(id != type_hash<entity_type>::value(), "Cannot reset entity storage");
+        return !(pools.erase(id) == 0u);
     }
 
     /**
@@ -1063,9 +1067,8 @@ public:
     template<typename Type, typename... Other, typename... Exclude>
     [[nodiscard]] basic_view<get_t<storage_for_type<const Type>, storage_for_type<const Other>...>, exclude_t<storage_for_type<const Exclude>...>>
     view(exclude_t<Exclude...> = exclude_t{}) const {
-        const auto cpools = std::make_tuple(assure<std::remove_const_t<Type>>(), assure<std::remove_const_t<Other>>()..., assure<std::remove_const_t<Exclude>>()...);
         basic_view<get_t<storage_for_type<const Type>, storage_for_type<const Other>...>, exclude_t<storage_for_type<const Exclude>...>> elem{};
-        std::apply([&elem](const auto *...curr) { ((curr ? elem.storage(*curr) : void()), ...); }, cpools);
+        [&elem](const auto *...curr) { ((curr ? elem.storage(*curr) : void()), ...); }(assure<std::remove_const_t<Exclude>>()..., assure<std::remove_const_t<Other>>()..., assure<std::remove_const_t<Type>>());
         return elem;
     }
 

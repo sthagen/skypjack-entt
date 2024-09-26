@@ -238,7 +238,7 @@ public:
         : payload{Container{std::move(std::get<Container>(other.payload)), allocator}...} {}
 
     /*! @brief Default destructor. */
-    ~basic_table() noexcept = default;
+    ~basic_table() = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.
@@ -252,7 +252,7 @@ public:
      * @return This container.
      */
     basic_table &operator=(basic_table &&other) noexcept {
-        payload = std::move(other.payload);
+        swap(other);
         return *this;
     }
 
@@ -260,7 +260,7 @@ public:
      * @brief Exchanges the contents with those of a given table.
      * @param other Table to exchange the content with.
      */
-    void swap(basic_table &other) {
+    void swap(basic_table &other) noexcept {
         using std::swap;
         swap(payload, other.payload);
     }

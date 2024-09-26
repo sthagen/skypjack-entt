@@ -6,7 +6,7 @@
 #include "../../common/linter.hpp"
 
 struct base {
-    virtual ~base() noexcept = default;
+    virtual ~base() = default;
 
     [[nodiscard]] virtual const entt::type_info &type() const noexcept {
         return entt::type_id<base>();
@@ -68,6 +68,31 @@ TEST(Resource, Functionalities) {
     ASSERT_TRUE(copy);
     ASSERT_FALSE(move);
     ASSERT_NE(copy, move);
+}
+
+TEST(Resource, Swap) {
+    entt::resource<int> resource{};
+    entt::resource<int> other{};
+
+    ASSERT_FALSE(resource);
+    ASSERT_FALSE(other);
+
+    resource.swap(other);
+
+    ASSERT_FALSE(resource);
+    ASSERT_FALSE(other);
+
+    resource.reset(std::make_shared<int>(1));
+
+    ASSERT_TRUE(resource);
+    ASSERT_EQ(*resource, 1);
+    ASSERT_FALSE(other);
+
+    resource.swap(other);
+
+    ASSERT_FALSE(resource);
+    ASSERT_TRUE(other);
+    ASSERT_EQ(*other, 1);
 }
 
 TEST(Resource, DerivedToBase) {

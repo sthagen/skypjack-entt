@@ -317,7 +317,7 @@ public:
           vtable{std::exchange(other.vtable, &basic_vtable<void>)} {}
 
     /*! @brief Frees the internal storage, whatever it means. */
-    ~meta_any() noexcept {
+    ~meta_any() {
         release();
     }
 
@@ -715,7 +715,7 @@ struct meta_handle {
     meta_handle(meta_handle &&) = default;
 
     /*! @brief Default destructor. */
-    ~meta_handle() noexcept = default;
+    ~meta_handle() = default;
 
     /**
      * @brief Default copy assignment operator, deleted on purpose.
@@ -765,7 +765,7 @@ private:
 };
 
 /*! @brief Opaque wrapper for properties of any type. */
-struct meta_prop {
+struct [[deprecated("use meta_custom instead")]] meta_prop {
     /*! @brief Default constructor. */
     meta_prop() noexcept = default;
 
@@ -774,8 +774,8 @@ struct meta_prop {
      * @param area The context from which to search for meta types.
      * @param curr The underlying node with which to construct the instance.
      */
-    meta_prop(const meta_ctx &area, const internal::meta_prop_node &curr) noexcept
-        : node{&curr},
+    meta_prop(const meta_ctx &area, internal::meta_prop_node curr) noexcept
+        : node{std::move(curr)},
           ctx{&area} {}
 
     /**
@@ -783,7 +783,7 @@ struct meta_prop {
      * @return A wrapper containing the value stored with the property.
      */
     [[nodiscard]] meta_any value() const {
-        return node->value ? node->type(internal::meta_context::from(*ctx)).from_void(*ctx, nullptr, node->value.get()) : meta_any{meta_ctx_arg, *ctx};
+        return node.value ? node.type(internal::meta_context::from(*ctx)).from_void(*ctx, nullptr, node.value.get()) : meta_any{meta_ctx_arg, *ctx};
     }
 
     /**
@@ -791,7 +791,7 @@ struct meta_prop {
      * @return A wrapper containing the value stored with the property.
      */
     [[nodiscard]] meta_any value() {
-        return node->value ? node->type(internal::meta_context::from(*ctx)).from_void(*ctx, node->value.get(), nullptr) : meta_any{meta_ctx_arg, *ctx};
+        return node.value ? node.type(internal::meta_context::from(*ctx)).from_void(*ctx, node.value.get(), nullptr) : meta_any{meta_ctx_arg, *ctx};
     }
 
     /**
@@ -799,7 +799,7 @@ struct meta_prop {
      * @return True if the object is valid, false otherwise.
      */
     [[nodiscard]] explicit operator bool() const noexcept {
-        return (node != nullptr);
+        return static_cast<bool>(node.type);
     }
 
     /**
@@ -808,11 +808,11 @@ struct meta_prop {
      * @return True if the objects refer to the same type, false otherwise.
      */
     [[nodiscard]] bool operator==(const meta_prop &other) const noexcept {
-        return (ctx == other.ctx && node == other.node);
+        return (ctx == other.ctx && node.value == other.node.value);
     }
 
 private:
-    const internal::meta_prop_node *node{};
+    internal::meta_prop_node node{};
     const meta_ctx *ctx{};
 };
 
@@ -938,7 +938,7 @@ struct meta_data {
      * @brief Returns a range to visit registered meta properties.
      * @return An iterable range to visit registered meta properties.
      */
-    [[nodiscard]] meta_range<meta_prop, typename decltype(internal::meta_data_node::prop)::const_iterator> prop() const noexcept {
+    [[nodiscard]] [[deprecated("use ::custom() instead")]] meta_range<meta_prop, typename decltype(internal::meta_data_node::prop)::const_iterator> prop() const noexcept {
         return {{*ctx, node->prop.cbegin()}, {*ctx, node->prop.cend()}};
     }
 
@@ -947,7 +947,7 @@ struct meta_data {
      * @param key The key to use to search for a property.
      * @return The registered meta property for the given key, if any.
      */
-    [[nodiscard]] meta_prop prop(const id_type key) const {
+    [[nodiscard]] [[deprecated("use ::custom() instead")]] meta_prop prop(const id_type key) const {
         for(auto &&elem: node->prop) {
             if(elem.id == key) {
                 return meta_prop{*ctx, elem};
@@ -1083,7 +1083,7 @@ struct meta_func {
     }
 
     /*! @copydoc meta_data::prop */
-    [[nodiscard]] meta_range<meta_prop, typename decltype(internal::meta_func_node::prop)::const_iterator> prop() const noexcept {
+    [[nodiscard]] [[deprecated("use ::custom() instead")]] meta_range<meta_prop, typename decltype(internal::meta_func_node::prop)::const_iterator> prop() const noexcept {
         return {{*ctx, node->prop.cbegin()}, {*ctx, node->prop.cend()}};
     }
 
@@ -1092,7 +1092,7 @@ struct meta_func {
      * @param key The key to use to search for a property.
      * @return The registered meta property for the given key, if any.
      */
-    [[nodiscard]] meta_prop prop(const id_type key) const {
+    [[nodiscard]] [[deprecated("use ::custom() instead")]] meta_prop prop(const id_type key) const {
         for(auto &&elem: node->prop) {
             if(elem.id == key) {
                 return meta_prop{*ctx, elem};
@@ -1562,7 +1562,7 @@ public:
      * @brief Returns a range to visit registered top-level meta properties.
      * @return An iterable range to visit registered top-level meta properties.
      */
-    [[nodiscard]] meta_range<meta_prop, typename decltype(internal::meta_type_descriptor::prop)::const_iterator> prop() const noexcept {
+    [[nodiscard]] [[deprecated("use ::custom() instead")]] meta_range<meta_prop, typename decltype(internal::meta_type_descriptor::prop)::const_iterator> prop() const noexcept {
         using range_type = meta_range<meta_prop, typename decltype(internal::meta_type_descriptor::prop)::const_iterator>;
         return node.details ? range_type{{*ctx, node.details->prop.cbegin()}, {*ctx, node.details->prop.cend()}} : range_type{};
     }
@@ -1572,7 +1572,7 @@ public:
      * @param key The key to use to search for a property.
      * @return The registered meta property for the given key, if any.
      */
-    [[nodiscard]] meta_prop prop(const id_type key) const {
+    [[nodiscard]] [[deprecated("use ::custom() instead")]] meta_prop prop(const id_type key) const {
         const auto *elem = internal::look_for<&internal::meta_type_descriptor::prop>(internal::meta_context::from(*ctx), node, key);
         return elem ? meta_prop{*ctx, *elem} : meta_prop{};
     }

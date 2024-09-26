@@ -128,7 +128,7 @@ TYPED_TEST(SparseSet, Move) {
         other = std::move(set);
         test::is_initialized(set);
 
-        ASSERT_TRUE(set.empty());
+        ASSERT_FALSE(set.empty());
         ASSERT_FALSE(other.empty());
 
         ASSERT_EQ(other.policy(), policy);
@@ -441,7 +441,8 @@ TYPED_TEST(SparseSet, Bind) {
     for(const auto policy: this->deletion_policy) {
         sparse_set_type set{policy};
 
-        ASSERT_NO_THROW(set.bind(entt::any{}));
+        ASSERT_NO_THROW(set.bind(0));
+        ASSERT_NO_THROW(set.bind(entt::make_any<int>(0)));
     }
 }
 

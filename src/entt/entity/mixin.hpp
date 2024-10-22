@@ -5,6 +5,7 @@
 #include <utility>
 #include "../config/config.h"
 #include "../core/any.hpp"
+#include "../core/type_info.hpp"
 #include "../signal/sigh.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
@@ -35,6 +36,20 @@ template<typename Type, typename Registry>
 struct has_on_destroy<Type, Registry, std::void_t<decltype(Type::on_destroy(std::declval<Registry &>(), std::declval<Registry>().create()))>>
     : std::true_type {};
 
+template<typename Type>
+auto *any_to_owner(any &value) noexcept {
+    using base_type = basic_registry<typename Type::entity_type, typename Type::allocator_type>;
+    auto *reg = any_cast<base_type>(&value);
+
+    if constexpr(!std::is_same_v<Type, base_type>) {
+        if(!reg) {
+            reg = any_cast<Type>(&value);
+        }
+    }
+
+    return reg;
+}
+
 } // namespace internal
 /*! @endcond */
 
@@ -57,7 +72,7 @@ class basic_sigh_mixin final: public Type {
     using underlying_type = Type;
     using owner_type = Registry;
 
-    using basic_registry_type = basic_registry<typename underlying_type::entity_type, typename underlying_type::base_type::allocator_type>;
+    using basic_registry_type = basic_registry<typename owner_type::entity_type, typename owner_type::allocator_type>;
     using sigh_type = sigh<void(owner_type &, const typename underlying_type::entity_type), typename underlying_type::allocator_type>;
     using underlying_iterator = typename underlying_type::base_type::basic_iterator;
 
@@ -84,7 +99,7 @@ private:
 
     void pop_all() final {
         if(auto &reg = owner_or_assert(); !destruction.empty()) {
-            if constexpr(std::is_same_v<typename underlying_type::element_type, typename underlying_type::entity_type>) {
+            if constexpr(std::is_same_v<typename underlying_type::element_type, entity_type>) {
                 for(typename underlying_type::size_type pos{}, last = underlying_type::free_list(); pos < last; ++pos) {
                     destruction.publish(reg, underlying_type::base_type::operator[](pos));
                 }
@@ -115,8 +130,7 @@ private:
     }
 
     void bind_any(any value) noexcept final {
-        auto *reg = any_cast<basic_registry_type>(&value);
-        owner = reg ? reg : owner;
+        owner = internal::any_to_owner<registry_type>(value);
         underlying_type::bind_any(std::move(value));
     }
 
@@ -259,13 +273,34 @@ public:
     }
 
     /**
+     * @brief Checks if a mixin refers to a valid registry.
+     * @return True if the mixin refers to a valid registry, false otherwise.
+     */
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return (owner != nullptr);
+    }
+
+    /**
+     * @brief Returns a pointer to the underlying registry, if any.
+     * @return A pointer to the underlying registry, if any.
+     */
+    [[nodiscard]] const registry_type &registry() const noexcept {
+        return owner_or_assert();
+    }
+
+    /*! @copydoc registry */
+    [[nodiscard]] registry_type &registry() noexcept {
+        return owner_or_assert();
+    }
+
+    /**
      * @brief Emplace elements into a storage.
      *
      * The behavior of this operation depends on the underlying storage type
      * (for example, components vs entities).<br/>
      * Refer to the specific documentation for more details.
      *
-     * @return A return value as returned by the underlying storage.
+     * @return Whatever the underlying storage returns.
      */
     auto emplace() {
         const auto entt = underlying_type::emplace();
@@ -283,11 +318,12 @@ public:
      * @tparam Args Types of arguments to forward to the underlying storage.
      * @param hint A valid identifier.
      * @param args Parameters to forward to the underlying storage.
-     * @return A return value as returned by the underlying storage.
+     * @return Whatever the underlying storage returns.
      */
     template<typename... Args>
-    decltype(auto) emplace(const entity_type hint, Args &&...args) {
-        if constexpr(std::is_same_v<typename underlying_type::element_type, typename underlying_type::entity_type>) {
+    std::conditional_t<std::is_same_v<typename underlying_type::element_type, entity_type>, entity_type, decltype(std::declval<underlying_type>().get({}))>
+    emplace(const entity_type hint, Args &&...args) {
+        if constexpr(std::is_same_v<typename underlying_type::element_type, entity_type>) {
             const auto entt = underlying_type::emplace(hint, std::forward<Args>(args)...);
             construction.publish(owner_or_assert(), entt);
             return entt;
@@ -342,6 +378,194 @@ private:
     sigh_type construction;
     sigh_type destruction;
     sigh_type update;
+};
+
+/**
+ * @brief Mixin type used to add _reactive_ support to storage types.
+ * @tparam Type Underlying storage type.
+ * @tparam Registry Basic registry type.
+ */
+template<typename Type, typename Registry>
+class basic_reactive_mixin final: public Type {
+    using underlying_type = Type;
+    using owner_type = Registry;
+
+    using basic_registry_type = basic_registry<typename owner_type::entity_type, typename owner_type::allocator_type>;
+
+    static_assert(std::is_base_of_v<basic_registry_type, owner_type>, "Invalid registry type");
+
+    [[nodiscard]] auto &owner_or_assert() const noexcept {
+        ENTT_ASSERT(owner != nullptr, "Invalid pointer to registry");
+        return static_cast<owner_type &>(*owner);
+    }
+
+    void emplace_element(const Registry &, typename underlying_type::entity_type entity) {
+        if(!underlying_type::contains(entity)) {
+            underlying_type::emplace(entity);
+        }
+    }
+
+private:
+    void bind_any(any value) noexcept final {
+        owner = internal::any_to_owner<registry_type>(value);
+        underlying_type::bind_any(std::move(value));
+    }
+
+public:
+    /*! @brief Allocator type. */
+    using allocator_type = typename underlying_type::allocator_type;
+    /*! @brief Underlying entity identifier. */
+    using entity_type = typename underlying_type::entity_type;
+    /*! @brief Expected registry type. */
+    using registry_type = owner_type;
+
+    /*! @brief Default constructor. */
+    basic_reactive_mixin()
+        : basic_reactive_mixin{allocator_type{}} {}
+
+    /**
+     * @brief Constructs an empty storage with a given allocator.
+     * @param allocator The allocator to use.
+     */
+    explicit basic_reactive_mixin(const allocator_type &allocator)
+        : underlying_type{allocator},
+          owner{} {
+    }
+
+    /*! @brief Default copy constructor, deleted on purpose. */
+    basic_reactive_mixin(const basic_reactive_mixin &) = delete;
+
+    /**
+     * @brief Move constructor.
+     * @param other The instance to move from.
+     */
+    basic_reactive_mixin(basic_reactive_mixin &&other) noexcept
+        : underlying_type{std::move(other)},
+          owner{other.owner} {}
+
+    /**
+     * @brief Allocator-extended move constructor.
+     * @param other The instance to move from.
+     * @param allocator The allocator to use.
+     */
+    basic_reactive_mixin(basic_reactive_mixin &&other, const allocator_type &allocator)
+        : underlying_type{std::move(other), allocator},
+          owner{other.owner} {}
+
+    /*! @brief Default destructor. */
+    ~basic_reactive_mixin() override = default;
+
+    /**
+     * @brief Default copy assignment operator, deleted on purpose.
+     * @return This mixin.
+     */
+    basic_reactive_mixin &operator=(const basic_reactive_mixin &) = delete;
+
+    /**
+     * @brief Move assignment operator.
+     * @param other The instance to move from.
+     * @return This mixin.
+     */
+    basic_reactive_mixin &operator=(basic_reactive_mixin &&other) noexcept {
+        swap(other);
+        return *this;
+    }
+
+    /**
+     * @brief Exchanges the contents with those of a given storage.
+     * @param other Storage to exchange the content with.
+     */
+    void swap(basic_reactive_mixin &other) noexcept {
+        using std::swap;
+        swap(owner, other.owner);
+        underlying_type::swap(other);
+    }
+
+    /**
+     * @brief Makes storage _react_ to creation of objects of the given type.
+     * @tparam Clazz Type of element to _react_ to.
+     * @tparam Candidate Function to use to _react_ to the event.
+     * @param id Optional name used to map the storage within the registry.
+     * @return This mixin.
+     */
+    template<typename Clazz, auto Candidate = &basic_reactive_mixin::emplace_element>
+    basic_reactive_mixin &on_construct(const id_type id = type_hash<Clazz>::value()) {
+        owner_or_assert().template storage<Clazz>(id).on_construct().template connect<Candidate>(*this);
+        return *this;
+    }
+
+    /**
+     * @brief Makes storage _react_ to update of objects of the given type.
+     * @tparam Clazz Type of element to _react_ to.
+     * @tparam Candidate Function to use to _react_ to the event.
+     * @param id Optional name used to map the storage within the registry.
+     * @return This mixin.
+     */
+    template<typename Clazz, auto Candidate = &basic_reactive_mixin::emplace_element>
+    basic_reactive_mixin &on_update(const id_type id = type_hash<Clazz>::value()) {
+        owner_or_assert().template storage<Clazz>(id).on_update().template connect<Candidate>(*this);
+        return *this;
+    }
+
+    /**
+     * @brief Makes storage _react_ to destruction of objects of the given type.
+     * @tparam Clazz Type of element to _react_ to.
+     * @tparam Candidate Function to use to _react_ to the event.
+     * @param id Optional name used to map the storage within the registry.
+     * @return This mixin.
+     */
+    template<typename Clazz, auto Candidate = &basic_reactive_mixin::emplace_element>
+    basic_reactive_mixin &on_destroy(const id_type id = type_hash<Clazz>::value()) {
+        owner_or_assert().template storage<Clazz>(id).on_destroy().template connect<Candidate>(*this);
+        return *this;
+    }
+
+    /**
+     * @brief Checks if a mixin refers to a valid registry.
+     * @return True if the mixin refers to a valid registry, false otherwise.
+     */
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return (owner != nullptr);
+    }
+
+    /**
+     * @brief Returns a pointer to the underlying registry, if any.
+     * @return A pointer to the underlying registry, if any.
+     */
+    [[nodiscard]] const registry_type &registry() const noexcept {
+        return owner_or_assert();
+    }
+
+    /*! @copydoc registry */
+    [[nodiscard]] registry_type &registry() noexcept {
+        return owner_or_assert();
+    }
+
+    /**
+     * @brief Returns a view that is filtered by the underlying storage.
+     * @tparam Get Types of elements used to construct the view.
+     * @tparam Exclude Types of elements used to filter the view.
+     * @return A newly created view.
+     */
+    template<typename... Get, typename... Exclude>
+    [[nodiscard]] basic_view<get_t<const basic_reactive_mixin, typename basic_registry_type::template storage_for_type<const Get>...>, exclude_t<typename basic_registry_type::template storage_for_type<const Exclude>...>>
+    view(exclude_t<Exclude...> = exclude_t{}) const {
+        const owner_type &parent = owner_or_assert();
+        basic_view<get_t<const basic_reactive_mixin, typename basic_registry_type::template storage_for_type<const Get>...>, exclude_t<typename basic_registry_type::template storage_for_type<const Exclude>...>> elem{};
+        [&elem](const auto *...curr) { ((curr ? elem.storage(*curr) : void()), ...); }(parent.template storage<std::remove_const_t<Exclude>>()..., parent.template storage<std::remove_const_t<Get>>()..., this);
+        return elem;
+    }
+
+    /*! @copydoc view */
+    template<typename... Get, typename... Exclude>
+    [[nodiscard]] basic_view<get_t<const basic_reactive_mixin, typename basic_registry_type::template storage_for_type<Get>...>, exclude_t<typename basic_registry_type::template storage_for_type<Exclude>...>>
+    view(exclude_t<Exclude...> = exclude_t{}) {
+        owner_type &parent = owner_or_assert();
+        return {*this, parent.template storage<std::remove_const_t<Get>>()..., parent.template storage<std::remove_const_t<Exclude>>()...};
+    }
+
+private:
+    basic_registry_type *owner;
 };
 
 } // namespace entt

@@ -165,7 +165,7 @@ class basic_sparse_set {
     static constexpr auto max_size = static_cast<std::size_t>(traits_type::to_entity(null));
 
     [[nodiscard]] auto policy_to_head() const noexcept {
-        return static_cast<size_type>(max_size * (mode != deletion_policy::swap_only));
+        return static_cast<size_type>(max_size * static_cast<decltype(max_size)>(mode != deletion_policy::swap_only));
     }
 
     [[nodiscard]] auto sparse_ptr(const Entity entt) const {
@@ -275,7 +275,6 @@ protected:
         packed[pos] = traits_type::combine(static_cast<typename traits_type::entity_type>(std::exchange(head, pos)), tombstone);
     }
 
-protected:
     /**
      * @brief Erases entities from a sparse set.
      * @param first An iterator to the first element of the range of entities.
@@ -682,7 +681,7 @@ public:
      * @return True if the sparse set contains the entity, false otherwise.
      */
     [[nodiscard]] bool contains(const entity_type entt) const noexcept {
-        const auto elem = sparse_ptr(entt);
+        const auto *elem = sparse_ptr(entt);
         constexpr auto cap = traits_type::entity_mask;
         constexpr auto mask = traits_type::to_integral(null) & ~cap;
         // testing versions permits to avoid accessing the packed array
@@ -696,7 +695,7 @@ public:
      * version otherwise.
      */
     [[nodiscard]] version_type current(const entity_type entt) const noexcept {
-        const auto elem = sparse_ptr(entt);
+        const auto *elem = sparse_ptr(entt);
         constexpr auto fallback = traits_type::to_version(tombstone);
         return elem ? traits_type::to_version(*elem) : fallback;
     }

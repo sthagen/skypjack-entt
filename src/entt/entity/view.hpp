@@ -268,7 +268,9 @@ protected:
     [[nodiscard]] const Type *storage(const std::size_t pos) const noexcept {
         if(pos < Get) {
             return pools[pos];
-        } else if(const auto idx = pos - Get; filter[idx] != internal::view_placeholder<Type>()) {
+        }
+
+        if(const auto idx = pos - Get; filter[idx] != internal::view_placeholder<Type>()) {
             return filter[idx];
         }
 
@@ -307,7 +309,7 @@ public:
 
     /*! @brief Updates the internal leading view if required. */
     void refresh() noexcept {
-        size_type pos = (index != Get) * Get;
+        size_type pos = static_cast<size_type>(index != Get) * Get;
         for(; pos < Get && pools[pos] != nullptr; ++pos) {}
 
         if(pos == Get) {
@@ -328,7 +330,7 @@ public:
      * @return Estimated number of entities iterated by the view.
      */
     [[nodiscard]] size_type size_hint() const noexcept {
-        return (index != Get) ? pools[index]->size() : size_type{};
+        return (index != Get) ? offset() : size_type{};
     }
 
     /**

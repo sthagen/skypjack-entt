@@ -11,16 +11,16 @@
 #include "../../common/empty.h"
 
 struct clazz {
-    void setter(int v) {
-        member = v;
+    void setter(int iv) {
+        member = iv;
     }
 
     [[nodiscard]] int getter() const {
         return member;
     }
 
-    static void static_setter(clazz &instance, int v) {
-        instance.member = v;
+    static void static_setter(clazz &instance, int iv) {
+        instance.member = iv;
     }
 
     [[nodiscard]] static int static_getter(const clazz &instance) {
@@ -35,9 +35,9 @@ struct clazz {
         return value;
     }
 
-    [[nodiscard]] static clazz factory(int v) {
+    [[nodiscard]] static clazz factory(int iv) {
         clazz instance{};
-        instance.member = v;
+        instance.member = iv;
         return instance;
     }
 
@@ -190,7 +190,8 @@ TEST_F(MetaUtility, MetaGetter) {
 
 TEST_F(MetaUtility, MetaInvokeWithCandidate) {
     std::array args{entt::meta_any{clazz{}}, entt::meta_any{4}};
-    args[0u].cast<clazz &>().value = 3;
+
+    clazz::value = 3;
 
     ASSERT_FALSE((entt::meta_invoke<clazz>({}, &clazz::setter, std::next(args.data()))));
     ASSERT_FALSE((entt::meta_invoke<clazz>({}, &clazz::getter, nullptr)));
@@ -213,7 +214,8 @@ TEST_F(MetaUtility, MetaInvokeWithCandidate) {
 
 TEST_F(MetaUtility, MetaInvoke) {
     std::array args{entt::meta_any{clazz{}}, entt::meta_any{4}};
-    args[0u].cast<clazz &>().value = 3;
+
+    clazz::value = 3;
 
     ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::setter>({}, std::next(args.data()))));
     ASSERT_FALSE((entt::meta_invoke<clazz, &clazz::getter>({}, nullptr)));

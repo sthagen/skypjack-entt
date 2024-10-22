@@ -250,25 +250,25 @@ class basic_registry {
         } else {
             using storage_type = storage_for_type<Type>;
 
-            if(auto it = pools.find(id); it == pools.cend()) {
-                using alloc_type = typename storage_type::allocator_type;
-                typename pool_container_type::mapped_type cpool{};
-
-                if constexpr(std::is_void_v<Type> && !std::is_constructible_v<alloc_type, allocator_type>) {
-                    // std::allocator<void> has no cross constructors (waiting for C++20)
-                    cpool = std::allocate_shared<storage_type>(get_allocator(), alloc_type{});
-                } else {
-                    cpool = std::allocate_shared<storage_type>(get_allocator(), get_allocator());
-                }
-
-                pools.emplace(id, cpool);
-                cpool->bind(*this);
-
-                return static_cast<storage_type &>(*cpool);
-            } else {
+            if(auto it = pools.find(id); it != pools.cend()) {
                 ENTT_ASSERT(it->second->type() == type_id<Type>(), "Unexpected type");
                 return static_cast<storage_type &>(*it->second);
             }
+
+            using alloc_type = typename storage_type::allocator_type;
+            typename pool_container_type::mapped_type cpool{};
+
+            if constexpr(std::is_void_v<Type> && !std::is_constructible_v<alloc_type, allocator_type>) {
+                // std::allocator<void> has no cross constructors (waiting for C++20)
+                cpool = std::allocate_shared<storage_type>(get_allocator(), alloc_type{});
+            } else {
+                cpool = std::allocate_shared<storage_type>(get_allocator(), get_allocator());
+            }
+
+            pools.emplace(id, cpool);
+            cpool->bind(*this);
+
+            return static_cast<storage_type &>(*cpool);
         }
     }
 
@@ -538,7 +538,7 @@ public:
      * @return The version of the recycled entity.
      */
     version_type destroy(const entity_type entt) {
-        for(size_type pos = pools.size(); pos; --pos) {
+        for(size_type pos = pools.size(); pos != 0u; --pos) {
             pools.begin()[pos - 1u].second->remove(entt);
         }
 
@@ -655,12 +655,9 @@ public:
      */
     template<typename Type, typename... Args>
     decltype(auto) emplace_or_replace(const entity_type entt, Args &&...args) {
-        if(auto &cpool = assure<Type>(); cpool.contains(entt)) {
-            return cpool.patch(entt, [&args...](auto &...curr) { ((curr = Type{std::forward<Args>(args)...}), ...); });
-        } else {
-            ENTT_ASSERT(valid(entt), "Invalid entity");
-            return cpool.emplace(entt, std::forward<Args>(args)...);
-        }
+        auto &cpool = assure<Type>();
+        ENTT_ASSERT(valid(entt), "Invalid entity");
+        return cpool.contains(entt) ? cpool.patch(entt, [&args...](auto &...curr) { ((curr = Type{std::forward<Args>(args)...}), ...); }) : cpool.emplace(entt, std::forward<Args>(args)...);
     }
 
     /**
@@ -920,12 +917,9 @@ public:
      */
     template<typename Type, typename... Args>
     [[nodiscard]] decltype(auto) get_or_emplace(const entity_type entt, Args &&...args) {
-        if(auto &cpool = assure<Type>(); cpool.contains(entt)) {
-            return cpool.get(entt);
-        } else {
-            ENTT_ASSERT(valid(entt), "Invalid entity");
-            return cpool.emplace(entt, std::forward<Args>(args)...);
-        }
+        auto &cpool = assure<Type>();
+        ENTT_ASSERT(valid(entt), "Invalid entity");
+        return cpool.contains(entt) ? cpool.get(entt) : cpool.emplace(entt, std::forward<Args>(args)...);
     }
 
     /**

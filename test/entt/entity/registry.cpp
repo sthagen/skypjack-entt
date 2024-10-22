@@ -739,7 +739,8 @@ TEST(Registry, CreateClearCycle) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::registry registry{};
-    entt::entity pre{}, post{};
+    entt::entity pre = entt::null;
+    entt::entity post = entt::null;
 
     const std::size_t first_iteration = 10u;
     const std::size_t second_iteration = 7u;
@@ -1872,7 +1873,7 @@ TEST(Registry, ExcludeOnlyView) {
 
     registry.destroy(entity[3u]);
 
-    ASSERT_EQ(view.size_hint(), 4u);
+    ASSERT_EQ(view.size_hint(), 3u);
     ASSERT_NE(view.begin(), view.end());
 
     ASSERT_EQ(std::distance(view.begin(), view.end()), 1);

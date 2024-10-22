@@ -17,8 +17,8 @@
 struct base {
     base() = default;
 
-    base(char v)
-        : value{v} {}
+    base(char cv)
+        : value{cv} {}
 
     [[nodiscard]] char get() const {
         return value;
@@ -31,20 +31,20 @@ struct clazz: base {
     clazz()
         : base{} {}
 
-    clazz(int v)
+    clazz(int iv)
         : base{},
-          value{v} {}
+          value{iv} {}
 
-    clazz(char c, int v) // NOLINT
-        : base{c},
-          value{v} {}
+    clazz(char cv, int iv) // NOLINT
+        : base{cv},
+          value{iv} {}
 
-    [[nodiscard]] int func(int v) {
-        return (value = v);
+    [[nodiscard]] int func(int iv) {
+        return (value = iv);
     }
 
-    [[nodiscard]] int cfunc(int v) const {
-        return v;
+    [[nodiscard]] int cfunc(int) const {
+        return value;
     }
 
     static void move_to_bucket(const clazz &instance) {
@@ -75,7 +75,7 @@ template<typename...>
 struct template_clazz {};
 
 class MetaContext: public ::testing::Test {
-    void init_global_context() {
+    static void init_global_context() {
         using namespace entt::literals;
 
         entt::meta<int>()
@@ -206,7 +206,7 @@ TEST_F(MetaContext, MetaType) {
     ASSERT_EQ(instance.value, value.get());
 
     ASSERT_NE(instance.value, value.get_mul());
-    ASSERT_EQ(local.invoke("func"_hs, instance, value).cast<int>(), value.get_mul());
+    ASSERT_EQ(local.invoke("func"_hs, instance, value).cast<int>(), instance.value);
     ASSERT_NE(instance.value, value.get_mul());
 
     ASSERT_FALSE(global.invoke("get"_hs, instance));
@@ -287,7 +287,7 @@ TEST_F(MetaContext, MetaFunc) {
     ASSERT_EQ(instance.value, value.get());
 
     ASSERT_NE(instance.value, value.get_mul());
-    ASSERT_EQ(local.func("func"_hs).invoke(instance, value).cast<int>(), value.get_mul());
+    ASSERT_EQ(local.func("func"_hs).invoke(instance, value).cast<int>(), instance.value);
     ASSERT_NE(instance.value, value.get_mul());
 
     ASSERT_FALSE(global.func("get"_hs));

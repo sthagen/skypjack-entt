@@ -399,9 +399,9 @@ TEST(NonOwningGroup, ConstNonConstAndAllInBetween) {
     testing::StaticAssertTypeEq<decltype(std::as_const(registry).group_if_exists(entt::get<const int, char>)), decltype(std::as_const(registry).group_if_exists(entt::get<const int, const char>))>();
     testing::StaticAssertTypeEq<decltype(std::as_const(registry).group_if_exists(entt::get<int, const char>)), decltype(std::as_const(registry).group_if_exists(entt::get<const int, const char>))>();
 
-    group.each([](auto &&i, auto &&c) {
-        testing::StaticAssertTypeEq<decltype(i), int &>();
-        testing::StaticAssertTypeEq<decltype(c), const char &>();
+    group.each([](auto &&iv, auto &&cv) {
+        testing::StaticAssertTypeEq<decltype(iv), int &>();
+        testing::StaticAssertTypeEq<decltype(cv), const char &>();
     });
 
     for([[maybe_unused]] auto [entt, iv, cv]: group.each()) {
@@ -1205,11 +1205,11 @@ TEST(OwningGroup, ConstNonConstAndAllInBetween) {
     testing::StaticAssertTypeEq<decltype(std::as_const(registry).group_if_exists<const int>(entt::get<char>)), decltype(std::as_const(registry).group_if_exists<const int>(entt::get<const char>))>();
     testing::StaticAssertTypeEq<decltype(std::as_const(registry).group_if_exists<int>(entt::get<const char>)), decltype(std::as_const(registry).group_if_exists<const int>(entt::get<const char>))>();
 
-    group.each([](auto &&i, auto &&c, auto &&d, auto &&f) {
-        testing::StaticAssertTypeEq<decltype(i), int &>();
-        testing::StaticAssertTypeEq<decltype(c), const char &>();
-        testing::StaticAssertTypeEq<decltype(d), double &>();
-        testing::StaticAssertTypeEq<decltype(f), const float &>();
+    group.each([](auto &&iv, auto &&cv, auto &&dv, auto &&fv) {
+        testing::StaticAssertTypeEq<decltype(iv), int &>();
+        testing::StaticAssertTypeEq<decltype(cv), const char &>();
+        testing::StaticAssertTypeEq<decltype(dv), double &>();
+        testing::StaticAssertTypeEq<decltype(fv), const float &>();
     });
 
     for([[maybe_unused]] auto [entt, iv, cv, dv, fv]: group.each()) {
@@ -1449,8 +1449,8 @@ TEST(OwningGroup, StableLateInitialization) {
 
     for(std::size_t i{}; i < number_of_entities; ++i) {
         auto entity = registry.create();
-        if(!(i % 2u)) registry.emplace<int>(entity);
-        if(!(i % 3u)) registry.emplace<char>(entity);
+        if((i % 2u) == 0u) { registry.emplace<int>(entity); }
+        if((i % 3u) == 0u) { registry.emplace<char>(entity); }
     }
 
     // thanks to @pgruenbacher for pointing out this corner case
@@ -1467,10 +1467,10 @@ TEST(OwningGroup, PreventEarlyOptOut) {
     registry.emplace<int>(entity, 2);
 
     // thanks to @pgruenbacher for pointing out this corner case
-    registry.group<char, int>().each([entity](const auto entt, const auto &c, const auto &i) {
+    registry.group<char, int>().each([entity](const auto entt, const auto &cv, const auto &iv) {
         ASSERT_EQ(entity, entt);
-        ASSERT_EQ(c, 'c');
-        ASSERT_EQ(i, 2);
+        ASSERT_EQ(cv, 'c');
+        ASSERT_EQ(iv, 2);
     });
 }
 

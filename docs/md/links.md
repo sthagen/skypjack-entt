@@ -135,9 +135,16 @@ I hope the following lists can grow much more in the future.
     an on-rails shooter with retro outrun aesthetics.
   * [Exhibition of Speed](https://store.steampowered.com/app/2947450/Exhibition_of_Speed/):
     build your own car and go racing.
+  * [Lichgate](https://buas.itch.io/lichgate): top-down action rogue-like where
+    users unlock abilities to fight horde of enemies in an endless world.
+  * [Letalka](https://github.com/dviglo2d-learn/mini_games/tree/main/letalka):
+    small demo game with ships and bullets flying everywhere on the screen.
 
 ## Engines and the like:
 
+  * [Hazel Engine](https://github.com/TheCherno/Hazel): a work in progress
+    engine created by [The Cherno](https://github.com/TheCherno/Hazel) during
+    one of his most famous video series.
   * [Aether Engine](https://hadean.com/spatial-simulation/)
     [v1.1+](https://docs.hadean.com/v1.1/Licenses/) by
     [Hadean](https://hadean.com/): a library designed for spatially partitioning
@@ -225,9 +232,8 @@ I hope the following lists can grow much more in the future.
     engine.
   * [Donner](https://github.com/jwmcglynn/donner): a modern C++20 SVG2 rendering
     API with CSS3.
-  * [Hazel Engine](https://github.com/TheCherno/Hazel): a work in progress
-    engine created by [The Cherno](https://github.com/TheCherno/Hazel) during
-    one of his most famous video series.
+  * [Coral Engine](https://github.com/GuusKemperman/CoralEngine): open-source
+    student engine with the tools to make games in C++ and Visual scripting.
 
 ## Articles, videos and blog posts:
 

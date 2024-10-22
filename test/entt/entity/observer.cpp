@@ -5,6 +5,7 @@
 
 TEST(Observer, Functionalities) {
     entt::registry registry;
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     entt::observer observer{registry, entt::collector.group<int>()};
 
     ASSERT_EQ(observer.size(), 0u);
@@ -35,10 +36,8 @@ TEST(Observer, Functionalities) {
 }
 
 TEST(Observer, AllOf) {
-    constexpr auto collector =
-        entt::collector
-            .group<int, char>(entt::exclude<float>)
-            .group<int, double>();
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    constexpr auto collector = entt::collector.group<int, char>(entt::exclude<float>).group<int, double>();
 
     entt::registry registry;
     entt::observer observer{registry, collector};
@@ -84,10 +83,8 @@ TEST(Observer, AllOf) {
 }
 
 TEST(Observer, AllOfFiltered) {
-    constexpr auto collector =
-        entt::collector
-            .group<int>()
-            .where<char>(entt::exclude<double>);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    constexpr auto collector = entt::collector.group<int>().where<char>(entt::exclude<double>);
 
     entt::registry registry;
     entt::observer observer{registry, collector};
@@ -132,6 +129,7 @@ TEST(Observer, AllOfFiltered) {
 
 TEST(Observer, Observe) {
     entt::registry registry;
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     entt::observer observer{registry, entt::collector.update<int>().update<char>()};
     const auto entity = registry.create();
 
@@ -165,10 +163,8 @@ TEST(Observer, Observe) {
 }
 
 TEST(Observer, ObserveFiltered) {
-    constexpr auto collector =
-        entt::collector
-            .update<int>()
-            .where<char>(entt::exclude<double>);
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    constexpr auto collector = entt::collector.update<int>().where<char>(entt::exclude<double>);
 
     entt::registry registry;
     entt::observer observer{registry, collector};
@@ -214,6 +210,7 @@ TEST(Observer, AllOfObserve) {
     entt::observer observer{};
     const auto entity = registry.create();
 
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     observer.connect(registry, entt::collector.group<int>().update<char>());
 
     ASSERT_TRUE(observer.empty());
@@ -246,6 +243,7 @@ TEST(Observer, AllOfObserve) {
 
 TEST(Observer, CrossRulesCornerCase) {
     entt::registry registry;
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     entt::observer observer{registry, entt::collector.group<int>().group<char>()};
     const auto entity = registry.create();
 
@@ -262,6 +260,7 @@ TEST(Observer, CrossRulesCornerCase) {
 
 TEST(Observer, Each) {
     entt::registry registry;
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     entt::observer observer{registry, entt::collector.group<int>()};
     const auto entity = registry.create();
     registry.emplace<int>(entity);
@@ -285,12 +284,8 @@ TEST(Observer, Each) {
 }
 
 TEST(Observer, MultipleFilters) {
-    constexpr auto collector =
-        entt::collector
-            .update<int>()
-            .where<char>()
-            .update<double>()
-            .where<float>();
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
+    constexpr auto collector = entt::collector.update<int>().where<char>().update<double>().where<float>();
 
     entt::registry registry;
     entt::observer observer{registry, collector};
@@ -344,8 +339,10 @@ TEST(Observer, MultipleFilters) {
 }
 
 TEST(Observer, GroupCornerCase) {
+    // NOLINTBEGIN(readability-static-accessed-through-instance)
     constexpr auto add_collector = entt::collector.group<int>(entt::exclude<char>);
     constexpr auto remove_collector = entt::collector.group<int, char>();
+    // NOLINTEND(readability-static-accessed-through-instance)
 
     entt::registry registry;
     entt::observer add_observer{registry, add_collector};

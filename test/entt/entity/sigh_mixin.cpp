@@ -4,17 +4,18 @@
 #include <type_traits>
 #include <utility>
 #include <gtest/gtest.h>
-#include <entt/core/any.hpp>
 #include <entt/core/type_info.hpp>
 #include <entt/entity/component.hpp>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/mixin.hpp>
 #include <entt/entity/registry.hpp>
 #include <entt/entity/storage.hpp>
+#include "../../common/config.h"
 #include "../../common/entity.h"
 #include "../../common/linter.hpp"
 #include "../../common/non_default_constructible.h"
 #include "../../common/pointer_stable.h"
+#include "../../common/registry.h"
 #include "../../common/throwing_allocator.hpp"
 #include "../../common/throwing_type.hpp"
 
@@ -47,11 +48,9 @@ void listener(std::size_t &counter, Registry &, typename Registry::entity_type) 
     ++counter;
 }
 
-struct custom_registry: entt::basic_registry<test::entity> {};
-
 template<typename Type>
 struct entt::storage_type<Type, test::entity, std::allocator<Type>, std::enable_if_t<!std::is_same_v<Type, test::entity>>> {
-    using type = entt::basic_sigh_mixin<entt::basic_storage<Type, test::entity>, custom_registry>;
+    using type = entt::basic_sigh_mixin<entt::basic_storage<Type, test::entity>, test::basic_custom_registry<test::entity>>;
 };
 
 template<typename Type>
@@ -59,9 +58,13 @@ struct SighMixin: testing::Test {
     using type = Type;
 };
 
+template<typename Type>
+using SighMixinDeathTest = SighMixin<Type>;
+
 using SighMixinTypes = ::testing::Types<int, test::pointer_stable>;
 
 TYPED_TEST_SUITE(SighMixin, SighMixinTypes, );
+TYPED_TEST_SUITE(SighMixinDeathTest, SighMixinTypes, );
 
 TYPED_TEST(SighMixin, Functionalities) {
     using value_type = typename TestFixture::type;
@@ -428,22 +431,83 @@ TYPED_TEST(SighMixin, Swap) {
     ASSERT_EQ(on_destroy, 3u);
 }
 
-TYPED_TEST(SighMixin, CustomRegistry) {
+TEST(SighMixin, AutoSignal) {
+    entt::registry registry;
+    auto const entity = registry.create();
+
+    bool created{};
+    bool updated{};
+    bool destroyed{};
+
+    registry.emplace<auto_signal>(entity, created, updated, destroyed);
+    registry.replace<auto_signal>(entity, created, updated, destroyed);
+    registry.erase<auto_signal>(entity);
+
+    ASSERT_TRUE(created);
+    ASSERT_TRUE(updated);
+    ASSERT_TRUE(destroyed);
+
+    ASSERT_TRUE(registry.storage<auto_signal>().empty());
+    ASSERT_TRUE(registry.valid(entity));
+
+    created = updated = destroyed = false;
+
+    registry.emplace<auto_signal>(entity, created, updated, destroyed);
+    registry.replace<auto_signal>(entity, created, updated, destroyed);
+    registry.destroy(entity);
+
+    ASSERT_TRUE(created);
+    ASSERT_TRUE(updated);
+    ASSERT_TRUE(destroyed);
+
+    ASSERT_TRUE(registry.storage<auto_signal>().empty());
+    ASSERT_FALSE(registry.valid(entity));
+}
+
+TYPED_TEST(SighMixin, Registry) {
     using value_type = typename TestFixture::type;
 
-    custom_registry registry;
-    auto &pool = registry.storage<value_type>();
+    entt::registry registry;
+    entt::sigh_mixin<entt::storage<value_type>> pool;
 
-    testing::StaticAssertTypeEq<decltype(pool), entt::basic_sigh_mixin<entt::basic_storage<value_type, test::entity>, custom_registry> &>();
+    ASSERT_FALSE(pool);
+
+    pool.bind(registry);
+
+    ASSERT_TRUE(pool);
+    ASSERT_EQ(&pool.registry(), &registry);
+    ASSERT_EQ(&std::as_const(pool).registry(), &registry);
+}
+
+ENTT_DEBUG_TYPED_TEST(SighMixinDeathTest, Registry) {
+    using value_type = typename TestFixture::type;
+    entt::sigh_mixin<entt::storage<value_type>> pool;
+    ASSERT_DEATH([[maybe_unused]] auto &registry = pool.registry(), "");
+    ASSERT_DEATH([[maybe_unused]] const auto &registry = std::as_const(pool).registry(), "");
+}
+
+TYPED_TEST(SighMixin, CustomRegistry) {
+    using value_type = typename TestFixture::type;
+    using registry_type = test::basic_custom_registry<test::entity>;
+
+    registry_type registry;
+    entt::basic_sigh_mixin<entt::basic_storage<value_type, test::entity>, registry_type> pool;
+    const std::array entity{registry.create(), registry.create()};
+
+    ASSERT_FALSE(pool);
+
+    pool.bind(registry);
+
+    ASSERT_TRUE(pool);
 
     std::size_t on_construct{};
     std::size_t on_destroy{};
 
-    pool.on_construct().template connect<&listener<custom_registry>>(on_construct);
-    pool.on_destroy().template connect<&listener<custom_registry>>(on_destroy);
+    pool.on_construct().template connect<&listener<registry_type>>(on_construct);
+    pool.on_destroy().template connect<&listener<registry_type>>(on_destroy);
 
-    pool.emplace(registry.create());
-    pool.emplace(registry.create());
+    pool.emplace(entity[0u]);
+    pool.emplace(entity[1u]);
 
     ASSERT_EQ(on_construct, 2u);
     ASSERT_EQ(on_destroy, 0u);
@@ -452,6 +516,14 @@ TYPED_TEST(SighMixin, CustomRegistry) {
 
     ASSERT_EQ(on_construct, 2u);
     ASSERT_EQ(on_destroy, 2u);
+}
+
+ENTT_DEBUG_TYPED_TEST(SighMixinDeathTest, CustomRegistry) {
+    using value_type = typename TestFixture::type;
+    using registry_type = test::basic_custom_registry<test::entity>;
+    entt::basic_sigh_mixin<entt::basic_storage<value_type, test::entity>, registry_type> pool;
+    ASSERT_DEATH([[maybe_unused]] auto &registry = pool.registry(), "");
+    ASSERT_DEATH([[maybe_unused]] const auto &registry = std::as_const(pool).registry(), "");
 }
 
 TYPED_TEST(SighMixin, CustomAllocator) {
@@ -648,37 +720,4 @@ TEST(SighMixin, ThrowingComponent) {
 
     ASSERT_EQ(on_construct, 2u);
     ASSERT_EQ(on_destroy, 3u);
-}
-
-TEST(SighMixin, AutoSignal) {
-    entt::registry registry;
-    auto const entity = registry.create();
-
-    bool created{};
-    bool updated{};
-    bool destroyed{};
-
-    registry.emplace<auto_signal>(entity, created, updated, destroyed);
-    registry.replace<auto_signal>(entity, created, updated, destroyed);
-    registry.erase<auto_signal>(entity);
-
-    ASSERT_TRUE(created);
-    ASSERT_TRUE(updated);
-    ASSERT_TRUE(destroyed);
-
-    ASSERT_TRUE(registry.storage<auto_signal>().empty());
-    ASSERT_TRUE(registry.valid(entity));
-
-    created = updated = destroyed = false;
-
-    registry.emplace<auto_signal>(entity, created, updated, destroyed);
-    registry.replace<auto_signal>(entity, created, updated, destroyed);
-    registry.destroy(entity);
-
-    ASSERT_TRUE(created);
-    ASSERT_TRUE(updated);
-    ASSERT_TRUE(destroyed);
-
-    ASSERT_TRUE(registry.storage<auto_signal>().empty());
-    ASSERT_FALSE(registry.valid(entity));
 }

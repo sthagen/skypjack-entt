@@ -46,9 +46,9 @@ struct abstract {
 };
 
 struct concrete: base, abstract {
-    void func(int v) override {
-        abstract::func(v);
-        value = v;
+    void func(int val) override {
+        abstract::func(val);
+        value = val;
     }
 
     int value{3};
@@ -57,8 +57,8 @@ struct concrete: base, abstract {
 struct clazz {
     clazz() = default;
 
-    clazz(const base &, int v)
-        : value{v} {}
+    clazz(const base &, int val)
+        : value{val} {}
 
     void member() {}
     static void func() {}
@@ -71,26 +71,26 @@ struct clazz {
 };
 
 struct overloaded_func {
-    [[nodiscard]] int f(const base &, int a, int b) {
-        return f(a, b);
+    [[nodiscard]] int f(const base &, int first, int second) {
+        return f(first, second);
     }
 
-    [[nodiscard]] int f(int a, const int b) {
-        value = a;
-        return b * b;
+    [[nodiscard]] int f(int first, const int second) {
+        value = first;
+        return second * second;
     }
 
-    [[nodiscard]] int f(int v) {
-        return 2 * std::as_const(*this).f(v);
+    [[nodiscard]] int f(int val) {
+        return 2 * std::as_const(*this).f(val);
     }
 
-    [[nodiscard]] int f(int v) const {
-        return v * v;
+    [[nodiscard]] int f(int val) const {
+        return val * value;
     }
 
-    [[nodiscard]] float f(int a, const float b) {
-        value = a;
-        return b + b;
+    [[nodiscard]] float f(int first, const float second) {
+        value = first;
+        return second + second;
     }
 
     int value{};
@@ -303,8 +303,8 @@ TEST_F(MetaType, Custom) {
 }
 
 ENTT_DEBUG_TEST_F(MetaTypeDeathTest, Custom) {
-    ASSERT_DEATH([[maybe_unused]] const int &value = entt::resolve<clazz>().custom(), "");
-    ASSERT_DEATH([[maybe_unused]] const char &value = entt::resolve<base>().custom(), "");
+    ASSERT_DEATH([[maybe_unused]] int value = entt::resolve<clazz>().custom(), "");
+    ASSERT_DEATH([[maybe_unused]] char value = entt::resolve<base>().custom(), "");
 }
 
 TEST_F(MetaType, RemovePointer) {
@@ -472,14 +472,14 @@ TEST_F(MetaType, OverloadedFunc) {
     ASSERT_TRUE(res);
     ASSERT_EQ(instance.value, 3);
     ASSERT_NE(res.try_cast<int>(), nullptr);
-    ASSERT_EQ(res.cast<int>(), 8);
+    ASSERT_EQ(res.cast<int>(), 12);
 
     res = type.invoke("f"_hs, std::as_const(instance), 2);
 
     ASSERT_TRUE(res);
     ASSERT_EQ(instance.value, 3);
     ASSERT_NE(res.try_cast<int>(), nullptr);
-    ASSERT_EQ(res.cast<int>(), 4);
+    ASSERT_EQ(res.cast<int>(), 6);
 
     res = type.invoke("f"_hs, instance, 0, 1.f);
 
@@ -576,7 +576,7 @@ TEST_F(MetaType, ConstructCastAndConvert) {
 }
 
 TEST_F(MetaType, ConstructArithmeticConversion) {
-    auto any = entt::resolve<clazz>().construct(derived{}, clazz{derived{}, true});
+    auto any = entt::resolve<clazz>().construct(derived{}, true);
 
     ASSERT_TRUE(any);
     ASSERT_EQ(any.cast<clazz>().value, 1);
@@ -724,15 +724,15 @@ TEST_F(MetaType, Variables) {
     auto d_data = entt::resolve("double"_hs).data("var"_hs);
 
     property_type prop{property_type::key_only};
-    double d = 3.;
+    double value = 3.;
 
     p_data.set(prop, property_type::random);
-    d_data.set(d, 3.);
+    d_data.set(value, 3.);
 
     ASSERT_EQ(p_data.get(prop).cast<property_type>(), property_type::random);
-    ASSERT_EQ(d_data.get(d).cast<double>(), 3.);
+    ASSERT_EQ(d_data.get(value).cast<double>(), 3.);
     ASSERT_EQ(prop, property_type::random);
-    ASSERT_EQ(d, 3.);
+    ASSERT_EQ(value, 3.);
 }
 
 TEST_F(MetaType, PropertiesAndCornerCases) {

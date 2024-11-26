@@ -37,9 +37,9 @@ enum class meta_traits : std::uint32_t {
     is_enum = 0x0040,
     is_class = 0x0080,
     is_pointer = 0x0100,
-    is_meta_pointer_like = 0x0200,
-    is_meta_sequence_container = 0x0400,
-    is_meta_associative_container = 0x0800,
+    is_pointer_like = 0x0200,
+    is_sequence_container = 0x0400,
+    is_associative_container = 0x0800,
     _user_defined_traits = 0xFFFF,
     _entt_enum_as_bitmask = 0xFFFF
 };
@@ -64,12 +64,6 @@ struct meta_type_node;
 
 struct meta_custom_node {
     id_type type{};
-    std::shared_ptr<void> value{};
-};
-
-struct meta_prop_node {
-    id_type id{};
-    meta_type_node (*type)(const meta_context &) noexcept {};
     std::shared_ptr<void> value{};
 };
 
@@ -108,7 +102,6 @@ struct meta_data_node {
     bool (*set)(meta_handle, meta_any){};
     meta_any (*get)(const meta_ctx &, meta_handle){};
     meta_custom_node custom{};
-    std::vector<meta_prop_node> prop{};
 };
 
 struct meta_func_node {
@@ -122,7 +115,6 @@ struct meta_func_node {
     meta_any (*invoke)(const meta_ctx &, meta_handle, meta_any *const){};
     std::shared_ptr<meta_func_node> next{};
     meta_custom_node custom{};
-    std::vector<meta_prop_node> prop{};
 };
 
 struct meta_template_node {
@@ -139,7 +131,6 @@ struct meta_type_descriptor {
     std::vector<meta_conv_node> conv{};
     std::vector<meta_data_node> data{};
     std::vector<meta_func_node> func{};
-    std::vector<meta_prop_node> prop{};
 };
 
 struct meta_type_node {
@@ -273,9 +264,9 @@ template<typename Type>
             | (std::is_enum_v<Type> ? meta_traits::is_enum : meta_traits::is_none)
             | (std::is_class_v<Type> ? meta_traits::is_class : meta_traits::is_none)
             | (std::is_pointer_v<Type> ? meta_traits::is_pointer : meta_traits::is_none)
-            | (is_meta_pointer_like_v<Type> ? meta_traits::is_meta_pointer_like : meta_traits::is_none)
-            | (is_complete_v<meta_sequence_container_traits<Type>> ? meta_traits::is_meta_sequence_container : meta_traits::is_none)
-            | (is_complete_v<meta_associative_container_traits<Type>> ? meta_traits::is_meta_associative_container : meta_traits::is_none),
+            | (is_meta_pointer_like_v<Type> ? meta_traits::is_pointer_like : meta_traits::is_none)
+            | (is_complete_v<meta_sequence_container_traits<Type>> ? meta_traits::is_sequence_container : meta_traits::is_none)
+            | (is_complete_v<meta_associative_container_traits<Type>> ? meta_traits::is_associative_container : meta_traits::is_none),
         size_of_v<Type>,
         &resolve<Type>,
         &resolve<std::remove_cv_t<std::remove_pointer_t<Type>>>};

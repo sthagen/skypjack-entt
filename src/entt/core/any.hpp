@@ -17,12 +17,12 @@ namespace entt {
 namespace internal {
 
 enum class any_operation : std::uint8_t {
-    copy,
-    move,
     transfer,
     assign,
     destroy,
     compare,
+    copy,
+    move,
     get
 };
 
@@ -31,8 +31,12 @@ enum class any_operation : std::uint8_t {
 
 /*! @brief Possible modes of an any object. */
 enum class any_policy : std::uint8_t {
-    /*! @brief Default mode, the object owns the contained element. */
-    owner,
+    /*! @brief Default mode, the object does not own any elements. */
+    empty,
+    /*! @brief Owning mode, the object owns a dynamically allocated element. */
+    dynamic,
+    /*! @brief Owning mode, the object owns an embedded element. */
+    embedded,
     /*! @brief Aliasing mode, the object _points_ to a non-const element. */
     ref,
     /*! @brief Const aliasing mode, the object _points_ to a const element. */
@@ -63,25 +67,12 @@ class basic_any {
         const Type *elem = nullptr;
 
         if constexpr(in_situ<Type>) {
-            elem = (value.mode == any_policy::owner) ? reinterpret_cast<const Type *>(&value.storage) : static_cast<const Type *>(value.instance);
+            elem = (value.mode == any_policy::embedded) ? reinterpret_cast<const Type *>(&value.storage) : static_cast<const Type *>(value.instance);
         } else {
             elem = static_cast<const Type *>(value.instance);
         }
 
         switch(op) {
-        case operation::copy:
-            if constexpr(std::is_copy_constructible_v<Type>) {
-                static_cast<basic_any *>(const_cast<void *>(other))->initialize<Type>(*elem);
-            }
-            break;
-        case operation::move:
-            if constexpr(in_situ<Type>) {
-                if(value.mode == any_policy::owner) {
-                    return ::new(&static_cast<basic_any *>(const_cast<void *>(other))->storage) Type{std::move(*const_cast<Type *>(elem))};
-                }
-            }
-
-            return (static_cast<basic_any *>(const_cast<void *>(other))->instance = std::exchange(const_cast<basic_any &>(value).instance, nullptr));
         case operation::transfer:
             if constexpr(std::is_move_assignable_v<Type>) {
                 *const_cast<Type *>(elem) = std::move(*static_cast<Type *>(const_cast<void *>(other)));
@@ -96,7 +87,7 @@ class basic_any {
             break;
         case operation::destroy:
             if constexpr(in_situ<Type>) {
-                elem->~Type();
+                (value.mode == any_policy::embedded) ? elem->~Type() : (delete elem);
             } else if constexpr(std::is_array_v<Type>) {
                 delete[] elem;
             } else {
@@ -109,8 +100,22 @@ class basic_any {
             } else {
                 return (elem == other) ? other : nullptr;
             }
+        case operation::copy:
+            if constexpr(std::is_copy_constructible_v<Type>) {
+                static_cast<basic_any *>(const_cast<void *>(other))->initialize<Type>(*elem);
+            }
+            break;
+        case operation::move:
+            ENTT_ASSERT(value.mode == any_policy::embedded, "Unexpected policy type");
+            if constexpr(in_situ<Type>) {
+                return ::new(&static_cast<basic_any *>(const_cast<void *>(other))->storage) Type{std::move(*const_cast<Type *>(elem))};
+            }
+            [[fallthrough]];
         case operation::get:
-            return elem;
+            ENTT_ASSERT(value.mode == any_policy::embedded, "Unexpected policy type");
+            if constexpr(in_situ<Type>) {
+                return elem;
+            }
         }
 
         return nullptr;
@@ -129,6 +134,8 @@ class basic_any {
                 mode = std::is_const_v<std::remove_reference_t<Type>> ? any_policy::cref : any_policy::ref;
                 instance = (std::addressof(args), ...);
             } else if constexpr(in_situ<plain_type>) {
+                mode = any_policy::embedded;
+
                 if constexpr(std::is_aggregate_v<plain_type> && (sizeof...(Args) != 0u || !std::is_default_constructible_v<plain_type>)) {
                     ::new(&storage) plain_type{std::forward<Args>(args)...};
                 } else {
@@ -136,6 +143,8 @@ class basic_any {
                     ::new(&storage) plain_type(std::forward<Args>(args)...);
                 }
             } else {
+                mode = any_policy::dynamic;
+
                 if constexpr(std::is_aggregate_v<plain_type> && (sizeof...(Args) != 0u || !std::is_default_constructible_v<plain_type>)) {
                     instance = new plain_type{std::forward<Args>(args)...};
                 } else if constexpr(std::is_array_v<plain_type>) {
@@ -172,11 +181,22 @@ public:
      */
     template<typename Type, typename... Args>
     explicit basic_any(std::in_place_type_t<Type>, Args &&...args)
-        : instance{},
-          info{},
-          vtable{},
-          mode{any_policy::owner} {
+        : instance{} {
         initialize<Type>(std::forward<Args>(args)...);
+    }
+
+    /**
+     * @brief Constructs a wrapper taking ownership of the passed object.
+     * @tparam Type Type of object to use to initialize the wrapper.
+     * @param value A pointer to an object to take ownership of.
+     */
+    template<typename Type, typename = std::enable_if_t<!std::is_const_v<Type> && !std::is_void_v<Type>>>
+    explicit basic_any(std::in_place_t, Type *value)
+        : instance{value} {
+        if(instance != nullptr) {
+            initialize<Type &>(*value);
+            mode = any_policy::dynamic;
+        }
     }
 
     /**
@@ -208,14 +228,16 @@ public:
           info{other.info},
           vtable{other.vtable},
           mode{other.mode} {
-        if(other.vtable) {
+        if(other.mode == any_policy::embedded) {
             other.vtable(operation::move, other, this);
+        } else if(other.mode != any_policy::empty) {
+            instance = std::exchange(other.instance, nullptr);
         }
     }
 
     /*! @brief Frees the internal storage, whatever it means. */
     ~basic_any() {
-        if(vtable && (mode == any_policy::owner)) {
+        if(owner()) {
             vtable(operation::destroy, *this, nullptr);
         }
     }
@@ -247,12 +269,15 @@ public:
 
         reset();
 
-        if(other.vtable) {
+        if(other.mode == any_policy::embedded) {
             other.vtable(operation::move, other, this);
-            info = other.info;
-            vtable = other.vtable;
-            mode = other.mode;
+        } else if(other.mode != any_policy::empty) {
+            instance = std::exchange(other.instance, nullptr);
         }
+
+        info = other.info;
+        vtable = other.vtable;
+        mode = other.mode;
 
         return *this;
     }
@@ -282,7 +307,7 @@ public:
      * @return An opaque pointer the contained instance, if any.
      */
     [[nodiscard]] const void *data() const noexcept {
-        return vtable ? vtable(operation::get, *this, nullptr) : nullptr;
+        return (mode == any_policy::embedded) ? vtable(operation::get, *this, nullptr) : instance;
     }
 
     /**
@@ -351,15 +376,14 @@ public:
 
     /*! @brief Destroys contained object */
     void reset() {
-        if(vtable && (mode == any_policy::owner)) {
+        if(owner()) {
             vtable(operation::destroy, *this, nullptr);
         }
 
-        // unnecessary but it helps to detect nasty bugs
-        ENTT_ASSERT((instance = nullptr) == nullptr, "");
+        instance = nullptr;
         info = &type_id<void>();
         vtable = nullptr;
-        mode = any_policy::owner;
+        mode = any_policy::empty;
     }
 
     /**
@@ -406,6 +430,14 @@ public:
     }
 
     /**
+     * @brief Returns true if a wrapper owns its object, false otherwise.
+     * @return True if the wrapper owns its object, false otherwise.
+     */
+    [[nodiscard]] bool owner() const noexcept {
+        return (mode == any_policy::dynamic || mode == any_policy::embedded);
+    }
+
+    /**
      * @brief Returns the current mode of an any object.
      * @return The current mode of the any object.
      */
@@ -418,9 +450,9 @@ private:
         const void *instance;
         storage_type storage;
     };
-    const type_info *info;
-    vtable_type *vtable;
-    any_policy mode;
+    const type_info *info{&type_id<void>()};
+    vtable_type *vtable{};
+    any_policy mode{any_policy::empty};
 };
 
 /**

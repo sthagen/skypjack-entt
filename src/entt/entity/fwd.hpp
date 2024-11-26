@@ -20,7 +20,9 @@ enum class deletion_policy : std::uint8_t {
     /*! @brief In-place deletion policy. */
     in_place = 1u,
     /*! @brief Swap-only deletion policy. */
-    swap_only = 2u
+    swap_only = 2u,
+    /*! @brief Unspecified deletion policy. */
+    unspecified = swap_and_pop
 };
 
 template<typename Entity = entity, typename = std::allocator<Entity>>
@@ -46,9 +48,6 @@ class basic_runtime_view;
 
 template<typename, typename, typename>
 class basic_group;
-
-template<typename, typename = std::allocator<void>>
-class basic_observer;
 
 template<typename>
 class basic_organizer;
@@ -91,9 +90,6 @@ using reactive_mixin = basic_reactive_mixin<Type, basic_registry<typename Type::
 
 /*! @brief Alias declaration for the most common use case. */
 using registry = basic_registry<>;
-
-/*! @brief Alias declaration for the most common use case. */
-using observer = basic_observer<registry>;
 
 /*! @brief Alias declaration for the most common use case. */
 using organizer = basic_organizer<registry>;

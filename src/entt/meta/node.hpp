@@ -198,8 +198,8 @@ template<typename... Args>
     return value(context);
 }
 
-[[nodiscard]] inline const void *try_cast(const meta_context &context, const meta_type_node &from, const meta_type_node &to, const void *instance) noexcept {
-    if((from.info != nullptr) && (to.info != nullptr) && *from.info == *to.info) {
+[[nodiscard]] inline const void *try_cast(const meta_context &context, const meta_type_node &from, const type_info &to, const void *instance) noexcept {
+    if((from.info != nullptr) && *from.info == to) {
         return instance;
     }
 
@@ -289,10 +289,15 @@ template<typename Type>
 
     if constexpr(!std::is_void_v<Type> && !std::is_function_v<Type>) {
         node.from_void = +[](const meta_ctx &ctx, void *elem, const void *celem) {
-            if(elem) {
+            if(elem && celem) { // ownership construction request
+                return meta_any{ctx, std::in_place, static_cast<std::decay_t<Type> *>(elem)};
+            }
+
+            if(elem) { // non-const reference construction request
                 return meta_any{ctx, std::in_place_type<std::decay_t<Type> &>, *static_cast<std::decay_t<Type> *>(elem)};
             }
 
+            // const reference construction request
             return meta_any{ctx, std::in_place_type<const std::decay_t<Type> &>, *static_cast<const std::decay_t<Type> *>(celem)};
         };
     }

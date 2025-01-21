@@ -114,6 +114,7 @@ struct MetaData: ::testing::Test {
             .traits(test::meta_traits::two)
             .data<&clazz::k>("k"_hs)
             .traits(test::meta_traits::three)
+            .data<'c'>("l"_hs)
             .data<&clazz::instance>("base"_hs)
             .data<&clazz::i, entt::as_void_t>("void"_hs)
             .conv<int>();
@@ -145,6 +146,22 @@ struct MetaData: ::testing::Test {
 };
 
 using MetaDataDeathTest = MetaData;
+
+TEST_F(MetaData, SafeWhenEmpty) {
+    entt::meta_data data{};
+
+    ASSERT_FALSE(data);
+    ASSERT_EQ(data, entt::meta_data{});
+    ASSERT_EQ(data.arity(), 0u);
+    ASSERT_FALSE(data.is_const());
+    ASSERT_FALSE(data.is_static());
+    ASSERT_EQ(data.type(), entt::meta_type{});
+    ASSERT_FALSE(data.set({}, 0));
+    ASSERT_FALSE(data.get({}));
+    ASSERT_EQ(data.arg(0u), entt::meta_type{});
+    ASSERT_EQ(data.traits<test::meta_traits>(), test::meta_traits::none);
+    ASSERT_EQ(static_cast<const char *>(data.custom()), nullptr);
+}
 
 TEST_F(MetaData, UserTraits) {
     using namespace entt::literals;
@@ -260,6 +277,22 @@ TEST_F(MetaData, ConstStatic) {
     ASSERT_EQ(data.get({}).cast<int>(), 3);
     ASSERT_FALSE(data.set({}, 1));
     ASSERT_EQ(data.get({}).cast<int>(), 3);
+}
+
+TEST_F(MetaData, Literal) {
+    using namespace entt::literals;
+
+    auto data = entt::resolve<clazz>().data("l"_hs);
+
+    ASSERT_TRUE(data);
+    ASSERT_EQ(data.arity(), 1u);
+    ASSERT_EQ(data.type(), entt::resolve<char>());
+    ASSERT_EQ(data.arg(0u), entt::resolve<char>());
+    ASSERT_TRUE(data.is_const());
+    ASSERT_TRUE(data.is_static());
+    ASSERT_EQ(data.get({}).cast<char>(), 'c');
+    ASSERT_FALSE(data.set({}, 'a'));
+    ASSERT_EQ(data.get({}).cast<char>(), 'c');
 }
 
 TEST_F(MetaData, GetMetaAnyArg) {

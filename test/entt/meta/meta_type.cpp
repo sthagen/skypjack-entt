@@ -96,6 +96,21 @@ struct overloaded_func {
     int value{};
 };
 
+struct from_void_callback {
+    from_void_callback(bool &ref)
+        : cb{&ref} {}
+
+    from_void_callback(const from_void_callback &) = delete;
+    from_void_callback &operator=(const from_void_callback &) = delete;
+
+    ~from_void_callback() {
+        *cb = !*cb;
+    }
+
+private:
+    bool *cb;
+};
+
 enum class property_type : entt::id_type {
     value,
     other
@@ -187,6 +202,62 @@ TEST_F(MetaType, Resolve) {
     }
 
     ASSERT_TRUE(found);
+}
+
+TEST_F(MetaType, SafeWhenEmpty) {
+    using namespace entt::literals;
+
+    entt::meta_type type{};
+    entt::meta_any *args = nullptr;
+
+    ASSERT_FALSE(type);
+    ASSERT_EQ(type, entt::meta_type{});
+    ASSERT_EQ(type.info(), entt::type_id<void>());
+    ASSERT_EQ(type.id(), entt::id_type{});
+    ASSERT_EQ(type.size_of(), 0u);
+    ASSERT_FALSE(type.is_arithmetic());
+    ASSERT_FALSE(type.is_integral());
+    ASSERT_FALSE(type.is_signed());
+    ASSERT_FALSE(type.is_array());
+    ASSERT_FALSE(type.is_enum());
+    ASSERT_FALSE(type.is_class());
+    ASSERT_FALSE(type.is_pointer());
+    ASSERT_EQ(type.remove_pointer(), type);
+    ASSERT_FALSE(type.is_pointer_like());
+    ASSERT_FALSE(type.is_sequence_container());
+    ASSERT_FALSE(type.is_associative_container());
+    ASSERT_FALSE(type.is_template_specialization());
+    ASSERT_EQ(type.template_arity(), 0u);
+    ASSERT_EQ(type.template_type(), type);
+    ASSERT_EQ(type.template_arg(0u), type);
+    ASSERT_EQ(type.template_arg(1u), type);
+    ASSERT_FALSE(type.can_cast(type));
+    ASSERT_FALSE(type.can_cast(entt::resolve<void>()));
+    ASSERT_FALSE(type.can_convert(type));
+    ASSERT_FALSE(type.can_convert(entt::resolve<void>()));
+    ASSERT_EQ(type.base().begin(), type.base().end());
+    ASSERT_EQ(type.data().begin(), type.data().end());
+    ASSERT_EQ(type.data("data"_hs), entt::meta_data{});
+    ASSERT_EQ(type.func().begin(), type.func().end());
+    ASSERT_EQ(type.func("func"_hs), entt::meta_func{});
+    ASSERT_FALSE(type.construct(args, 0u));
+    ASSERT_FALSE(type.construct(args, 1u));
+    ASSERT_FALSE(type.construct());
+    ASSERT_FALSE(type.construct(0.0));
+    ASSERT_FALSE(type.from_void(static_cast<void *>(nullptr)));
+    ASSERT_FALSE(type.from_void(static_cast<void *>(nullptr), true));
+    ASSERT_FALSE(type.from_void(static_cast<void *>(&type)));
+    ASSERT_FALSE(type.from_void(static_cast<void *>(&type), true));
+    ASSERT_FALSE(type.from_void(static_cast<const void *>(nullptr)));
+    ASSERT_FALSE(type.from_void(static_cast<const void *>(&type)));
+    ASSERT_FALSE(type.invoke("func"_hs, {}, args, 0u));
+    ASSERT_FALSE(type.invoke("func"_hs, {}, args, 1u));
+    ASSERT_FALSE(type.invoke("func"_hs, {}));
+    ASSERT_FALSE(type.invoke("func"_hs, {}, 'c'));
+    ASSERT_FALSE(type.set("data"_hs, {}, 0));
+    ASSERT_FALSE(type.get("data"_hs, {}));
+    ASSERT_EQ(type.traits<test::meta_traits>(), test::meta_traits::none);
+    ASSERT_EQ(static_cast<const char *>(type.custom()), nullptr);
 }
 
 TEST_F(MetaType, UserTraits) {
@@ -558,12 +629,12 @@ TEST_F(MetaType, FromVoid) {
     ASSERT_FALSE(entt::resolve<double>().from_void(static_cast<double *>(nullptr)));
     ASSERT_FALSE(entt::resolve<double>().from_void(static_cast<const double *>(nullptr)));
 
-    auto type = entt::resolve<double>();
     double value = 4.2;
 
     ASSERT_FALSE(entt::resolve<void>().from_void(static_cast<void *>(&value)));
     ASSERT_FALSE(entt::resolve<void>().from_void(static_cast<const void *>(&value)));
 
+    auto type = entt::resolve<double>();
     auto as_void = type.from_void(static_cast<void *>(&value));
     auto as_const_void = type.from_void(static_cast<const void *>(&value));
 
@@ -581,6 +652,28 @@ TEST_F(MetaType, FromVoid) {
 
     ASSERT_EQ(as_void.cast<double>(), as_const_void.cast<double>());
     ASSERT_EQ(as_void.cast<double>(), 1.2);
+}
+
+TEST_F(MetaType, FromVoidOwnership) {
+    bool check = false;
+    auto type = entt::resolve<from_void_callback>();
+    void *instance = std::make_unique<from_void_callback>(check).release();
+
+    auto any = type.from_void(instance);
+    auto other = type.from_void(instance, true);
+
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(other);
+
+    ASSERT_FALSE(check);
+
+    any.reset();
+
+    ASSERT_FALSE(check);
+
+    other.reset();
+
+    ASSERT_TRUE(check);
 }
 
 TEST_F(MetaType, Reset) {

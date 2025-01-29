@@ -41,7 +41,7 @@ struct sparse_set_iterator final {
     }
 
     constexpr sparse_set_iterator operator++(int) noexcept {
-        sparse_set_iterator orig = *this;
+        const sparse_set_iterator orig = *this;
         return ++(*this), orig;
     }
 
@@ -50,7 +50,7 @@ struct sparse_set_iterator final {
     }
 
     constexpr sparse_set_iterator operator--(int) noexcept {
-        sparse_set_iterator orig = *this;
+        const sparse_set_iterator orig = *this;
         return operator--(), orig;
     }
 
@@ -166,7 +166,7 @@ class basic_sparse_set {
 
     // it could be auto but gcc complains and emits a warning due to a false positive
     [[nodiscard]] std::size_t policy_to_head() const noexcept {
-        return static_cast<size_type>(max_size * static_cast<decltype(max_size)>(mode != deletion_policy::swap_only));
+        return static_cast<size_type>(max_size * static_cast<std::remove_const_t<decltype(max_size)>>(mode != deletion_policy::swap_only));
     }
 
     [[nodiscard]] auto entity_to_pos(const Entity entt) const noexcept {
@@ -268,6 +268,7 @@ protected:
         sparse_ref(packed.back()) = traits_type::combine(entt, traits_type::to_integral(packed.back()));
         packed[static_cast<size_type>(entt)] = packed.back();
         // unnecessary but it helps to detect nasty bugs
+        // NOLINTNEXTLINE(bugprone-assert-side-effect)
         ENTT_ASSERT((packed.back() = null, true), "");
         // lazy self-assignment guard
         self = null;
@@ -555,6 +556,32 @@ public:
 
     /*! @brief Requests the removal of unused capacity. */
     virtual void shrink_to_fit() {
+        sparse_container_type other{sparse.get_allocator()};
+        const auto len = sparse.size();
+        size_type cnt{};
+
+        other.reserve(len);
+
+        for(auto &&elem: std::as_const(packed)) {
+            // also skip tombstones, if any
+            if(const auto page = pos_to_page(entity_to_pos(elem)); page < len && sparse[page] != nullptr) {
+                if(const auto sz = page + 1u; sz > other.size()) {
+                    other.resize(sz, nullptr);
+                }
+
+                other[page] = std::exchange(sparse[page], nullptr);
+
+                if(++cnt == len) {
+                    // early exit due to lack of pages
+                    break;
+                }
+            }
+        }
+
+        release_sparse_pages();
+        sparse.swap(other);
+
+        sparse.shrink_to_fit();
         packed.shrink_to_fit();
     }
 

@@ -45,6 +45,7 @@ class basic_any {
     };
 
     template<typename Type>
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     static constexpr bool in_situ = (Len != 0u) && alignof(Type) <= Align && sizeof(Type) <= Len && std::is_nothrow_move_constructible_v<Type>;
 
     template<typename Type>
@@ -61,6 +62,7 @@ class basic_any {
         switch(req) {
         case request::transfer:
             if constexpr(std::is_move_assignable_v<Type>) {
+                // NOLINTNEXTLINE(bugprone-casting-through-void)
                 *const_cast<Type *>(elem) = std::move(*static_cast<Type *>(const_cast<void *>(other)));
                 return other;
             }
@@ -82,24 +84,27 @@ class basic_any {
             break;
         case request::compare:
             if constexpr(!std::is_function_v<Type> && !std::is_array_v<Type> && is_equality_comparable_v<Type>) {
-                return *elem == *static_cast<const Type *>(other) ? other : nullptr;
+                return (*elem == *static_cast<const Type *>(other)) ? other : nullptr;
             } else {
                 return (elem == other) ? other : nullptr;
             }
         case request::copy:
             if constexpr(std::is_copy_constructible_v<Type>) {
+                // NOLINTNEXTLINE(bugprone-casting-through-void)
                 static_cast<basic_any *>(const_cast<void *>(other))->initialize<Type>(*elem);
             }
             break;
         case request::move:
             ENTT_ASSERT(value.mode == any_policy::embedded, "Unexpected policy");
             if constexpr(in_situ<Type>) {
+                // NOLINTNEXTLINE(bugprone-casting-through-void,bugprone-multi-level-implicit-pointer-conversion)
                 return ::new(&static_cast<basic_any *>(const_cast<void *>(other))->storage) Type{std::move(*const_cast<Type *>(elem))};
             }
             [[fallthrough]];
         case request::get:
             ENTT_ASSERT(value.mode == any_policy::embedded, "Unexpected policy");
             if constexpr(in_situ<Type>) {
+                // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
                 return elem;
             }
         }
@@ -118,6 +123,7 @@ class basic_any {
             if constexpr(std::is_lvalue_reference_v<Type>) {
                 static_assert((std::is_lvalue_reference_v<Args> && ...) && (sizeof...(Args) == 1u), "Invalid arguments");
                 mode = std::is_const_v<std::remove_reference_t<Type>> ? any_policy::cref : any_policy::ref;
+                // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
                 instance = (std::addressof(args), ...);
             } else if constexpr(in_situ<plain_type>) {
                 mode = any_policy::embedded;
@@ -352,6 +358,7 @@ public:
     }
 
     /*! @copydoc assign */
+    // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
     bool assign(basic_any &&other) {
         if(vtable && mode != any_policy::cref && *info == other.type()) {
             if(auto *val = other.data(); val) {
@@ -471,6 +478,7 @@ template<typename Type, std::size_t Len, std::size_t Align>
 
 /*! @copydoc any_cast */
 template<typename Type, std::size_t Len, std::size_t Align>
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 [[nodiscard]] std::remove_const_t<Type> any_cast(basic_any<Len, Align> &&data) noexcept {
     if constexpr(std::is_copy_constructible_v<std::remove_cv_t<std::remove_reference_t<Type>>>) {
         if(auto *const instance = any_cast<std::remove_reference_t<Type>>(&data); instance) {

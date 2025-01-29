@@ -25,15 +25,15 @@ struct auto_signal final {
           updated{&uflag},
           destroyed{&dflag} {}
 
-    inline static void on_construct(entt::registry &registry, const entt::entity entt) {
+    static void on_construct(entt::registry &registry, const entt::entity entt) {
         *registry.get<auto_signal>(entt).created = true;
     }
 
-    inline static void on_update(entt::registry &registry, const entt::entity entt) {
+    static void on_update(entt::registry &registry, const entt::entity entt) {
         *registry.get<auto_signal>(entt).updated = true;
     }
 
-    inline static void on_destroy(entt::registry &registry, const entt::entity entt) {
+    static void on_destroy(entt::registry &registry, const entt::entity entt) {
         *registry.get<auto_signal>(entt).destroyed = true;
     }
 
@@ -305,11 +305,11 @@ TEST(SighMixin, StorageEntity) {
     ASSERT_EQ(on_construct, 3u);
     ASSERT_EQ(on_destroy, 3u);
 
-    pool.emplace();
-    pool.emplace(entt::entity{0});
+    pool.generate();
+    pool.generate(entt::entity{0});
 
     std::array<entt::entity, 1u> entity{};
-    pool.insert(entity.begin(), entity.end());
+    pool.generate(entity.begin(), entity.end());
 
     ASSERT_EQ(on_construct, 6u);
     ASSERT_EQ(on_destroy, 3u);

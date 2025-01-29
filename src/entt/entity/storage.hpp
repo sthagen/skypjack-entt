@@ -57,7 +57,7 @@ public:
     }
 
     constexpr storage_iterator operator++(int) noexcept {
-        storage_iterator orig = *this;
+        const storage_iterator orig = *this;
         return ++(*this), orig;
     }
 
@@ -66,7 +66,7 @@ public:
     }
 
     constexpr storage_iterator operator--(int) noexcept {
-        storage_iterator orig = *this;
+        const storage_iterator orig = *this;
         return operator--(), orig;
     }
 
@@ -175,7 +175,7 @@ public:
     }
 
     constexpr extended_storage_iterator operator++(int) noexcept {
-        extended_storage_iterator orig = *this;
+        const extended_storage_iterator orig = *this;
         return ++(*this), orig;
     }
 
@@ -296,17 +296,18 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
         }
 
         payload.resize(from);
+        payload.shrink_to_fit();
     }
 
-    void swap_at(const std::size_t from, const std::size_t to) {
+    void swap_at(const std::size_t lhs, const std::size_t rhs) {
         using std::swap;
-        swap(element_at(from), element_at(to));
+        swap(element_at(lhs), element_at(rhs));
     }
 
-    void move_to(const std::size_t from, const std::size_t to) {
-        auto &elem = element_at(from);
+    void move_to(const std::size_t lhs, const std::size_t rhs) {
+        auto &elem = element_at(lhs);
         allocator_type allocator{get_allocator()};
-        entt::uninitialized_construct_using_allocator(to_address(assure_at_least(to)), allocator, std::move(elem));
+        entt::uninitialized_construct_using_allocator(to_address(assure_at_least(rhs)), allocator, std::move(elem));
         alloc_traits::destroy(allocator, std::addressof(elem));
     }
 
@@ -448,21 +449,24 @@ public:
      * @brief Move constructor.
      * @param other The instance to move from.
      */
+    // NOLINTBEGIN(bugprone-use-after-move)
     basic_storage(basic_storage &&other) noexcept
         : base_type{std::move(other)},
           payload{std::move(other.payload)} {}
+    // NOLINTEND(bugprone-use-after-move)
 
     /**
      * @brief Allocator-extended move constructor.
      * @param other The instance to move from.
      * @param allocator The allocator to use.
      */
+    // NOLINTBEGIN(bugprone-use-after-move)
     basic_storage(basic_storage &&other, const allocator_type &allocator)
         : base_type{std::move(other), allocator},
           payload{std::move(other.payload), allocator} {
-        // NOLINTNEXTLINE(bugprone-use-after-move)
         ENTT_ASSERT(alloc_traits::is_always_equal::value || get_allocator() == other.get_allocator(), "Copying a storage is not allowed");
     }
+    // NOLINTEND(bugprone-use-after-move)
 
     /*! @brief Default destructor. */
     // NOLINTNEXTLINE(bugprone-exception-escape)
@@ -906,6 +910,7 @@ public:
      * @param entt A valid identifier.
      */
     template<typename... Args>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     void emplace(const entity_type entt, Args &&...) {
         base_type::try_emplace(entt, false);
     }
@@ -930,6 +935,7 @@ public:
      * @param last An iterator past the last element of the range of entities.
      */
     template<typename It, typename... Args>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     void insert(It first, It last, Args &&...) {
         for(; first != last; ++first) {
             base_type::try_emplace(*first, true);
@@ -1006,7 +1012,7 @@ protected:
      * @return Iterator pointing to the emplaced element.
      */
     underlying_iterator try_emplace(const Entity hint, const bool, const void *) override {
-        return base_type::find(emplace(hint));
+        return base_type::find(generate(hint));
     }
 
 public:
@@ -1052,18 +1058,22 @@ public:
      * @brief Move constructor.
      * @param other The instance to move from.
      */
+    // NOLINTBEGIN(bugprone-use-after-move)
     basic_storage(basic_storage &&other) noexcept
         : base_type{std::move(other)},
           placeholder{other.placeholder} {}
+    // NOLINTEND(bugprone-use-after-move)
 
     /**
      * @brief Allocator-extended move constructor.
      * @param other The instance to move from.
      * @param allocator The allocator to use.
      */
+    // NOLINTBEGIN(bugprone-use-after-move)
     basic_storage(basic_storage &&other, const allocator_type &allocator)
         : base_type{std::move(other), allocator},
           placeholder{other.placeholder} {}
+    // NOLINTEND(bugprone-use-after-move)
 
     /*! @brief Default destructor. */
     ~basic_storage() override = default;
@@ -1112,7 +1122,7 @@ public:
      * @brief Creates a new identifier or recycles a destroyed one.
      * @return A valid identifier.
      */
-    entity_type emplace() {
+    entity_type generate() {
         const auto len = base_type::free_list();
         const auto entt = (len == base_type::size()) ? next() : base_type::data()[len];
         return *base_type::try_emplace(entt, true);
@@ -1127,14 +1137,52 @@ public:
      * @param hint Required identifier.
      * @return A valid identifier.
      */
-    entity_type emplace(const entity_type hint) {
+    entity_type generate(const entity_type hint) {
         if(hint != null && hint != tombstone) {
             if(const auto curr = traits_type::construct(traits_type::to_entity(hint), base_type::current(hint)); curr == tombstone || !(base_type::index(curr) < base_type::free_list())) {
                 return *base_type::try_emplace(hint, true);
             }
         }
 
-        return emplace();
+        return generate();
+    }
+
+    /**
+     * @brief Assigns each element in a range an identifier.
+     * @tparam It Type of mutable forward iterator.
+     * @param first An iterator to the first element of the range to generate.
+     * @param last An iterator past the last element of the range to generate.
+     */
+    template<typename It>
+    void generate(It first, It last) {
+        for(const auto sz = base_type::size(); first != last && base_type::free_list() != sz; ++first) {
+            *first = *base_type::try_emplace(base_type::data()[base_type::free_list()], true);
+        }
+
+        for(; first != last; ++first) {
+            *first = *base_type::try_emplace(next(), true);
+        }
+    }
+
+    /**
+     * @brief Creates a new identifier or recycles a destroyed one.
+     * @return A valid identifier.
+     */
+    [[deprecated("use ::generate() instead")]] entity_type emplace() {
+        return generate();
+    }
+
+    /**
+     * @brief Creates a new identifier or recycles a destroyed one.
+     *
+     * If the requested identifier isn't in use, the suggested one is used.
+     * Otherwise, a new identifier is returned.
+     *
+     * @param hint Required identifier.
+     * @return A valid identifier.
+     */
+    [[deprecated("use ::generate(hint) instead")]] entity_type emplace(const entity_type hint) {
+        return generate(hint);
     }
 
     /**
@@ -1156,14 +1204,8 @@ public:
      * @param last An iterator past the last element of the range to generate.
      */
     template<typename It>
-    void insert(It first, It last) {
-        for(const auto sz = base_type::size(); first != last && base_type::free_list() != sz; ++first) {
-            *first = *base_type::try_emplace(base_type::data()[base_type::free_list()], true);
-        }
-
-        for(; first != last; ++first) {
-            *first = *base_type::try_emplace(next(), true);
-        }
+    [[deprecated("use ::generate(first, last) instead")]] void insert(It first, It last) {
+        generate(std::move(first), std::move(last));
     }
 
     /**

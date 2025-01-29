@@ -63,6 +63,7 @@ struct size_of: std::integral_constant<std::size_t, 0u> {};
 /*! @copydoc size_of */
 template<typename Type>
 struct size_of<Type, std::void_t<decltype(sizeof(Type))>>
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     : std::integral_constant<std::size_t, sizeof(Type)> {};
 
 /**
@@ -345,6 +346,7 @@ struct type_list_transform;
 template<typename... Type, template<typename...> class Op>
 struct type_list_transform<type_list<Type...>, Op> {
     /*! @brief Resulting type list after applying the transform function. */
+    // NOLINTNEXTLINE(modernize-type-traits)
     using type = type_list<typename Op<Type>::type...>;
 };
 

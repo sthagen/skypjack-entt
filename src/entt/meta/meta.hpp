@@ -190,12 +190,14 @@ class meta_any {
 
         if constexpr(is_complete_v<meta_sequence_container_traits<Type>>) {
             if(!!(req & internal::meta_traits::is_sequence_container)) {
+                // NOLINTNEXTLINE(bugprone-casting-through-void)
                 *static_cast<meta_sequence_container *>(other) = !!(req & internal::meta_traits::is_const) ? meta_sequence_container{area, *static_cast<const Type *>(value)} : meta_sequence_container{area, *static_cast<Type *>(const_cast<void *>(value))};
             }
         }
 
         if constexpr(is_complete_v<meta_associative_container_traits<Type>>) {
             if(!!(req & internal::meta_traits::is_associative_container)) {
+                // NOLINTNEXTLINE(bugprone-casting-through-void)
                 *static_cast<meta_associative_container *>(other) = !!(req & internal::meta_traits::is_const) ? meta_associative_container{area, *static_cast<const Type *>(value)} : meta_associative_container{area, *static_cast<Type *>(const_cast<void *>(value))};
             }
         }
@@ -450,6 +452,7 @@ public:
             return std::as_const(*this).try_cast<std::remove_const_t<Type>>();
         } else {
             const auto &other = type_id<Type>();
+            // NOLINTNEXTLINE(bugprone-casting-through-void)
             return static_cast<Type *>(const_cast<void *>(internal::try_cast(internal::meta_context::from(*ctx), node, other, storage.data())));
         }
     }
@@ -640,7 +643,7 @@ public:
     }
 
 private:
-    any storage{};
+    any storage;
     const meta_ctx *ctx{&locator<meta_ctx>::value_or()};
     internal::meta_type_node node{};
     vtable_type *vtable{};
@@ -783,7 +786,7 @@ struct meta_handle {
     }
 
 private:
-    meta_any any{};
+    meta_any any;
 };
 
 /*! @brief Opaque wrapper for user defined data of any type. */
@@ -1153,7 +1156,7 @@ public:
      * @return The type info object of the underlying type.
      */
     [[nodiscard]] const type_info &info() const noexcept {
-        return node.info ? *node.info : type_id<void>();
+        return (node.info != nullptr) ? *node.info : type_id<void>();
     }
 
     /**
@@ -1284,7 +1287,7 @@ public:
      * @brief Returns a tag for the class template of the underlying type.
      * @return The tag for the class template of the underlying type.
      */
-    [[nodiscard]] inline meta_type template_type() const noexcept {
+    [[nodiscard]] meta_type template_type() const noexcept {
         return (node.templ.resolve != nullptr) ? meta_type{*ctx, node.templ.resolve(internal::meta_context::from(*ctx))} : meta_type{};
     }
 
@@ -1293,7 +1296,7 @@ public:
      * @param index Index of the template argument of which to return the type.
      * @return The type of the i-th template argument of a type.
      */
-    [[nodiscard]] inline meta_type template_arg(const size_type index) const noexcept {
+    [[nodiscard]] meta_type template_arg(const size_type index) const noexcept {
         return index < template_arity() ? meta_type{*ctx, node.templ.arg(internal::meta_context::from(*ctx), index)} : meta_type{};
     }
 
@@ -1392,6 +1395,7 @@ public:
     template<typename... Args>
     [[nodiscard]] meta_any construct(Args &&...args) const {
         return construct(std::array<meta_any, sizeof...(Args)>{meta_any{*ctx, std::forward<Args>(args)}...}.data(), sizeof...(Args));
+        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
     }
 
     /**
@@ -1501,6 +1505,7 @@ public:
 
     /*! @copydoc meta_data::operator== */
     [[nodiscard]] bool operator==(const meta_type &other) const noexcept {
+        // NOLINTNEXTLINE(clang-analyzer-core.NonNullParamChecker)
         return (ctx == other.ctx) && ((node.info == nullptr) == (other.node.info == nullptr)) && (node.info == nullptr || (*node.info == *other.node.info));
     }
 
@@ -1672,7 +1677,7 @@ public:
 private:
     const meta_ctx *ctx{};
     vtable_type *vtable{};
-    any handle{};
+    any handle;
 };
 
 class meta_associative_container::meta_iterator final {
@@ -1744,7 +1749,7 @@ public:
 private:
     const meta_ctx *ctx{};
     vtable_type *vtable{};
-    any handle{};
+    any handle;
 };
 /*! @endcond */
 

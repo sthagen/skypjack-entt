@@ -46,7 +46,7 @@ public:
     }
 
     constexpr edge_iterator operator++(int) noexcept {
-        edge_iterator orig = *this;
+        const edge_iterator orig = *this;
         return ++(*this), orig;
     }
 
@@ -70,12 +70,12 @@ private:
 };
 
 template<typename Container>
-[[nodiscard]] inline constexpr bool operator==(const edge_iterator<Container> &lhs, const edge_iterator<Container> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator==(const edge_iterator<Container> &lhs, const edge_iterator<Container> &rhs) noexcept {
     return lhs.pos == rhs.pos;
 }
 
 template<typename Container>
-[[nodiscard]] inline constexpr bool operator!=(const edge_iterator<Container> &lhs, const edge_iterator<Container> &rhs) noexcept {
+[[nodiscard]] constexpr bool operator!=(const edge_iterator<Container> &lhs, const edge_iterator<Container> &rhs) noexcept {
     return !(lhs == rhs);
 }
 

@@ -38,3 +38,5 @@ TODO:
 * any cdynamic to support const ownership construction
 * return meta context from meta objects
 * allow passing arguments to meta setter/getter (we can fallback on meta invoke for everything probably)
+* delegate/sigh: forward connect/disconnect from & to *
+* a few more tests on the improved shrink_to_fit for sparse arrays

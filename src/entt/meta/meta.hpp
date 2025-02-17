@@ -642,6 +642,14 @@ public:
         return storage;
     }
 
+    /**
+     * @brief Returns the underlying meta context.
+     * @return The underlying meta context.
+     */
+    [[nodiscard]] const meta_ctx &context() const noexcept {
+        return *ctx;
+    }
+
 private:
     any storage;
     const meta_ctx *ctx{&locator<meta_ctx>::value_or()};

@@ -73,7 +73,7 @@ struct sparse_set_iterator final {
     }
 
     [[nodiscard]] constexpr reference operator[](const difference_type value) const noexcept {
-        return (*packed)[index() - value];
+        return (*packed)[static_cast<typename Container::size_type>(index() - value)];
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
@@ -190,7 +190,7 @@ class basic_sparse_set {
     }
 
     [[nodiscard]] auto to_iterator(const Entity entt) const {
-        return --(end() - index(entt));
+        return --(end() - static_cast<difference_type>(index(entt)));
     }
 
     [[nodiscard]] auto &assure_at_least(const Entity entt) {
@@ -375,7 +375,7 @@ protected:
             break;
         }
 
-        return --(end() - static_cast<typename iterator::difference_type>(pos));
+        return --(end() - static_cast<difference_type>(pos));
     }
 
     /*! @brief Forwards variables to derived classes, if any. */
@@ -391,6 +391,8 @@ public:
     using version_type = typename traits_type::version_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
+    /*! @brief Signed integer type. */
+    using difference_type = std::ptrdiff_t;
     /*! @brief Pointer type to contained entities. */
     using pointer = typename packed_container_type::const_pointer;
     /*! @brief Random access iterator type. */
@@ -563,17 +565,18 @@ public:
         other.reserve(len);
 
         for(auto &&elem: std::as_const(packed)) {
-            // also skip tombstones, if any
-            if(const auto page = pos_to_page(entity_to_pos(elem)); page < len && sparse[page] != nullptr) {
-                if(const auto sz = page + 1u; sz > other.size()) {
-                    other.resize(sz, nullptr);
-                }
+            if(elem != tombstone) {
+                if(const auto page = pos_to_page(entity_to_pos(elem)); sparse[page] != nullptr) {
+                    if(const auto sz = page + 1u; sz > other.size()) {
+                        other.resize(sz, nullptr);
+                    }
 
-                other[page] = std::exchange(sparse[page], nullptr);
+                    other[page] = std::exchange(sparse[page], nullptr);
 
-                if(++cnt == len) {
-                    // early exit due to lack of pages
-                    break;
+                    if(++cnt == len) {
+                        // early exit due to lack of pages
+                        break;
+                    }
                 }
             }
         }
@@ -589,9 +592,8 @@ public:
      * @brief Returns the extent of a sparse set.
      *
      * The extent of a sparse set is also the size of the internal sparse array.
-     * There is no guarantee that the internal packed array has the same size.
-     * Usually the size of the internal sparse array is equal or greater than
-     * the one of the internal packed array.
+     * There is no guarantee that all pages have been allocated, nor that the
+     * internal packed array is be the same size.
      *
      * @return Extent of the sparse set.
      */
@@ -646,7 +648,7 @@ public:
      * @return An iterator to the first entity of the sparse set.
      */
     [[nodiscard]] iterator begin() const noexcept {
-        const auto pos = static_cast<typename iterator::difference_type>(packed.size());
+        const auto pos = static_cast<difference_type>(packed.size());
         return iterator{packed, pos};
     }
 
@@ -904,7 +906,7 @@ public:
                     ++first;
                 }
 
-                count += std::distance(it, first);
+                count += static_cast<size_type>(std::distance(it, first));
                 erase(it, first);
             }
         } else {
@@ -937,7 +939,7 @@ public:
                 }
             }
 
-            packed.erase(packed.begin() + from, packed.end());
+            packed.erase(packed.begin() + static_cast<difference_type>(from), packed.end());
         }
     }
 
@@ -998,7 +1000,7 @@ public:
         ENTT_ASSERT((mode != deletion_policy::in_place) || (head == max_size), "Sorting with tombstones not allowed");
         ENTT_ASSERT(!(length > packed.size()), "Length exceeds the number of elements");
 
-        algo(packed.rend() - length, packed.rend(), std::move(compare), std::forward<Args>(args)...);
+        algo(packed.rend() - static_cast<difference_type>(length), packed.rend(), std::move(compare), std::forward<Args>(args)...);
 
         for(size_type pos{}; pos < length; ++pos) {
             auto curr = pos;
@@ -1051,7 +1053,7 @@ public:
     iterator sort_as(It first, It last) {
         ENTT_ASSERT((mode != deletion_policy::in_place) || (head == max_size), "Sorting with tombstones not allowed");
         const size_type len = (mode == deletion_policy::swap_only) ? head : packed.size();
-        auto it = end() - static_cast<typename iterator::difference_type>(len);
+        auto it = end() - static_cast<difference_type>(len);
 
         for(const auto other = end(); (it != other) && (first != last); ++first) {
             if(const auto curr = *first; contains(curr)) {

@@ -449,7 +449,7 @@ public:
      */
     template<typename Type>
     storage_for_type<Type> &storage(const id_type id = type_hash<Type>::value()) {
-        return assure<Type>(id);
+        return assure<std::remove_const_t<Type>>(id);
     }
 
     /**
@@ -460,7 +460,7 @@ public:
      */
     template<typename Type>
     [[nodiscard]] const storage_for_type<Type> *storage(const id_type id = type_hash<Type>::value()) const {
-        return assure<Type>(id);
+        return assure<std::remove_const_t<Type>>(id);
     }
 
     /**
@@ -539,7 +539,7 @@ public:
      */
     version_type destroy(const entity_type entt) {
         for(size_type pos = pools.size(); pos != 0u; --pos) {
-            pools.begin()[pos - 1u].second->remove(entt);
+            pools.begin()[static_cast<typename pool_container_type::difference_type>(pos - 1u)].second->remove(entt);
         }
 
         entities.erase(entt);
@@ -576,7 +576,7 @@ public:
     template<typename It>
     void destroy(It first, It last) {
         const auto to = entities.sort_as(first, last);
-        const auto from = entities.cend() - entities.free_list();
+        const auto from = entities.cend() - static_cast<typename common_type::difference_type>(entities.free_list());
 
         for(auto &&curr: pools) {
             curr.second->remove(from, to);
@@ -960,7 +960,7 @@ public:
     void clear() {
         if constexpr(sizeof...(Type) == 0u) {
             for(size_type pos = pools.size(); pos; --pos) {
-                pools.begin()[pos - 1u].second->clear();
+                pools.begin()[static_cast<typename pool_container_type::difference_type>(pos - 1u)].second->clear();
             }
 
             const auto elem = entities.each();

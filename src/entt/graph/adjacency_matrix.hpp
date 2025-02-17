@@ -20,6 +20,10 @@ template<typename It>
 class edge_iterator {
     using size_type = std::size_t;
 
+    void find_next() noexcept {
+        for(; pos != last && !it[static_cast<typename It::difference_type>(pos)]; pos += offset) {}
+    }
+
 public:
     using value_type = std::pair<size_type, size_type>;
     using pointer = input_iterator_pointer<value_type>;
@@ -37,11 +41,12 @@ public:
           pos{from},
           last{to},
           offset{step} {
-        for(; pos != last && !it[pos]; pos += offset) {}
+        find_next();
     }
 
     constexpr edge_iterator &operator++() noexcept {
-        for(pos += offset; pos != last && !it[pos]; pos += offset) {}
+        pos += offset;
+        find_next();
         return *this;
     }
 

@@ -151,6 +151,7 @@ class meta_factory: private internal::basic_meta_factory {
     using base_type = internal::basic_meta_factory;
 
     template<typename Setter, auto Getter, typename Policy, std::size_t... Index>
+    [[deprecated("use variant types or conversion support")]]
     void data(const id_type id, std::index_sequence<Index...>) noexcept {
         using data_type = std::invoke_result_t<decltype(Getter), Type &>;
         using args_type = type_list<typename meta_function_helper_t<Type, decltype(value_list_element_v<Index, Setter>)>::args_type...>;
@@ -386,8 +387,8 @@ public:
      */
     template<auto Setter, auto Getter, typename Policy = as_is_t>
     meta_factory data(const id_type id) noexcept {
-        using data_type = std::invoke_result_t<decltype(Getter), Type &>;
-        static_assert(Policy::template value<data_type>, "Invalid return type for the given policy");
+        using descriptor = meta_function_helper_t<Type, decltype(Getter)>;
+        static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
 
         if constexpr(std::is_same_v<decltype(Setter), std::nullptr_t>) {
             base_type::data(
@@ -396,7 +397,7 @@ public:
                     /* this is never static */
                     internal::meta_traits::is_const,
                     0u,
-                    &internal::resolve<std::remove_cv_t<std::remove_reference_t<data_type>>>,
+                    &internal::resolve<std::remove_cv_t<std::remove_reference_t<typename descriptor::return_type>>>,
                     &meta_arg<type_list<>>,
                     &meta_setter<Type, Setter>,
                     &meta_getter<Type, Getter, Policy>});
@@ -409,7 +410,7 @@ public:
                     /* this is never static nor const */
                     internal::meta_traits::is_none,
                     1u,
-                    &internal::resolve<std::remove_cv_t<std::remove_reference_t<data_type>>>,
+                    &internal::resolve<std::remove_cv_t<std::remove_reference_t<typename descriptor::return_type>>>,
                     &meta_arg<type_list<type_list_element_t<static_cast<std::size_t>(args_type::size != 1u), args_type>>>,
                     &meta_setter<Type, Setter>,
                     &meta_getter<Type, Getter, Policy>});
@@ -436,6 +437,7 @@ public:
      * @return A meta factory for the parent type.
      */
     template<typename Setter, auto Getter, typename Policy = as_is_t>
+    [[deprecated("use variant types or conversion support")]]
     meta_factory data(const id_type id) noexcept {
         data<Setter, Getter, Policy>(id, std::make_index_sequence<Setter::size>{});
         return *this;

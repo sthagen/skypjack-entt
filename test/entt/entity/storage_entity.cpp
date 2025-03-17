@@ -172,7 +172,19 @@ TEST(StorageEntity, Generate) {
     ASSERT_EQ(entity[1u], entt::entity{8});
 }
 
-TEST(StorageEntity, EmplaceInUse) {
+TEST(StorageEntity, GenerateFrom) {
+    entt::storage<entt::entity> pool;
+    std::array entity{entt::entity{0}, entt::entity{1}, entt::entity{2}};
+
+    ASSERT_EQ(pool.generate(), entity[0u]);
+
+    pool.start_from(entity[2u]);
+
+    ASSERT_EQ(pool.generate(), entity[2u]);
+    ASSERT_FALSE(pool.contains(entity[1u]));
+}
+
+TEST(StorageEntity, GenerateInUse) {
     entt::storage<entt::entity> pool;
     std::array<entt::entity, 2u> entity{};
     const entt::entity other{1};
@@ -191,7 +203,7 @@ TEST(StorageEntity, EmplaceInUse) {
     ASSERT_EQ(entity[1u], entt::entity{2});
 }
 
-TEST(StorageEntity, TryEmplace) {
+TEST(StorageEntity, TryGenerate) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::storage<entt::entity> pool;
@@ -234,7 +246,7 @@ TEST(StorageEntity, TryEmplace) {
     ASSERT_EQ(*pool.push(entt::null), entt::entity{7});
 }
 
-TEST(StorageEntity, TryEmplaceInUse) {
+TEST(StorageEntity, TryGenerateInUse) {
     entt::storage<entt::entity> pool;
     std::array<entt::entity, 2u> entity{entt::entity{0}, entt::entity{0}};
     const entt::entity other{1};

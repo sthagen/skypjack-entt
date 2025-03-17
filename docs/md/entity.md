@@ -36,6 +36,7 @@
   * [Empty type optimization](#empty-type-optimization)
   * [Void storage](#void-storage)
   * [Entity storage](#entity-storage)
+    * [Reserved identifiers](#reserved-identifiers)
     * [One of a kind to the registry](#one-of-a-kind-to-the-registry)
   * [Pointer stability](#pointer-stability)
     * [In-place delete](#in-place-delete)
@@ -1377,17 +1378,32 @@ fact, entities are subject to different rules with respect to components
 * Entities are never truly _deleted_. They are moved out of the list of entities
   _in use_ and their versions are updated automatically.
 
-* `emplace` as well as `insert` have a slightly different meaning than their
-  counterparts for components. In the case of an entity storage, these functions
-  _generate_ or _recycle_ identifiers rather than allowing them to be _assigned_
-  to existing entities.
+* There are no `emplace` or `insert` functions in its interface. Instead, a
+  range of `generate` functions are provided for creating or recycling entities.
 
-* The `each` function iterates only the entities _in use_, that is, those not
-  marked as _ready for reuse_. To iterate all the entities it is necessary to
-  iterate the underlying sparse set instead.
+* The `each` function returns an iterable object to visit the entities _in use_,
+  that is, those not marked as _ready for reuse_. To iterate all the entities it
+  is necessary to iterate the underlying sparse set instead.
 
 This kind of storage is designed to be used where any other storage is fine and
 can therefore be combined with views, groups and so on.
+
+### Reserved identifiers
+
+Since the entity storage is the one in charge of generating identifiers, it is
+also possible to request that some of them be reserved and never returned.<br/>
+By doing so, users can then generate and manage them autonomously, as needed.
+
+To set a starting identifier, the `start_from` function is invoked as follows:
+
+```cpp
+storage.start_from(entt::entity{100});
+```
+
+Note that the version is irrelevant and is ignored in all cases. Identifiers are
+always generated with default version.<br/>
+By calling `start_from` as above, the first 100 elements are discarded and the
+first identifier returned is the one with entity 100 and version 0.
 
 ### One of a kind to the registry
 

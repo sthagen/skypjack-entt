@@ -2,6 +2,7 @@
 #define ENTT_PROCESS_PROCESS_HPP
 
 #include <cstdint>
+#include <memory>
 #include <type_traits>
 #include <utility>
 #include "fwd.hpp"
@@ -11,13 +12,11 @@ namespace entt {
 /**
  * @brief Base class for processes.
  *
- * This class stays true to the CRTP idiom. Derived classes must specify what's
- * the intended type for elapsed times.<br/>
- * A process should expose publicly the following member functions whether
- * required:
+ * Derived classes must specify what's the intended type for elapsed times.<br/>
+ * A process can implement the following member functions whether required:
  *
  * * @code{.cpp}
- *   void update(Delta, void *);
+ *   void update(Delta, void *) override;
  *   @endcode
  *
  *   It's invoked once per tick until a process is explicitly aborted or it
@@ -28,30 +27,21 @@ namespace entt {
  *   update.
  *
  * * @code{.cpp}
- *   void init();
- *   @endcode
- *
- *   It's invoked when the process joins the running queue of a scheduler. This
- *   happens as soon as it's attached to the scheduler if the process is a top
- *   level one, otherwise when it replaces its parent if the process is a
- *   continuation.
- *
- * * @code{.cpp}
- *   void succeeded();
+ *   void succeeded() override;
  *   @endcode
  *
  *   It's invoked in case of success, immediately after an update and during the
  *   same tick.
  *
  * * @code{.cpp}
- *   void failed();
+ *   void failed() override;
  *   @endcode
  *
  *   It's invoked in case of errors, immediately after an update and during the
  *   same tick.
  *
  * * @code{.cpp}
- *   void aborted();
+ *   void aborted() override;
  *   @endcode
  *
  *   It's invoked only if a process is explicitly aborted. There is no guarantee
@@ -64,13 +54,17 @@ namespace entt {
  *
  * @sa scheduler
  *
- * @tparam Derived Actual type of process that extends the class template.
  * @tparam Delta Type to use to provide elapsed time.
  */
-template<typename Derived, typename Delta>
-class process {
+template<typename Delta>
+class basic_process: private std::enable_shared_from_this<basic_process<Delta>> {
+    class process_arg_t {
+        friend class basic_process<Delta>;
+        explicit process_arg_t() = default;
+    };
+
     enum class state : std::uint8_t {
-        uninitialized = 0,
+        idle = 0,
         running,
         paused,
         succeeded,
@@ -80,124 +74,61 @@ class process {
         rejected
     };
 
-    template<typename Target = Derived>
-    auto next(std::integral_constant<state, state::uninitialized>)
-        -> decltype(std::declval<Target>().init(), void()) {
-        static_cast<Target *>(this)->init();
+    virtual void update(const Delta, void *) {
+        abort(true);
     }
 
-    template<typename Target = Derived>
-    auto next(std::integral_constant<state, state::running>, Delta delta, void *data)
-        -> decltype(std::declval<Target>().update(delta, data), void()) {
-        static_cast<Target *>(this)->update(delta, data);
-    }
-
-    template<typename Target = Derived>
-    auto next(std::integral_constant<state, state::succeeded>)
-        -> decltype(std::declval<Target>().succeeded(), void()) {
-        static_cast<Target *>(this)->succeeded();
-    }
-
-    template<typename Target = Derived>
-    auto next(std::integral_constant<state, state::failed>)
-        -> decltype(std::declval<Target>().failed(), void()) {
-        static_cast<Target *>(this)->failed();
-    }
-
-    template<typename Target = Derived>
-    auto next(std::integral_constant<state, state::aborted>)
-        -> decltype(std::declval<Target>().aborted(), void()) {
-        static_cast<Target *>(this)->aborted();
-    }
-
-    template<typename... Args>
-    void next(Args...) const noexcept {}
-
-protected:
-    /**
-     * @brief Terminates a process with success if it's still alive.
-     *
-     * The function is idempotent and it does nothing if the process isn't
-     * alive.
-     */
-    void succeed() noexcept {
-        if(alive()) {
-            current = state::succeeded;
-        }
-    }
-
-    /**
-     * @brief Terminates a process with errors if it's still alive.
-     *
-     * The function is idempotent and it does nothing if the process isn't
-     * alive.
-     */
-    void fail() noexcept {
-        if(alive()) {
-            current = state::failed;
-        }
-    }
-
-    /**
-     * @brief Stops a process if it's in a running state.
-     *
-     * The function is idempotent and it does nothing if the process isn't
-     * running.
-     */
-    void pause() noexcept {
-        if(current == state::running) {
-            current = state::paused;
-        }
-    }
-
-    /**
-     * @brief Restarts a process if it's paused.
-     *
-     * The function is idempotent and it does nothing if the process isn't
-     * paused.
-     */
-    void unpause() noexcept {
-        if(current == state::paused) {
-            current = state::running;
-        }
-    }
+    virtual void succeeded() {}
+    virtual void failed() {}
+    virtual void aborted() {}
 
 public:
+    /*! @brief Process constructor token. */
+    using token_type = process_arg_t;
     /*! @brief Type used to provide elapsed time. */
     using delta_type = Delta;
 
     /*! @brief Default constructor. */
-    constexpr process() = default;
+    constexpr basic_process(token_type)
+        : current{state::idle} {}
+
+    /*! @brief Default destructor. */
+    virtual ~basic_process() = default;
 
     /*! @brief Default copy constructor. */
-    process(const process &) = default;
+    basic_process(const basic_process &) = default;
 
     /*! @brief Default move constructor. */
-    process(process &&) noexcept = default;
+    basic_process(basic_process &&) noexcept = default;
 
     /**
      * @brief Default copy assignment operator.
      * @return This process.
      */
-    process &operator=(const process &) = default;
+    basic_process &operator=(const basic_process &) = default;
 
     /**
      * @brief Default move assignment operator.
      * @return This process.
      */
-    process &operator=(process &&) noexcept = default;
+    basic_process &operator=(basic_process &&) noexcept = default;
 
-    /*! @brief Default destructor. */
-    virtual ~process() {
-        static_assert(std::is_base_of_v<process, Derived>, "Incorrect use of the class template");
+    /**
+     * @brief Factory method.
+     * @tparam Type Type of process to create.
+     * @tparam Allocator Type of allocator used to manage memory and elements.
+     * @tparam Args Types of arguments to use to initialize the process.
+     * @param alloc The allocator to use.
+     * @param args Parameters to use to initialize the process.
+     * @return A properly initialized process.
+     */
+    template<typename Type, typename Allocator, typename... Args>
+    static std::shared_ptr<Type> allocate(const Allocator &alloc, Args &&...args) {
+        return std::allocate_shared<Type>(alloc, process_arg_t{}, std::forward<Args>(args)...);
     }
 
     /**
-     * @brief Aborts a process if it's still alive.
-     *
-     * The function is idempotent and it does nothing if the process isn't
-     * alive.
-     *
+     * @brief Aborts a process if it's still alive, otherwise does nothing.
      * @param immediate Requests an immediate operation.
      */
     void abort(const bool immediate = false) {
@@ -207,6 +138,40 @@ public:
             if(immediate) {
                 tick({});
             }
+        }
+    }
+
+    /**
+     * @brief Terminates a process with success if it's still alive, otherwise
+     * does nothing.
+     */
+    void succeed() noexcept {
+        if(alive()) {
+            current = state::succeeded;
+        }
+    }
+
+    /**
+     * @brief Terminates a process with errors if it's still alive, otherwise
+     * does nothing.
+     */
+    void fail() noexcept {
+        if(alive()) {
+            current = state::failed;
+        }
+    }
+
+    /*! @brief Stops a process if it's running, otherwise does nothing. */
+    void pause() noexcept {
+        if(alive()) {
+            current = state::paused;
+        }
+    }
+
+    /*! @brief Restarts a process if it's paused, otherwise does nothing. */
+    void unpause() noexcept {
+        if(alive()) {
+            current = state::running;
         }
     }
 
@@ -249,12 +214,10 @@ public:
      */
     void tick(const Delta delta, void *data = nullptr) {
         switch(current) {
-        case state::uninitialized:
-            next(std::integral_constant<state, state::uninitialized>{});
-            current = state::running;
-            break;
+        case state::idle:
         case state::running:
-            next(std::integral_constant<state, state::running>{}, delta, data);
+            current = state::running;
+            update(delta, data);
             break;
         default:
             // suppress warnings
@@ -264,15 +227,15 @@ public:
         // if it's dead, it must be notified and removed immediately
         switch(current) {
         case state::succeeded:
-            next(std::integral_constant<state, state::succeeded>{});
+            succeeded();
             current = state::finished;
             break;
         case state::failed:
-            next(std::integral_constant<state, state::failed>{});
+            failed();
             current = state::rejected;
             break;
         case state::aborted:
-            next(std::integral_constant<state, state::aborted>{});
+            aborted();
             current = state::rejected;
             break;
         default:
@@ -282,7 +245,7 @@ public:
     }
 
 private:
-    state current{state::uninitialized};
+    state current;
 };
 
 /**
@@ -324,23 +287,30 @@ private:
  * @tparam Func Actual type of process.
  * @tparam Delta Type to use to provide elapsed time.
  */
-template<typename Func, typename Delta>
-struct process_adaptor: process<process_adaptor<Func, Delta>, Delta>, private Func {
+template<typename Delta, typename Func>
+struct basic_process_adaptor: public basic_process<Delta>, private Func {
+    /*! @brief Process constructor token. */
+    using token_type = typename basic_process<Delta>::token_type;
+    /*! @brief Type used to provide elapsed time. */
+    using delta_type = typename basic_process<Delta>::delta_type;
+
     /**
      * @brief Constructs a process adaptor from a lambda or a functor.
      * @tparam Args Types of arguments to use to initialize the actual process.
+     * @param token Process constructor token.
      * @param args Parameters to use to initialize the actual process.
      */
     template<typename... Args>
-    process_adaptor(Args &&...args)
-        : Func{std::forward<Args>(args)...} {}
+    basic_process_adaptor(const token_type token, Args &&...args)
+        : basic_process<Delta>{token},
+          Func{std::forward<Args>(args)...} {}
 
     /**
      * @brief Updates a process and its internal state if required.
      * @param delta Elapsed time.
      * @param data Optional data.
      */
-    void update(const Delta delta, void *data) {
+    void update(const delta_type delta, void *data) override {
         Func::operator()(
             delta,
             data,

@@ -11,6 +11,9 @@ FetchContent_Declare(
     GIT_SHALLOW 1
 )
 
+option(SDL_STATIC "Enable SDL static library" ON)
+option(SDL_SHARED "Disable SDL shared library" OFF)
+
 FetchContent_MakeAvailable(SDL3)
 
 # Fetch ImGui
@@ -48,7 +51,12 @@ target_sources(
 	PRIVATE
         application/application.cpp
         application/context.cpp
-		testbed.cpp
+        meta/meta.cpp
+        system/hud_system.cpp
+        system/imgui_system.cpp
+        system/input_system.cpp
+        system/rendering_system.cpp
+        testbed.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer3.cpp
         ${imgui_SOURCE_DIR}/imgui.cpp

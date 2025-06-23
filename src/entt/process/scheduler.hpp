@@ -16,36 +16,11 @@ namespace entt {
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
-template<typename Delta>
-struct basic_process_handler {
-    virtual ~basic_process_handler() = default;
-
-    virtual bool update(Delta, void *) = 0;
-    virtual void abort(bool) = 0;
-
+template<typename Type>
+struct process_handler {
     // std::shared_ptr because of its type erased allocator which is useful here
-    std::shared_ptr<basic_process_handler> next;
-};
-
-template<typename Delta, typename Type>
-struct process_handler final: basic_process_handler<Delta> {
-    template<typename... Args>
-    process_handler(Args &&...args)
-        : process{std::forward<Args>(args)...} {}
-
-    bool update(const Delta delta, void *data) override {
-        if(process.tick(delta, data); process.rejected()) {
-            this->next.reset();
-        }
-
-        return (process.rejected() || process.finished());
-    }
-
-    void abort(const bool immediate) override {
-        process.abort(immediate);
-    }
-
-    Type process;
+    std::shared_ptr<process_handler> next{};
+    std::shared_ptr<Type> task{};
 };
 
 } // namespace internal
@@ -80,15 +55,23 @@ struct process_handler final: basic_process_handler<Delta> {
  */
 template<typename Delta, typename Allocator>
 class basic_scheduler {
-    template<typename Type>
-    using handler_type = internal::process_handler<Delta, Type>;
-
-    // std::shared_ptr because of its type erased allocator which is useful here
-    using process_type = std::shared_ptr<internal::basic_process_handler<Delta>>;
-
+    using process_type = basic_process<Delta>;
     using alloc_traits = std::allocator_traits<Allocator>;
-    using container_allocator = typename alloc_traits::template rebind_alloc<process_type>;
-    using container_type = std::vector<process_type, container_allocator>;
+    using handler_type = internal::process_handler<process_type>;
+    using container_allocator = typename alloc_traits::template rebind_alloc<handler_type>;
+    using container_type = std::vector<handler_type, container_allocator>;
+
+    bool update(const std::size_t pos, const Delta delta, void *data) {
+        handlers.first()[pos].task->tick(delta, data);
+        // callbacks can insert or erase tasks, invalidating the reference
+        auto &elem = handlers.first()[pos];
+
+        if(elem.task->rejected()) {
+            elem.next.reset();
+        }
+
+        return (elem.task->rejected() || elem.task->finished());
+    }
 
 public:
     /*! @brief Allocator type. */
@@ -219,10 +202,7 @@ public:
      */
     template<typename Proc, typename... Args>
     basic_scheduler &attach(Args &&...args) {
-        static_assert(std::is_base_of_v<process<Proc, Delta>, Proc>, "Invalid process type");
-        auto &ref = handlers.first().emplace_back(std::allocate_shared<handler_type<Proc>>(handlers.second(), std::forward<Args>(args)...));
-        // forces the process to exit the uninitialized state
-        ref->update({}, nullptr);
+        handlers.first().emplace_back().task = process_type::template allocate<Proc>(handlers.second(), std::forward<Args>(args)...);
         return *this;
     }
 
@@ -279,7 +259,7 @@ public:
      */
     template<typename Func>
     basic_scheduler &attach(Func &&func) {
-        using Proc = process_adaptor<std::decay_t<Func>, Delta>;
+        using Proc = basic_process_adaptor<Delta, std::decay_t<Func>>;
         return attach<Proc>(std::forward<Func>(func));
     }
 
@@ -292,11 +272,11 @@ public:
      */
     template<typename Proc, typename... Args>
     basic_scheduler &then(Args &&...args) {
-        static_assert(std::is_base_of_v<process<Proc, Delta>, Proc>, "Invalid process type");
         ENTT_ASSERT(!handlers.first().empty(), "Process not available");
-        auto *curr = handlers.first().back().get();
+        auto *curr = &handlers.first().back();
         for(; curr->next; curr = curr->next.get()) {}
-        curr->next = std::allocate_shared<handler_type<Proc>>(handlers.second(), std::forward<Args>(args)...);
+        curr->next = std::allocate_shared<handler_type>(handlers.second());
+        curr->next->task = process_type::template allocate<Proc>(handlers.second(), std::forward<Args>(args)...);
         return *this;
     }
 
@@ -308,7 +288,7 @@ public:
      */
     template<typename Func>
     basic_scheduler &then(Func &&func) {
-        using Proc = process_adaptor<std::decay_t<Func>, Delta>;
+        using Proc = basic_process_adaptor<Delta, std::decay_t<Func>>;
         return then<Proc>(std::forward<Func>(func));
     }
 
@@ -325,12 +305,11 @@ public:
      */
     void update(const delta_type delta, void *data = nullptr) {
         for(auto next = handlers.first().size(); next; --next) {
-            if(const auto pos = next - 1u; handlers.first()[pos]->update(delta, data)) {
+            if(const auto pos = next - 1u; update(pos, delta, data)) {
                 // updating might spawn/reallocate, cannot hold refs until here
-                if(auto &curr = handlers.first()[pos]; curr->next) {
-                    curr = std::move(curr->next);
-                    // forces the process to exit the uninitialized state
-                    curr->update({}, nullptr);
+                if(auto &curr = handlers.first()[pos]; curr.next) {
+                    auto elem = curr.next;
+                    curr = std::move(*elem);
                 } else {
                     curr = std::move(handlers.first().back());
                     handlers.first().pop_back();
@@ -351,7 +330,7 @@ public:
      */
     void abort(const bool immediate = false) {
         for(auto &&curr: handlers.first()) {
-            curr->abort(immediate);
+            curr.task->abort(immediate);
         }
     }
 

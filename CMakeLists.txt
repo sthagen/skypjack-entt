@@ -220,17 +220,28 @@ if(ENTT_HAS_NATVIS)
     target_sources(
         EnTT
         INTERFACE
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/config.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/container.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/core.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/entity.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/graph.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/locator.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/meta.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/poly.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/process.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/resource.natvis>
-            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/natvis/entt/signal.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/config.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/config.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/container.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/container.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/core.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/core.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/entity.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/entity.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/graph.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/graph.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/locator.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/locator.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/meta.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/meta.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/poly.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/poly.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/process.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/process.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/resource.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/resource.natvis>
+            $<BUILD_INTERFACE:${EnTT_SOURCE_DIR}/src/entt/natvis/signal.natvis>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/entt/natvis/signal.natvis>
     )
 endif()
 
@@ -306,6 +317,7 @@ if(ENTT_INSTALL)
         FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.hpp"
+        PATTERN "*.natvis"
     )
 
     export(PACKAGE EnTT)
@@ -313,29 +325,27 @@ endif()
 
 # Tests and testbed
 
-option(ENTT_BUILD_TESTBED "Enable building testbed." OFF)
 option(ENTT_BUILD_TESTING "Enable building tests." OFF)
+option(ENTT_BUILD_TESTBED "Enable building testbed." OFF)
 
-if(ENTT_BUILD_TESTBED OR ENTT_BUILD_TESTING)
+if(ENTT_BUILD_TESTING OR ENTT_BUILD_TESTBED)
     set(ENTT_ID_TYPE std::uint32_t CACHE STRING "Type of identifiers to use for tests and testbed")
     set(ENTT_CXX_STD cxx_std_17 CACHE STRING "C++ standard revision to use for tests and testbed")
 
-    # Testbed goes first because otherwise SDL gets confused with EnTT tests
-    if(ENTT_BUILD_TESTBED)
-        add_subdirectory(testbed)
-    endif()
-
+    # Tests and tesetbed do not work together because SDL gets confused with EnTT tests
     if(ENTT_BUILD_TESTING)
         option(ENTT_FIND_GTEST_PACKAGE "Enable finding gtest package." OFF)
-
+    
         option(ENTT_BUILD_BENCHMARK "Build benchmark." OFF)
         option(ENTT_BUILD_EXAMPLE "Build examples." OFF)
         option(ENTT_BUILD_LIB "Build lib tests." OFF)
         option(ENTT_BUILD_SNAPSHOT "Build snapshot test with Cereal." OFF)
-
+    
         include(CTest)
         enable_testing()
         add_subdirectory(test)
+    elseif(ENTT_BUILD_TESTBED)
+        add_subdirectory(testbed)
     endif()
 endif()
 

@@ -833,6 +833,14 @@ struct meta_data {
           ctx{&area} {}
 
     /**
+     * @brief Returns the name assigned to a data member, if any.
+     * @return The name assigned to the data member, if any.
+     */
+    [[nodiscard]] const char *name() const noexcept {
+        return node.name;
+    }
+
+    /**
      * @brief Returns the number of setters available.
      * @return The number of setters available.
      */
@@ -954,6 +962,14 @@ struct meta_func {
     meta_func(const meta_ctx &area, internal::meta_func_node curr) noexcept
         : node{std::move(curr)},
           ctx{&area} {}
+
+    /**
+     * @brief Returns the name assigned to a member function, if any.
+     * @return The name assigned to the member function, if any.
+     */
+    [[nodiscard]] const char *name() const noexcept {
+        return node.name;
+    }
 
     /**
      * @brief Returns the number of arguments accepted by a member function.
@@ -1156,6 +1172,14 @@ public:
      */
     [[nodiscard]] id_type id() const noexcept {
         return node.id;
+    }
+
+    /**
+     * @brief Returns the name assigned to a type, if any.
+     * @return The name assigned to the type, if any.
+     */
+    [[nodiscard]] const char *name() const noexcept {
+        return node.name;
     }
 
     /**

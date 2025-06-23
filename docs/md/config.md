@@ -45,8 +45,9 @@ also limited to this library only.
 In general, `EnTT` does not offer primitives to support multi-threading. Many of
 the features can be split over multiple threads without any explicit control and
 the user is the one who knows if a synchronization point is required.<br/>
-However, some features are not easily accessible to users and are made
-thread-safe by means of this definition.
+However, some internal static data shared between threads should be atomic when
+using `EnTT` from multiple threads, even when dealing with local storage. Define
+this macro without assigning any value to it to get the job done.
 
 ## ENTT_ID_TYPE
 

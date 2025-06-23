@@ -3,6 +3,8 @@
 
 namespace entt {
 
+class meta_ctx;
+
 class meta_sequence_container;
 
 class meta_associative_container;
@@ -18,6 +20,9 @@ struct meta_data;
 struct meta_func;
 
 class meta_type;
+
+template<typename>
+class meta_factory;
 
 } // namespace entt
 

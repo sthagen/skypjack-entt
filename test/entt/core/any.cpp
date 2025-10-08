@@ -57,6 +57,24 @@ TEST(Any, Empty) {
     ASSERT_EQ(any.data(), nullptr);
 }
 
+TEST(Any, HasValue) {
+    entt::any any{};
+
+    ASSERT_FALSE(any.has_value());
+    ASSERT_FALSE(any.has_value(entt::type_id<char>()));
+    ASSERT_FALSE(any.has_value(entt::type_id<int>()));
+    ASSERT_FALSE(any.has_value<char>());
+    ASSERT_FALSE(any.has_value<int>());
+
+    any = 2;
+
+    ASSERT_TRUE(any.has_value());
+    ASSERT_FALSE(any.has_value(entt::type_id<char>()));
+    ASSERT_TRUE(any.has_value(entt::type_id<int>()));
+    ASSERT_FALSE(any.has_value<char>());
+    ASSERT_TRUE(any.has_value<int>());
+}
+
 TEST(Any, SBO) {
     entt::any any{'c'};
 
@@ -283,17 +301,17 @@ TEST(Any, SBOMoveAssignment) {
     ASSERT_EQ(entt::any_cast<int>(other), 2);
 }
 
-TEST(AnyDeathTest, SBOSelfMoveAssignment) {
+TEST(Any, SBOSelfMoveAssignment) {
     entt::any any{2};
 
     // avoid warnings due to self-assignment
     any = std::move(*&any);
 
-    ASSERT_FALSE(any);
-    ASSERT_FALSE(any.owner());
-    ASSERT_EQ(any.policy(), entt::any_policy::empty);
-    ASSERT_EQ(any.info(), entt::type_id<void>());
-    ASSERT_EQ(any.data(), nullptr);
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(any.owner());
+    ASSERT_EQ(any.policy(), entt::any_policy::embedded);
+    ASSERT_EQ(any.info(), entt::type_id<int>());
+    ASSERT_EQ(entt::any_cast<int>(any), 2);
 }
 
 TEST(Any, SBODirectAssignment) {
@@ -608,18 +626,18 @@ TEST(Any, NoSBOMoveAssignment) {
     ASSERT_EQ(entt::any_cast<fat>(other), instance);
 }
 
-TEST(AnyDeathTest, NoSBOSelfMoveAssignment) {
+TEST(Any, NoSBOSelfMoveAssignment) {
     const fat instance{.1, .2, .3, .4};
     entt::any any{instance};
 
     // avoid warnings due to self-assignment
     any = std::move(*&any);
 
-    ASSERT_FALSE(any);
-    ASSERT_FALSE(any.owner());
-    ASSERT_EQ(any.policy(), entt::any_policy::empty);
-    ASSERT_EQ(any.info(), entt::type_id<void>());
-    ASSERT_EQ(any.data(), nullptr);
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(any.owner());
+    ASSERT_EQ(any.policy(), entt::any_policy::dynamic);
+    ASSERT_EQ(any.info(), entt::type_id<fat>());
+    ASSERT_EQ(entt::any_cast<fat>(any), instance);
 }
 
 TEST(Any, NoSBODirectAssignment) {
@@ -822,7 +840,7 @@ TEST(Any, VoidMoveAssignment) {
     ASSERT_EQ(entt::any_cast<double>(&other), nullptr);
 }
 
-TEST(AnyDeathTest, VoidSelfMoveAssignment) {
+TEST(Any, VoidSelfMoveAssignment) {
     entt::any any{std::in_place_type<void>};
 
     // avoid warnings due to self-assignment
@@ -1443,6 +1461,53 @@ TEST(Any, CompareVoid) {
     ASSERT_FALSE(entt::any{} != any);
 }
 
+TEST(Any, Data) {
+    entt::any any{2};
+    const auto &cany = any;
+    entt::any empty{};
+
+    ASSERT_EQ(empty.data(), nullptr);
+    ASSERT_NE(any.data(), nullptr);
+    ASSERT_NE(cany.data(), nullptr);
+    ASSERT_NE(any.as_ref().data(), nullptr);
+    ASSERT_EQ(cany.as_ref().data(), nullptr);
+
+    ASSERT_EQ(empty.data<char>(), nullptr);
+    ASSERT_EQ(any.data<char>(), nullptr);
+    ASSERT_EQ(cany.data<char>(), nullptr);
+    ASSERT_EQ(any.data<const char>(), nullptr);
+    ASSERT_EQ(cany.data<const char>(), nullptr);
+    ASSERT_EQ(any.as_ref().data<char>(), nullptr);
+    ASSERT_EQ(cany.as_ref().data<char>(), nullptr);
+    ASSERT_EQ(any.as_ref().data<const char>(), nullptr);
+    ASSERT_EQ(cany.as_ref().data<const char>(), nullptr);
+
+    ASSERT_EQ(empty.data<int>(), nullptr);
+    ASSERT_NE(any.data<int>(), nullptr);
+    ASSERT_NE(cany.data<int>(), nullptr);
+    ASSERT_NE(any.data<const int>(), nullptr);
+    ASSERT_NE(cany.data<const int>(), nullptr);
+    ASSERT_NE(any.as_ref().data<int>(), nullptr);
+    ASSERT_EQ(cany.as_ref().data<int>(), nullptr);
+    ASSERT_NE(any.as_ref().data<const int>(), nullptr);
+    ASSERT_NE(cany.as_ref().data<const int>(), nullptr);
+
+    const auto &char_info = entt::type_id<char>();
+    const auto &int_info = entt::type_id<int>();
+
+    ASSERT_EQ(empty.data(char_info), nullptr);
+    ASSERT_EQ(any.data(char_info), nullptr);
+    ASSERT_EQ(cany.data(char_info), nullptr);
+    ASSERT_EQ(any.as_ref().data(char_info), nullptr);
+    ASSERT_EQ(cany.as_ref().data(char_info), nullptr);
+
+    ASSERT_EQ(empty.data(int_info), nullptr);
+    ASSERT_NE(any.data(int_info), nullptr);
+    ASSERT_NE(cany.data(int_info), nullptr);
+    ASSERT_NE(any.as_ref().data(int_info), nullptr);
+    ASSERT_EQ(cany.as_ref().data(int_info), nullptr);
+}
+
 TEST(Any, AnyCast) {
     entt::any any{2};
     const auto &cany = any;
@@ -1653,10 +1718,10 @@ TEST(Any, Array) {
     ASSERT_EQ(entt::any_cast<int *>(&any), nullptr);
 
     // NOLINTNEXTLINE(*-avoid-c-arrays)
-    entt::any_cast<int(&)[1]>(any)[0] = 2;
+    entt::any_cast<int (&)[1]>(any)[0] = 2;
 
     // NOLINTNEXTLINE(*-avoid-c-arrays)
-    ASSERT_EQ(entt::any_cast<const int(&)[1]>(std::as_const(any))[0], 2);
+    ASSERT_EQ(entt::any_cast<const int (&)[1]>(std::as_const(any))[0], 2);
 }
 
 TEST(Any, CopyMoveReference) {

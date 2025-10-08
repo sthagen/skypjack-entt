@@ -43,13 +43,9 @@
 			<Item Name="[arity]">arity</Item>
 			<Item Name="[is_const]">has_trait(entt::internal::meta_traits::is_const)</Item>
 			<Item Name="[is_static]">has_trait(entt::internal::meta_traits::is_static)</Item>
-			<Item Name="[custom]">custom</Item>
+			<Item Name="[custom]" Condition="custom.value != nullptr">custom</Item>
 		</Expand>
 	</Type>
-	<Type Name="entt::internal::meta_dtor_node">
-		<DisplayString>{{}}</DisplayString>
-		<Expand/>
-	</Type>	
 	<Type Name="entt::internal::meta_func_node"	>
 		<Intrinsic Name="has_trait" Expression="!!(traits &amp; property)">
 			<Parameter Name="property" Type="int"/>
@@ -64,7 +60,7 @@
 			<Item Name="[is_const]">has_trait(entt::internal::meta_traits::is_const)</Item>
 			<Item Name="[is_static]">has_trait(entt::internal::meta_traits::is_static)</Item>
 			<Item Name="[next]" Condition="next != nullptr">*next</Item>
-			<Item Name="[custom]">custom</Item>
+			<Item Name="[custom]" Condition="custom.value != nullptr">custom</Item>
 		</Expand>
 	</Type>
 	<Type Name="entt::internal::meta_template_node">
@@ -108,16 +104,16 @@
 			<Item Name="[default_constructor]">default_constructor != nullptr</Item>
 			<Item Name="[conversion_helper]">conversion_helper != nullptr</Item>
 			<Item Name="[from_void]">from_void != nullptr</Item>
-			<Item Name="[template_info]">templ</Item>
-			<Item Name="[custom]">custom</Item>
-			<Item Name="[details]" Condition="!(details == nullptr)">*details</Item>
+			<Item Name="[template_info]" Condition="templ.arity != 0u">templ</Item>
+			<Item Name="[custom]" Condition="custom.value != nullptr">custom</Item>
+			<Item Name="[details]" Condition="details != nullptr">*details</Item>
 		</Expand>
 	</Type>
 	<Type Name="entt::meta_any">
-		<DisplayString Condition="node.info != nullptr">{{ type={ node.info->alias,na }, policy={ storage.mode,en } }}</DisplayString>
+		<DisplayString>{ storage }</DisplayString>
 		<DisplayString>{{}}</DisplayString>
 		<Expand>
-			<ExpandedItem>node</ExpandedItem>
+			<ExpandedItem Condition="node != nullptr">node,na</ExpandedItem>
 			<Item Name="[context]" Condition="ctx != nullptr">ctx->value</Item>
 		</Expand>
 	</Type>
@@ -152,18 +148,18 @@
 		</Expand>
 	</Type>
 	<Type Name="entt::meta_data">
-		<DisplayString Condition="node.get != nullptr">{ node }</DisplayString>
+		<DisplayString Condition="node != nullptr">{ node }</DisplayString>
 		<DisplayString>{{}}</DisplayString>
 		<Expand>
-			<ExpandedItem Condition="node.get != nullptr">node</ExpandedItem>
+			<ExpandedItem Condition="node != nullptr">node</ExpandedItem>
 			<Item Name="[context]" Condition="ctx != nullptr">ctx->value</Item>
 		</Expand>
 	</Type>
 	<Type Name="entt::meta_func">
-		<DisplayString Condition="node.invoke != nullptr">{ node }</DisplayString>
+		<DisplayString Condition="node != nullptr">{ node }</DisplayString>
 		<DisplayString>{{}}</DisplayString>
 		<Expand>
-			<ExpandedItem Condition="node.invoke != nullptr">node</ExpandedItem>
+			<ExpandedItem Condition="node != nullptr">node</ExpandedItem>
 			<Item Name="[context]" Condition="ctx != nullptr">ctx->value</Item>
 		</Expand>
 	</Type>

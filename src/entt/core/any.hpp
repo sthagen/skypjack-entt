@@ -50,7 +50,7 @@ class basic_any {
 
     template<typename Type>
     static const void *basic_vtable(const request req, const basic_any &value, const void *other) {
-        static_assert(!std::is_void_v<Type> && std::is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, Type>, "Invalid type");
+        static_assert(!std::is_void_v<Type> && std::is_same_v<std::remove_const_t<std::remove_reference_t<Type>>, Type>, "Invalid type");
         const Type *elem = nullptr;
 
         if constexpr(in_situ<Type>) {
@@ -115,10 +115,10 @@ class basic_any {
     template<typename Type, typename... Args>
     void initialize([[maybe_unused]] Args &&...args) {
         if constexpr(!std::is_void_v<Type>) {
-            using plain_type = std::remove_cv_t<std::remove_reference_t<Type>>;
+            using plain_type = std::remove_const_t<std::remove_reference_t<Type>>;
 
             vtable = basic_vtable<plain_type>;
-            descriptor = &type_id<plain_type>();
+            descriptor = &type_id<plain_type>;
 
             if constexpr(std::is_lvalue_reference_v<Type>) {
                 static_assert((std::is_lvalue_reference_v<Args> && ...) && (sizeof...(Args) == 1u), "Invalid arguments");
@@ -154,6 +154,12 @@ class basic_any {
           vtable{other.vtable},
           descriptor{other.descriptor},
           mode{pol} {}
+
+    void destroy_if_owner() {
+        if(owner()) {
+            vtable(request::destroy, *this, nullptr);
+        }
+    }
 
 public:
     /*! @brief Size of the internal storage. */
@@ -231,9 +237,7 @@ public:
 
     /*! @brief Frees the internal storage, whatever it means. */
     ~basic_any() {
-        if(owner()) {
-            vtable(request::destroy, *this, nullptr);
-        }
+        destroy_if_owner();
     }
 
     /**
@@ -255,25 +259,23 @@ public:
 
     /**
      * @brief Move assignment operator.
-     *
-     * @warning
-     * Self-moving puts objects in a safe but unspecified state.
-     *
      * @param other The instance to move from.
      * @return This any object.
      */
     basic_any &operator=(basic_any &&other) noexcept {
-        reset();
+        if(this != &other) {
+            destroy_if_owner();
 
-        if(other.mode == any_policy::embedded) {
-            other.vtable(request::move, other, this);
-        } else if(other.mode != any_policy::empty) {
-            instance = std::exchange(other.instance, nullptr);
+            if(other.mode == any_policy::embedded) {
+                other.vtable(request::move, other, this);
+            } else if(other.mode != any_policy::empty) {
+                instance = std::exchange(other.instance, nullptr);
+            }
+
+            vtable = other.vtable;
+            descriptor = other.descriptor;
+            mode = other.mode;
         }
-
-        vtable = other.vtable;
-        descriptor = other.descriptor;
-        mode = other.mode;
 
         return *this;
     }
@@ -291,11 +293,45 @@ public:
     }
 
     /**
+     * @brief Returns false if a wrapper is empty, true otherwise.
+     * @return False if the wrapper is empty, true otherwise.
+     */
+    [[nodiscard]] bool has_value() const noexcept {
+        return (vtable != nullptr);
+    }
+
+    /**
+     * @brief Returns false if the wrapper does not contain the expected type,
+     * true otherwise.
+     * @param req Expected type.
+     * @return False if the wrapper does not contain the expected type, true
+     * otherwise.
+     */
+    [[nodiscard]] bool has_value(const type_info &req) const noexcept {
+        return (descriptor() == req);
+    }
+
+    /**
+     * @brief Returns false if the wrapper does not contain the expected type,
+     * true otherwise.
+     * @tparam Type Expected type.
+     * @return False if the wrapper does not contain the expected type, true
+     * otherwise.
+     */
+    template<typename Type>
+    [[nodiscard]] bool has_value() const noexcept {
+        static_assert(std::is_same_v<std::remove_const_t<Type>, Type>, "Invalid type");
+        constexpr const type_info &(*other)() noexcept = &type_id<Type>;
+        // it could be a call across boundaries, but still for the same type
+        return (descriptor == other) || has_value(other());
+    }
+
+    /**
      * @brief Returns the object type info if any, `type_id<void>()` otherwise.
      * @return The object type info if any, `type_id<void>()` otherwise.
      */
     [[nodiscard]] const type_info &info() const noexcept {
-        return (descriptor == nullptr) ? type_id<void>() : *descriptor;
+        return descriptor();
     }
 
     /*! @copydoc info */
@@ -322,10 +358,20 @@ public:
 
     /**
      * @brief Returns an opaque pointer to the contained instance.
+     * @tparam Type Expected type.
+     * @return An opaque pointer the contained instance, if any.
+     */
+    template<typename Type>
+    [[nodiscard]] const Type *data() const noexcept {
+        return has_value<std::remove_const_t<Type>>() ? static_cast<const Type *>(data()) : nullptr;
+    }
+
+    /**
+     * @brief Returns an opaque pointer to the contained instance.
      * @return An opaque pointer the contained instance, if any.
      */
     [[nodiscard]] void *data() noexcept {
-        return mode == any_policy::cref ? nullptr : const_cast<void *>(std::as_const(*this).data());
+        return (mode == any_policy::cref) ? nullptr : const_cast<void *>(std::as_const(*this).data());
     }
 
     /**
@@ -334,7 +380,21 @@ public:
      * @return An opaque pointer the contained instance, if any.
      */
     [[nodiscard]] void *data(const type_info &req) noexcept {
-        return mode == any_policy::cref ? nullptr : const_cast<void *>(std::as_const(*this).data(req));
+        return (mode == any_policy::cref) ? nullptr : const_cast<void *>(std::as_const(*this).data(req));
+    }
+
+    /**
+     * @brief Returns an opaque pointer to the contained instance.
+     * @tparam Type Expected type.
+     * @return An opaque pointer the contained instance, if any.
+     */
+    template<typename Type>
+    [[nodiscard]] Type *data() noexcept {
+        if constexpr(std::is_const_v<Type>) {
+            return std::as_const(*this).template data<std::remove_const_t<Type>>();
+        } else {
+            return (mode == any_policy::cref) ? nullptr : const_cast<Type *>(std::as_const(*this).template data<std::remove_const_t<Type>>());
+        }
     }
 
     /**
@@ -355,7 +415,7 @@ public:
      * @return True in case of success, false otherwise.
      */
     bool assign(const basic_any &other) {
-        if(vtable && mode != any_policy::cref && *descriptor == other.info()) {
+        if(vtable && (mode != any_policy::cref) && ((descriptor == other.descriptor) || has_value(other.info()))) {
             return (vtable(request::assign, *this, other.data()) != nullptr);
         }
 
@@ -365,7 +425,7 @@ public:
     /*! @copydoc assign */
     // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
     bool assign(basic_any &&other) {
-        if(vtable && mode != any_policy::cref && *descriptor == other.info()) {
+        if(vtable && (mode != any_policy::cref) && ((descriptor == other.descriptor) || has_value(other.info()))) {
             if(auto *val = other.data(); val) {
                 return (vtable(request::transfer, *this, val) != nullptr);
             }
@@ -378,13 +438,11 @@ public:
 
     /*! @brief Destroys contained object */
     void reset() {
-        if(owner()) {
-            vtable(request::destroy, *this, nullptr);
-        }
+        destroy_if_owner();
 
         instance = nullptr;
         vtable = nullptr;
-        descriptor = nullptr;
+        descriptor = &type_id<void>;
         mode = any_policy::empty;
     }
 
@@ -393,7 +451,7 @@ public:
      * @return False if the wrapper is empty, true otherwise.
      */
     [[nodiscard]] explicit operator bool() const noexcept {
-        return vtable != nullptr;
+        return has_value();
     }
 
     /**
@@ -402,7 +460,7 @@ public:
      * @return False if the two objects differ in their content, true otherwise.
      */
     [[nodiscard]] bool operator==(const basic_any &other) const noexcept {
-        if(vtable && *descriptor == other.info()) {
+        if(vtable && info() == other.info()) {
             return (vtable(request::compare, *this, other.data()) != nullptr);
         }
 
@@ -453,7 +511,7 @@ private:
         storage_type storage;
     };
     vtable_type *vtable{};
-    const type_info *descriptor{};
+    const type_info &(*descriptor)() noexcept {&type_id<void>};
     any_policy mode{any_policy::empty};
 };
 
@@ -485,7 +543,7 @@ template<typename Type, std::size_t Len, std::size_t Align>
 template<typename Type, std::size_t Len, std::size_t Align>
 // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 [[nodiscard]] std::remove_const_t<Type> any_cast(basic_any<Len, Align> &&data) noexcept {
-    if constexpr(std::is_copy_constructible_v<std::remove_cv_t<std::remove_reference_t<Type>>>) {
+    if constexpr(std::is_copy_constructible_v<std::remove_const_t<std::remove_reference_t<Type>>>) {
         if(auto *const instance = any_cast<std::remove_reference_t<Type>>(&data); instance) {
             return static_cast<Type>(std::move(*instance));
         }
@@ -501,8 +559,7 @@ template<typename Type, std::size_t Len, std::size_t Align>
 /*! @copydoc any_cast */
 template<typename Type, std::size_t Len, std::size_t Align>
 [[nodiscard]] const Type *any_cast(const basic_any<Len, Align> *data) noexcept {
-    const auto &info = type_id<std::remove_cv_t<Type>>();
-    return static_cast<const Type *>(data->data(info));
+    return data->template data<std::remove_const_t<Type>>();
 }
 
 /*! @copydoc any_cast */
@@ -512,8 +569,7 @@ template<typename Type, std::size_t Len, std::size_t Align>
         // last attempt to make wrappers for const references return their values
         return any_cast<Type>(&std::as_const(*data));
     } else {
-        const auto &info = type_id<std::remove_cv_t<Type>>();
-        return static_cast<Type *>(data->data(info));
+        return data->template data<Type>();
     }
 }
 

@@ -117,7 +117,6 @@ class MetaContext: public ::testing::Test {
             .custom<char>('c')
             .base<base>()
             .ctor<char, int>()
-            .dtor<&clazz::move_to_bucket>()
             .data<nullptr, &clazz::value>("value"_hs)
             .data<&clazz::value>("rw"_hs)
             .func<&clazz::cfunc>("func"_hs);
@@ -336,21 +335,6 @@ TEST_F(MetaContext, MetaConv) {
     ASSERT_EQ(local.cast<int>(), value.get_mul());
 }
 
-TEST_F(MetaContext, MetaDtor) {
-    auto global = entt::resolve<clazz>().construct();
-    auto local = entt::resolve<clazz>(ctx()).construct();
-
-    ASSERT_EQ(clazz::bucket, bucket_value);
-
-    global.reset();
-
-    ASSERT_EQ(clazz::bucket, bucket_value);
-
-    local.reset();
-
-    ASSERT_NE(clazz::bucket, bucket_value);
-}
-
 TEST_F(MetaContext, MetaCustom) {
     using namespace entt::literals;
 
@@ -480,19 +464,12 @@ TEST_F(MetaContext, MetaHandle) {
 
     entt::meta_handle global{value};
     entt::meta_handle ctx_value{ctx(), value};
-    entt::meta_handle two_step_local{entt::meta_ctx_arg, ctx()};
 
     ASSERT_TRUE(global);
     ASSERT_TRUE(ctx_value);
-    ASSERT_FALSE(two_step_local);
-
-    two_step_local->emplace<int &>(value);
-
-    ASSERT_TRUE(two_step_local);
 
     ASSERT_EQ(global->type().data("marker"_hs).get({}).cast<int>(), global_marker);
     ASSERT_EQ(ctx_value->type().data("marker"_hs).get({}).cast<int>(), local_marker);
-    ASSERT_EQ(two_step_local->type().data("marker"_hs).get({}).cast<int>(), local_marker);
 }
 
 TEST_F(MetaContext, ForwardAsMeta) {

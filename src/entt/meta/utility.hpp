@@ -93,11 +93,11 @@ struct meta_function_descriptor<Type, Ret (*)(MaybeType, Args...)>
     : meta_function_descriptor_traits<
           Ret,
           std::conditional_t<
-              std::is_same_v<std::remove_cv_t<std::remove_reference_t<MaybeType>>, Type> || std::is_base_of_v<std::remove_cv_t<std::remove_reference_t<MaybeType>>, Type>,
+              std::is_same_v<std::remove_const_t<std::remove_reference_t<MaybeType>>, Type> || std::is_base_of_v<std::remove_const_t<std::remove_reference_t<MaybeType>>, Type>,
               type_list<Args...>,
               type_list<MaybeType, Args...>>,
-          !(std::is_same_v<std::remove_cv_t<std::remove_reference_t<MaybeType>>, Type> || std::is_base_of_v<std::remove_cv_t<std::remove_reference_t<MaybeType>>, Type>),
-          std::is_const_v<std::remove_reference_t<MaybeType>> && (std::is_same_v<std::remove_cv_t<std::remove_reference_t<MaybeType>>, Type> || std::is_base_of_v<std::remove_cv_t<std::remove_reference_t<MaybeType>>, Type>)> {};
+          !(std::is_same_v<std::remove_const_t<std::remove_reference_t<MaybeType>>, Type> || std::is_base_of_v<std::remove_const_t<std::remove_reference_t<MaybeType>>, Type>),
+          std::is_const_v<std::remove_reference_t<MaybeType>> && (std::is_same_v<std::remove_const_t<std::remove_reference_t<MaybeType>>, Type> || std::is_base_of_v<std::remove_const_t<std::remove_reference_t<MaybeType>>, Type>)> {};
 
 /**
  * @brief Meta function descriptor.
@@ -204,26 +204,26 @@ template<typename Policy, typename Candidate, typename... Args>
 }
 
 template<typename Type, typename Policy, typename Candidate, std::size_t... Index>
-[[nodiscard]] meta_any meta_invoke(meta_handle instance, Candidate &&candidate, [[maybe_unused]] meta_any *const args, std::index_sequence<Index...>) {
+[[nodiscard]] meta_any meta_invoke(meta_any &instance, Candidate &&candidate, [[maybe_unused]] meta_any *const args, std::index_sequence<Index...>) {
     using descriptor = meta_function_helper_t<Type, std::remove_reference_t<Candidate>>;
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and std::span)
     if constexpr(std::is_invocable_v<std::remove_reference_t<Candidate>, const Type &, type_list_element_t<Index, typename descriptor::args_type>...>) {
-        if(const auto *const clazz = instance->try_cast<const Type>(); clazz && ((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
-            return meta_invoke_with_args<Policy>(instance->context(), std::forward<Candidate>(candidate), *clazz, (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
+        if(const auto *const clazz = instance.try_cast<const Type>(); clazz && ((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
+            return meta_invoke_with_args<Policy>(instance.context(), std::forward<Candidate>(candidate), *clazz, (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
         }
     } else if constexpr(std::is_invocable_v<std::remove_reference_t<Candidate>, Type &, type_list_element_t<Index, typename descriptor::args_type>...>) {
-        if(auto *const clazz = instance->try_cast<Type>(); clazz && ((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
-            return meta_invoke_with_args<Policy>(instance->context(), std::forward<Candidate>(candidate), *clazz, (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
+        if(auto *const clazz = instance.try_cast<Type>(); clazz && ((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
+            return meta_invoke_with_args<Policy>(instance.context(), std::forward<Candidate>(candidate), *clazz, (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
         }
     } else {
         if(((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
-            return meta_invoke_with_args<Policy>(instance->context(), std::forward<Candidate>(candidate), (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
+            return meta_invoke_with_args<Policy>(instance.context(), std::forward<Candidate>(candidate), (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
         }
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-    return meta_any{meta_ctx_arg, instance->context()};
+    return meta_any{meta_ctx_arg, instance.context()};
 }
 
 template<typename Type, typename... Args, std::size_t... Index>
@@ -249,7 +249,7 @@ template<typename Type, typename... Args, std::size_t... Index>
  */
 template<typename Type>
 [[nodiscard]] meta_type meta_arg(const meta_ctx &ctx, const std::size_t index) noexcept {
-    auto &&context = internal::meta_context::from(ctx);
+    const auto &context = internal::meta_context::from(ctx);
     return {ctx, internal::meta_arg_node(context, Type{}, index)};
 }
 
@@ -316,7 +316,7 @@ template<typename Type, auto Data>
 template<typename Type, auto Data, typename Policy = as_is_t>
 [[nodiscard]] std::enable_if_t<is_meta_policy_v<Policy>, meta_any> meta_getter(meta_handle instance) {
     if constexpr(std::is_member_pointer_v<decltype(Data)> || std::is_function_v<std::remove_reference_t<std::remove_pointer_t<decltype(Data)>>>) {
-        if constexpr(!std::is_array_v<std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<decltype(Data), Type &>>>>) {
+        if constexpr(!std::is_array_v<std::remove_const_t<std::remove_reference_t<std::invoke_result_t<decltype(Data), Type &>>>>) {
             if constexpr(std::is_invocable_v<decltype(Data), Type &>) {
                 if(auto *clazz = instance->try_cast<Type>(); clazz) {
                     return meta_dispatch<Policy>(instance->context(), std::invoke(Data, *clazz));
@@ -354,7 +354,7 @@ template<typename Type, auto Data, typename Policy = as_is_t>
  */
 template<typename Type, typename Policy = as_is_t, typename Candidate>
 [[nodiscard]] std::enable_if_t<is_meta_policy_v<Policy>, meta_any> meta_invoke(meta_handle instance, Candidate &&candidate, meta_any *const args) {
-    return internal::meta_invoke<Type, Policy>(std::move(instance), std::forward<Candidate>(candidate), args, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<Candidate>>::args_type::size>{});
+    return internal::meta_invoke<Type, Policy>(*instance.operator->(), std::forward<Candidate>(candidate), args, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<Candidate>>::args_type::size>{});
 }
 
 /**
@@ -368,7 +368,7 @@ template<typename Type, typename Policy = as_is_t, typename Candidate>
  */
 template<typename Type, auto Candidate, typename Policy = as_is_t>
 [[nodiscard]] std::enable_if_t<is_meta_policy_v<Policy>, meta_any> meta_invoke(meta_handle instance, meta_any *const args) {
-    return internal::meta_invoke<Type, Policy>(std::move(instance), Candidate, args, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<decltype(Candidate)>>::args_type::size>{});
+    return internal::meta_invoke<Type, Policy>(*instance.operator->(), Candidate, args, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<decltype(Candidate)>>::args_type::size>{});
 }
 
 /**
@@ -418,12 +418,12 @@ template<typename Type, typename... Args>
  */
 template<typename Type, typename Policy = as_is_t, typename Candidate>
 [[nodiscard]] meta_any meta_construct(const meta_ctx &ctx, Candidate &&candidate, meta_any *const args) {
-    if constexpr(meta_function_helper_t<Type, Candidate>::is_static || std::is_class_v<std::remove_cv_t<std::remove_reference_t<Candidate>>>) {
-        return internal::meta_invoke<Type, Policy>(meta_handle{meta_ctx_arg, ctx}, std::forward<Candidate>(candidate), args, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<Candidate>>::args_type::size>{});
+    if constexpr(meta_function_helper_t<Type, Candidate>::is_static || std::is_class_v<std::remove_const_t<std::remove_reference_t<Candidate>>>) {
+        meta_any placeholder{meta_ctx_arg, ctx};
+        return internal::meta_invoke<Type, Policy>(placeholder, std::forward<Candidate>(candidate), args, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<Candidate>>::args_type::size>{});
     } else {
-        meta_any target{ctx, args->as_ref()};
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and std::span)
-        return internal::meta_invoke<Type, Policy>(target, std::forward<Candidate>(candidate), args + 1u, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<Candidate>>::args_type::size>{});
+        return internal::meta_invoke<Type, Policy>(*args, std::forward<Candidate>(candidate), args + 1u, std::make_index_sequence<meta_function_helper_t<Type, std::remove_reference_t<Candidate>>::args_type::size>{});
     }
 }
 

@@ -97,6 +97,13 @@ struct MetaData: ::testing::Test {
             .data<&clazz::i, entt::as_void_t>("void"_hs)
             .conv<int>();
 
+        entt::meta_factory<clazz>{}
+            .data<&clazz::i, entt::as_is_t>("ir"_hs)
+            .data<&clazz::j, entt::as_is_t>("jc"_hs)
+            .data<&clazz::h, entt::as_is_t>("hr"_hs)
+            .data<&clazz::k, entt::as_is_t>("kc"_hs)
+            .data<nullptr, &clazz::operator int, entt::as_is_t>("ov"_hs);
+
         entt::meta_factory<setter_getter>{}
             .type("setter_getter"_hs)
             .data<&setter_getter::static_setter, &setter_getter::static_getter>("x"_hs)
@@ -539,6 +546,44 @@ TEST_F(MetaData, AsVoid) {
     ASSERT_TRUE(data.set(instance, 1));
     ASSERT_EQ(instance.i, 1);
     ASSERT_EQ(data.get(instance), entt::meta_any{std::in_place_type<void>});
+}
+
+TEST_F(MetaData, AsIs) {
+    using namespace entt::literals;
+
+    auto type = entt::resolve<clazz>();
+    entt::meta_data data{};
+    clazz instance{};
+
+    data = type.data("ir"_hs);
+
+    ASSERT_TRUE(data);
+    ASSERT_EQ(data.type(), entt::resolve<int>());
+    ASSERT_EQ(data.get(instance).base().policy(), entt::any_policy::ref);
+
+    data = type.data("jc"_hs);
+
+    ASSERT_TRUE(data);
+    ASSERT_EQ(data.type(), entt::resolve<int>());
+    ASSERT_EQ(data.get(instance).base().policy(), entt::any_policy::cref);
+
+    data = type.data("hr"_hs);
+
+    ASSERT_TRUE(data);
+    ASSERT_EQ(data.type(), entt::resolve<int>());
+    ASSERT_EQ(data.get(instance).base().policy(), entt::any_policy::ref);
+
+    data = type.data("kc"_hs);
+
+    ASSERT_TRUE(data);
+    ASSERT_EQ(data.type(), entt::resolve<int>());
+    ASSERT_EQ(data.get(instance).base().policy(), entt::any_policy::cref);
+
+    data = type.data("ov"_hs);
+
+    ASSERT_TRUE(data);
+    ASSERT_EQ(data.type(), entt::resolve<int>());
+    ASSERT_EQ(data.get(instance).base().policy(), entt::any_policy::embedded);
 }
 
 TEST_F(MetaData, AsRef) {

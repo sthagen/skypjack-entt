@@ -2,6 +2,7 @@
 #define ENTT_ENTITY_GROUP_HPP
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <iterator>
 #include <tuple>
@@ -13,12 +14,13 @@
 #include "../core/iterator.hpp"
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/iterator.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename, typename, typename>
@@ -73,23 +75,15 @@ public:
         return it;
     }
 
-    template<typename... Lhs, typename... Rhs>
-    friend constexpr bool operator==(const extended_group_iterator<Lhs...> &, const extended_group_iterator<Rhs...> &) noexcept;
+    template<typename... Args>
+    [[nodiscard]] constexpr bool operator==(const extended_group_iterator<Args...> &other) const noexcept {
+        return it == other.it;
+    }
 
 private:
     It it;
     std::tuple<Owned *..., Get *...> pools;
 };
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator==(const extended_group_iterator<Lhs...> &lhs, const extended_group_iterator<Rhs...> &rhs) noexcept {
-    return lhs.it == rhs.it;
-}
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator!=(const extended_group_iterator<Lhs...> &lhs, const extended_group_iterator<Rhs...> &rhs) noexcept {
-    return !(lhs == rhs);
-}
 
 struct group_descriptor {
     using size_type = std::size_t;
@@ -101,7 +95,7 @@ struct group_descriptor {
 
 template<typename Type, std::size_t Owned, std::size_t Get, std::size_t Exclude>
 class group_handler final: public group_descriptor {
-    using entity_type = typename Type::entity_type;
+    using entity_type = Type::entity_type;
 
     void swap_elements(const std::size_t pos, const entity_type entt) {
         for(size_type next{}; next < Owned; ++next) {
@@ -131,14 +125,14 @@ class group_handler final: public group_descriptor {
 
     void common_setup() {
         // we cannot iterate backwards because we want to leave behind valid entities in case of owned types
-        for(auto first = pools[0u]->rbegin(), last = first + static_cast<typename decltype(pools)::difference_type>(pools[0u]->size()); first != last; ++first) {
+        for(auto first = pools[0u]->rbegin(), last = first + static_cast<decltype(pools)::difference_type>(pools[0u]->size()); first != last; ++first) {
             push_on_construct(*first);
         }
     }
 
 public:
     using common_type = Type;
-    using size_type = typename Type::size_type;
+    using size_type = Type::size_type;
 
     template<typename... OGType, typename... EType>
     group_handler(std::tuple<OGType &...> ogpool, std::tuple<EType &...> epool)
@@ -180,7 +174,7 @@ private:
 
 template<typename Type, std::size_t Get, std::size_t Exclude>
 class group_handler<Type, 0u, Get, Exclude> final: public group_descriptor {
-    using entity_type = typename Type::entity_type;
+    using entity_type = Type::entity_type;
 
     void push_on_construct(const entity_type entt) {
         if(!elem.contains(entt)
@@ -281,7 +275,7 @@ class basic_group;
 template<typename... Get, typename... Exclude>
 class basic_group<owned_t<>, get_t<Get...>, exclude_t<Exclude...>> {
     using base_type = std::common_type_t<typename Get::base_type..., typename Exclude::base_type...>;
-    using underlying_type = typename base_type::entity_type;
+    using underlying_type = base_type::entity_type;
 
     template<typename Type>
     static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Get::element_type..., typename Exclude::element_type...>>;
@@ -302,9 +296,9 @@ public:
     /*! @brief Common type among all storage types. */
     using common_type = base_type;
     /*! @brief Random access iterator type. */
-    using iterator = typename common_type::iterator;
+    using iterator = common_type::iterator;
     /*! @brief Reverse iterator type. */
-    using reverse_iterator = typename common_type::reverse_iterator;
+    using reverse_iterator = common_type::reverse_iterator;
     /*! @brief Iterable group type. */
     using iterable = iterable_adaptor<internal::extended_group_iterator<iterator, owned_t<>, get_t<Get...>>>;
     /*! @brief Group handler type. */
@@ -646,12 +640,10 @@ public:
      * The shared pool of entities and thus its order is affected by the changes
      * to each and every pool that it tracks.
      *
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      */
-    template<typename It>
-    void sort_as(It first, It last) const {
+    void sort_as(stl::input_iterator auto first, stl::input_iterator auto last) const {
         if(*this) {
             descriptor->handle().sort_as(first, last);
         }
@@ -697,7 +689,7 @@ class basic_group<owned_t<Owned...>, get_t<Get...>, exclude_t<Exclude...>> {
     static_assert(((Owned::storage_policy != deletion_policy::in_place) && ...), "Groups do not support in-place delete");
 
     using base_type = std::common_type_t<typename Owned::base_type..., typename Get::base_type..., typename Exclude::base_type...>;
-    using underlying_type = typename base_type::entity_type;
+    using underlying_type = base_type::entity_type;
 
     template<typename Type>
     static constexpr std::size_t index_of = type_list_index_v<std::remove_const_t<Type>, type_list<typename Owned::element_type..., typename Get::element_type..., typename Exclude::element_type...>>;
@@ -718,9 +710,9 @@ public:
     /*! @brief Common type among all storage types. */
     using common_type = base_type;
     /*! @brief Random access iterator type. */
-    using iterator = typename common_type::iterator;
+    using iterator = common_type::iterator;
     /*! @brief Reverse iterator type. */
-    using reverse_iterator = typename common_type::reverse_iterator;
+    using reverse_iterator = common_type::reverse_iterator;
     /*! @brief Iterable group type. */
     using iterable = iterable_adaptor<internal::extended_group_iterator<iterator, owned_t<Owned...>, get_t<Get...>>>;
     /*! @brief Group handler type. */

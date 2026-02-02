@@ -217,12 +217,12 @@ the include paths.
 ## Requirements
 
 To be able to use `EnTT`, users must provide a full-featured compiler that
-supports at least C++17.<br/>
+supports at least C++20.<br/>
 The requirements below are mandatory to compile the tests and to extract the
 documentation:
 
-* `CMake` version 3.7 or later.
-* `Doxygen` version 1.8 or later.
+* `CMake` version 3.28 or later.
+* `Doxygen` version 1.14 or later.
 
 Alternatively, [Bazel](https://bazel.build) is also supported as a build system
 (credits to [zaucy](https://github.com/zaucy) who offered to maintain it).<br/>
@@ -325,7 +325,7 @@ If you spot errors or have suggestions, any contribution is welcome!
   `bazel` project, add the following to your `MODULE.bazel` file:
 
   ```starlark
-  bazel_dep(name = "entt", version = "3.12.2")
+  bazel_dep(name = "entt", version = "3.16.0")
   ```
 
   EnTT will now be available as `@entt` (short for `@entt//:entt`) to be used
@@ -409,7 +409,7 @@ know who has participated so far.
 
 # License
 
-Code and documentation Copyright (c) 2017-2025 Michele Caini.<br/>
+Code and documentation Copyright (c) 2017-2026 Michele Caini.<br/>
 Colorful logo Copyright (c) 2018-2021 Richard Caseres.
 
 Code released under

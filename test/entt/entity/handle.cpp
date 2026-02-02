@@ -26,19 +26,19 @@ TYPED_TEST_SUITE(BasicHandle, BasicHandleTypes, );
 TYPED_TEST_SUITE(BasicHandleDeathTest, BasicHandleTypes, );
 
 TYPED_TEST(BasicHandle, Assumptions) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
     static_assert(std::is_trivially_copyable_v<handle_type>, "Trivially copyable type required");
     static_assert((std::is_trivially_assignable_v<handle_type, handle_type>), "Trivially assignable type required");
     static_assert(std::is_trivially_destructible_v<handle_type>, "Trivially destructible type required");
 }
 
 TYPED_TEST(BasicHandle, DeductionGuide) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
     testing::StaticAssertTypeEq<decltype(entt::basic_handle{std::declval<typename handle_type::registry_type &>(), {}}), handle_type>();
 }
 
 TYPED_TEST(BasicHandle, Construction) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
 
     entt::registry registry;
     const auto entity = registry.create();
@@ -78,7 +78,7 @@ TYPED_TEST(BasicHandle, Construction) {
 }
 
 TYPED_TEST(BasicHandle, Storage) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
 
     entt::registry registry;
     const auto entity = registry.create();
@@ -97,14 +97,14 @@ TYPED_TEST(BasicHandle, Storage) {
 }
 
 ENTT_DEBUG_TYPED_TEST(BasicHandleDeathTest, Storage) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
     const handle_type handle{};
 
     ASSERT_DEATH([[maybe_unused]] auto iterable = handle.storage(), "");
 }
 
 TYPED_TEST(BasicHandle, HandleStorageIterator) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
 
     entt::registry registry;
     const auto entity = registry.create();
@@ -134,7 +134,7 @@ TYPED_TEST(BasicHandle, HandleStorageIterator) {
 }
 
 TYPED_TEST(BasicHandle, Entity) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
 
     entt::registry registry;
     const auto entity = registry.create();
@@ -334,7 +334,7 @@ TYPED_TEST(BasicHandle, AllAnyOf) {
 }
 
 ENTT_DEBUG_TYPED_TEST(BasicHandleDeathTest, AllAnyOf) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
     const handle_type handle{};
 
     ASSERT_DEATH([[maybe_unused]] const auto all_of = handle.template all_of<int>(), "");
@@ -360,7 +360,7 @@ TYPED_TEST(BasicHandle, Get) {
 }
 
 ENTT_DEBUG_TYPED_TEST(BasicHandleDeathTest, Get) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
     const handle_type handle{};
 
     ASSERT_DEATH([[maybe_unused]] const auto &elem = handle.template get<int>(), "");
@@ -408,7 +408,7 @@ TYPED_TEST(BasicHandle, TryGet) {
 }
 
 ENTT_DEBUG_TYPED_TEST(BasicHandleDeathTest, TryGet) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
     const handle_type handle{};
 
     ASSERT_DEATH([[maybe_unused]] const auto *elem = handle.template try_get<int>(), "");
@@ -436,13 +436,12 @@ TYPED_TEST(BasicHandle, Orphan) {
 }
 
 ENTT_DEBUG_TYPED_TEST(BasicHandleDeathTest, Orphan) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
     const handle_type handle{};
 
     ASSERT_DEATH([[maybe_unused]] const auto result = handle.orphan(), "");
 }
 
-/*
 TEST(BasicHandle, Component) {
     entt::registry registry;
     const auto entity = registry.create();
@@ -486,7 +485,6 @@ TEST(BasicHandle, Component) {
     ASSERT_EQ(nullptr, handle.try_get<char>());
     ASSERT_EQ(nullptr, std::get<1>(handle.try_get<int, char, double>()));
 }
-*/
 
 TEST(BasicHandle, ImplicitConversion) {
     entt::registry registry;
@@ -504,7 +502,7 @@ TEST(BasicHandle, ImplicitConversion) {
 }
 
 TYPED_TEST(BasicHandle, Comparison) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
 
     handle_type handle{};
 
@@ -550,7 +548,7 @@ TYPED_TEST(BasicHandle, Comparison) {
 }
 
 TYPED_TEST(BasicHandle, Null) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
 
     handle_type handle{};
 
@@ -583,7 +581,7 @@ TYPED_TEST(BasicHandle, Null) {
 }
 
 TYPED_TEST(BasicHandle, FromEntity) {
-    using handle_type = typename TestFixture::type;
+    using handle_type = TestFixture::type;
 
     entt::registry registry;
     const auto entity = registry.create();

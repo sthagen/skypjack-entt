@@ -8,7 +8,7 @@
 #include "../core/compressed_pair.hpp"
 #include "../core/fwd.hpp"
 #include "../core/type_info.hpp"
-#include "../core/utility.hpp"
+#include "../stl/functional.hpp"
 #include "fwd.hpp"
 
 namespace entt {
@@ -38,8 +38,8 @@ class emitter {
     using mapped_type = std::function<void(void *)>;
 
     using alloc_traits = std::allocator_traits<Allocator>;
-    using container_allocator = typename alloc_traits::template rebind_alloc<std::pair<const key_type, mapped_type>>;
-    using container_type = dense_map<key_type, mapped_type, identity, std::equal_to<>, container_allocator>;
+    using container_allocator = alloc_traits::template rebind_alloc<std::pair<const key_type, mapped_type>>;
+    using container_type = dense_map<key_type, mapped_type, stl::identity, std::equal_to<>, container_allocator>;
 
 public:
     /*! @brief Allocator type. */
@@ -147,7 +147,7 @@ public:
      */
     template<typename Type>
     void erase() {
-        handlers.first().erase(type_hash<std::remove_const_t<std::remove_reference_t<Type>>>::value());
+        handlers.first().erase(type_hash<std::remove_cvref_t<Type>>::value());
     }
 
     /*! @brief Disconnects all the listeners. */
@@ -162,7 +162,7 @@ public:
      */
     template<typename Type>
     [[nodiscard]] bool contains() const {
-        return handlers.first().contains(type_hash<std::remove_const_t<std::remove_reference_t<Type>>>::value());
+        return handlers.first().contains(type_hash<std::remove_cvref_t<Type>>::value());
     }
 
     /**

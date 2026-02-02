@@ -1,6 +1,7 @@
 #ifndef ENTT_GRAPH_ADJACENCY_MATRIX_HPP
 #define ENTT_GRAPH_ADJACENCY_MATRIX_HPP
 
+#include <concepts>
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -13,7 +14,7 @@
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename It>
@@ -21,7 +22,7 @@ class edge_iterator {
     using size_type = std::size_t;
 
     void find_next() noexcept {
-        for(; pos != last && !it[static_cast<typename It::difference_type>(pos)]; pos += offset) {}
+        for(; pos != last && !it[static_cast<It::difference_type>(pos)]; pos += offset) {}
     }
 
 public:
@@ -63,8 +64,9 @@ public:
         return std::make_pair<size_type>(pos / vert, pos % vert);
     }
 
-    template<typename Type>
-    friend constexpr bool operator==(const edge_iterator<Type> &, const edge_iterator<Type> &) noexcept;
+    [[nodiscard]] constexpr bool operator==(const edge_iterator &other) const noexcept {
+        return pos == other.pos;
+    }
 
 private:
     It it{};
@@ -74,16 +76,6 @@ private:
     size_type offset{};
 };
 
-template<typename Container>
-[[nodiscard]] constexpr bool operator==(const edge_iterator<Container> &lhs, const edge_iterator<Container> &rhs) noexcept {
-    return lhs.pos == rhs.pos;
-}
-
-template<typename Container>
-[[nodiscard]] constexpr bool operator!=(const edge_iterator<Container> &lhs, const edge_iterator<Container> &rhs) noexcept {
-    return !(lhs == rhs);
-}
-
 } // namespace internal
 /*! @endcond */
 
@@ -92,10 +84,9 @@ template<typename Container>
  * @tparam Category Either a directed or undirected category tag.
  * @tparam Allocator Type of allocator used to manage memory and elements.
  */
-template<typename Category, typename Allocator>
+template<std::derived_from<directed_tag> Category, typename Allocator>
 class adjacency_matrix {
     using alloc_traits = std::allocator_traits<Allocator>;
-    static_assert(std::is_base_of_v<directed_tag, Category>, "Invalid graph category");
     static_assert(std::is_same_v<typename alloc_traits::value_type, std::size_t>, "Invalid value type");
     using container_type = std::vector<std::size_t, typename alloc_traits::template rebind_alloc<std::size_t>>;
 

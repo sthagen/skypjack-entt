@@ -8,32 +8,32 @@
 #include <entt/meta/node.hpp>
 #include <entt/meta/resolve.hpp>
 
-struct base_1 {
-    base_1() = default;
-    int value_1{};
-};
-
-struct base_2 {
-    base_2() = default;
-
-    operator int() const {
-        return value_2;
-    }
-
-    int value_2{};
-};
-
-struct base_3: base_2 {
-    base_3() = default;
-    int value_3{};
-};
-
-struct derived: base_1, base_3 {
-    derived() = default;
-    int value{};
-};
-
 struct MetaBase: ::testing::Test {
+    struct base_1 {
+        base_1() = default;
+        int value_1{};
+    };
+
+    struct base_2 {
+        base_2() = default;
+
+        operator int() const {
+            return value_2;
+        }
+
+        int value_2{};
+    };
+
+    struct base_3: base_2 {
+        base_3() = default;
+        int value_3{};
+    };
+
+    struct derived: base_1, base_3 {
+        derived() = default;
+        int value{};
+    };
+
     void SetUp() override {
         using namespace entt::literals;
 
@@ -59,6 +59,27 @@ struct MetaBase: ::testing::Test {
         entt::meta_reset();
     }
 };
+
+TEST_F(MetaBase, Comparison) {
+    const auto type = entt::resolve<base_3>();
+    const auto base = type.base().begin()->second;
+
+    ASSERT_TRUE(base);
+
+    ASSERT_EQ(base, base);
+    ASSERT_NE(base, entt::meta_base{});
+    ASSERT_FALSE(base != base);
+    ASSERT_TRUE(base == base);
+}
+
+TEST_F(MetaBase, Type) {
+    const auto type = entt::resolve<base_3>();
+    const auto iterable = type.base();
+
+    ASSERT_EQ(++iterable.begin(), iterable.end());
+    ASSERT_EQ(iterable.begin()->first, entt::type_id<base_2>().hash());
+    ASSERT_EQ(iterable.begin()->second.type(), entt::resolve<base_2>());
+}
 
 TEST_F(MetaBase, Base) {
     auto any = entt::resolve<derived>().construct();

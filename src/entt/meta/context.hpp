@@ -4,18 +4,20 @@
 #include <memory>
 #include "../container/dense_map.hpp"
 #include "../core/fwd.hpp"
-#include "../core/utility.hpp"
+#include "../stl/functional.hpp"
 #include "fwd.hpp"
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 struct meta_type_node;
 
 struct meta_context {
-    dense_map<id_type, std::unique_ptr<meta_type_node>, identity> value;
+    using container_type = dense_map<id_type, std::unique_ptr<meta_type_node>, stl::identity>;
+
+    container_type bucket;
 
     [[nodiscard]] inline static meta_context &from(meta_ctx &);
     [[nodiscard]] inline static const meta_context &from(const meta_ctx &);
@@ -36,7 +38,7 @@ class meta_ctx: private internal::meta_context {
     friend struct internal::meta_context;
 };
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 [[nodiscard]] inline internal::meta_context &internal::meta_context::from(meta_ctx &ctx) {
     return ctx;
 }

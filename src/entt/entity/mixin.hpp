@@ -1,40 +1,42 @@
 #ifndef ENTT_ENTITY_MIXIN_HPP
 #define ENTT_ENTITY_MIXIN_HPP
 
+#include <concepts>
 #include <type_traits>
 #include <utility>
 #include "../config/config.h"
 #include "../core/any.hpp"
 #include "../core/type_info.hpp"
 #include "../signal/sigh.hpp"
+#include "../stl/iterator.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
-template<typename, typename, typename = void>
+template<typename, typename>
 struct has_on_construct final: std::false_type {};
 
 template<typename Type, typename Registry>
-struct has_on_construct<Type, Registry, std::void_t<decltype(Type::on_construct(std::declval<Registry &>(), std::declval<Registry>().create()))>>
-    : std::true_type {};
+requires std::invocable<decltype(&Type::on_construct), Registry &, typename Registry::entity_type>
+struct has_on_construct<Type, Registry>: std::true_type {};
 
-template<typename, typename, typename = void>
+template<typename, typename>
 struct has_on_update final: std::false_type {};
 
 template<typename Type, typename Registry>
-struct has_on_update<Type, Registry, std::void_t<decltype(Type::on_update(std::declval<Registry &>(), std::declval<Registry>().create()))>>
-    : std::true_type {};
+requires std::invocable<decltype(&Type::on_update), Registry &, typename Registry::entity_type>
+struct has_on_update<Type, Registry>: std::true_type {};
 
-template<typename, typename, typename = void>
+template<typename, typename>
 struct has_on_destroy final: std::false_type {};
 
 template<typename Type, typename Registry>
-struct has_on_destroy<Type, Registry, std::void_t<decltype(Type::on_destroy(std::declval<Registry &>(), std::declval<Registry>().create()))>>
-    : std::true_type {};
+requires std::invocable<decltype(&Type::on_destroy), Registry &, typename Registry::entity_type>
+struct has_on_destroy<Type, Registry>: std::true_type {};
 
 } // namespace internal
 /*! @endcond */
@@ -60,7 +62,7 @@ class basic_sigh_mixin final: public Type {
 
     using basic_registry_type = basic_registry<typename owner_type::entity_type, typename owner_type::allocator_type>;
     using sigh_type = sigh<void(owner_type &, const typename underlying_type::entity_type), typename underlying_type::allocator_type>;
-    using underlying_iterator = typename underlying_type::base_type::basic_iterator;
+    using underlying_iterator = underlying_type::base_type::basic_iterator;
 
     static_assert(std::is_base_of_v<basic_registry_type, owner_type>, "Invalid registry type");
 
@@ -90,7 +92,7 @@ private:
                     destruction.publish(reg, underlying_type::base_type::operator[](pos));
                 }
             } else {
-                for(auto entt: static_cast<typename underlying_type::base_type &>(*this)) {
+                for(auto entt: static_cast<underlying_type::base_type &>(*this)) {
                     if constexpr(underlying_type::storage_policy == deletion_policy::in_place) {
                         if(entt != tombstone) {
                             destruction.publish(reg, entt);
@@ -105,7 +107,7 @@ private:
         underlying_type::pop_all();
     }
 
-    underlying_iterator try_emplace(const typename underlying_type::entity_type entt, const bool force_back, const void *value) final {
+    underlying_iterator try_emplace(const underlying_type::entity_type entt, const bool force_back, const void *value) final {
         const auto it = underlying_type::try_emplace(entt, force_back, value);
 
         if(auto &reg = owner_or_assert(); it != underlying_type::base_type::end()) {
@@ -129,9 +131,9 @@ private:
 
 public:
     /*! @brief Allocator type. */
-    using allocator_type = typename underlying_type::allocator_type;
+    using allocator_type = underlying_type::allocator_type;
     /*! @brief Underlying entity identifier. */
-    using entity_type = typename underlying_type::entity_type;
+    using entity_type = underlying_type::entity_type;
     /*! @brief Expected registry type. */
     using registry_type = owner_type;
 
@@ -309,11 +311,11 @@ public:
 
     /**
      * @brief Assigns each element in a range an identifier.
-     * @tparam It Type of mutable forward iterator.
+     * @tparam It Type of output iterator.
      * @param first An iterator to the first element of the range to generate.
      * @param last An iterator past the last element of the range to generate.
      */
-    template<typename It>
+    template<stl::output_iterator<entity_type> It>
     void generate(It first, It last) {
         underlying_type::generate(first, last);
 
@@ -355,14 +357,13 @@ public:
     /**
      * @brief Assigns one or more entities to a storage and constructs their
      * objects from a given instance.
-     * @tparam It Type of input iterator.
      * @tparam Args Types of arguments to forward to the underlying storage.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      * @param args Parameters to use to forward to the underlying storage.
      */
-    template<typename It, typename... Args>
-    void insert(It first, It last, Args &&...args) {
+    template<typename... Args>
+    void insert(stl::input_iterator auto first, stl::input_iterator auto last, Args &&...args) {
         auto from = underlying_type::size();
         underlying_type::insert(first, last, std::forward<Args>(args)...);
 
@@ -402,7 +403,7 @@ class basic_reactive_mixin final: public Type {
         return static_cast<owner_type &>(*owner);
     }
 
-    void emplace_element(const Registry &, typename underlying_type::entity_type entity) {
+    void emplace_element(const Registry &, underlying_type::entity_type entity) {
         if(!underlying_type::contains(entity)) {
             underlying_type::emplace(entity);
         }
@@ -423,9 +424,9 @@ private:
 
 public:
     /*! @brief Allocator type. */
-    using allocator_type = typename underlying_type::allocator_type;
+    using allocator_type = underlying_type::allocator_type;
     /*! @brief Underlying entity identifier. */
-    using entity_type = typename underlying_type::entity_type;
+    using entity_type = underlying_type::entity_type;
     /*! @brief Expected registry type. */
     using registry_type = owner_type;
 

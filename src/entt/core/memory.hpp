@@ -7,23 +7,9 @@
 #include <type_traits>
 #include <utility>
 #include "../config/config.h"
+#include "../stl/memory.hpp"
 
 namespace entt {
-
-/**
- * @brief Unwraps fancy pointers, does nothing otherwise (waiting for C++20).
- * @tparam Type Pointer type.
- * @param ptr Fancy or raw pointer.
- * @return A raw pointer that represents the address of the original pointer.
- */
-template<typename Type>
-[[nodiscard]] constexpr auto to_address(Type &&ptr) noexcept {
-    if constexpr(std::is_pointer_v<std::decay_t<Type>>) {
-        return ptr;
-    } else {
-        return to_address(std::forward<Type>(ptr).operator->());
-    }
-}
 
 /**
  * @brief Utility function to design allocation-aware containers.
@@ -76,7 +62,7 @@ struct allocation_deleter: private Allocator {
     /*! @brief Allocator type. */
     using allocator_type = Allocator;
     /*! @brief Pointer type. */
-    using pointer = typename std::allocator_traits<Allocator>::pointer;
+    using pointer = std::allocator_traits<Allocator>::pointer;
 
     /**
      * @brief Inherited constructors.
@@ -91,7 +77,7 @@ struct allocation_deleter: private Allocator {
      */
     constexpr void operator()(pointer ptr) noexcept(std::is_nothrow_destructible_v<typename allocator_type::value_type>) {
         using alloc_traits = std::allocator_traits<Allocator>;
-        alloc_traits::destroy(*this, to_address(ptr));
+        alloc_traits::destroy(*this, stl::to_address(ptr));
         alloc_traits::deallocate(*this, ptr, 1u);
     }
 };
@@ -106,17 +92,17 @@ struct allocation_deleter: private Allocator {
  * @return A properly initialized unique pointer with a custom deleter.
  */
 template<typename Type, typename Allocator, typename... Args>
-ENTT_CONSTEXPR auto allocate_unique(Allocator &allocator, Args &&...args) {
+constexpr auto allocate_unique(Allocator &allocator, Args &&...args) {
     static_assert(!std::is_array_v<Type>, "Array types are not supported");
 
-    using alloc_traits = typename std::allocator_traits<Allocator>::template rebind_traits<Type>;
-    using allocator_type = typename alloc_traits::allocator_type;
+    using alloc_traits = std::allocator_traits<Allocator>::template rebind_traits<Type>;
+    using allocator_type = alloc_traits::allocator_type;
 
     allocator_type alloc{allocator};
     auto ptr = alloc_traits::allocate(alloc, 1u);
 
     ENTT_TRY {
-        alloc_traits::construct(alloc, to_address(ptr), std::forward<Args>(args)...);
+        alloc_traits::construct(alloc, stl::to_address(ptr), std::forward<Args>(args)...);
     }
     ENTT_CATCH {
         alloc_traits::deallocate(alloc, ptr, 1u);
@@ -126,7 +112,7 @@ ENTT_CONSTEXPR auto allocate_unique(Allocator &allocator, Args &&...args) {
     return std::unique_ptr<Type, allocation_deleter<allocator_type>>{ptr, alloc};
 }
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename Type>

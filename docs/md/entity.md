@@ -1378,7 +1378,7 @@ optimization selectively rather than globally.
 
 ## Void storage
 
-A void storage (or `entt::storage<void>` or `entt::basic_storage<Type, void>`),
+A void storage (`entt::storage<void>` or `entt::basic_storage<void, Entity>`),
 is a fully functional storage type used to create pools not associated with a
 particular component type.<br/>
 From a technical point of view, it is in all respects similar to a storage for
@@ -1877,7 +1877,7 @@ specific _queries_.<br/>
 The type returned when combining multiple elements together is itself a view,
 more in general a multi component one.
 
-Combining different elements tries to mimic C++20 ranges:
+Combining different elements tries to mimic ranges:
 
 ```cpp
 auto view = registry.view<position>();

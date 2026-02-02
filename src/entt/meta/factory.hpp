@@ -1,6 +1,7 @@
 #ifndef ENTT_META_FACTORY_HPP
 #define ENTT_META_FACTORY_HPP
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -26,80 +27,74 @@
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 class basic_meta_factory {
     using invoke_type = std::remove_pointer_t<decltype(meta_func_node::invoke)>;
 
-    [[nodiscard]] auto &fetch_node() noexcept {
-        return *meta_context::from(*ctx).value[parent];
-    }
+    enum class mode {
+        type,
+        data,
+        func
+    };
 
     [[nodiscard]] auto *find_member_or_assert() {
-        auto *member = find_member<&meta_data_node::id>(fetch_node().details->data, bucket);
+        auto *member = find_member(parent->details->data, bucket);
         ENTT_ASSERT(member != nullptr, "Cannot find member");
         return member;
     }
 
     [[nodiscard]] auto *find_overload_or_assert() {
-        auto *overload = find_overload(find_member<&meta_func_node::id>(fetch_node().details->func, bucket), invoke);
+        ENTT_ASSERT(invoke != nullptr, "Invoke function not available");
+        auto *overload = find_overload(find_member(parent->details->func, bucket), invoke);
         ENTT_ASSERT(overload != nullptr, "Cannot find overload");
         return overload;
     }
 
-    void reset_bucket(const id_type id, invoke_type *const ref = nullptr) {
-        invoke = ref;
-        bucket = id;
-    }
-
 protected:
     void type(const id_type id, const char *name) noexcept {
-        reset_bucket(parent);
-        auto &elem = fetch_node();
-        ENTT_ASSERT(elem.id == id || !resolve(*ctx, id), "Duplicate identifier");
-        elem.name = name;
-        elem.id = id;
+        state = mode::type;
+        ENTT_ASSERT(parent->id == id || !resolve(*ctx, id), "Duplicate identifier");
+        parent->name = name;
+        parent->id = id;
     }
 
     template<typename Type>
     void insert_or_assign(Type node) {
-        auto &elem = fetch_node();
-
-        reset_bucket(parent);
+        state = mode::type;
 
         if constexpr(std::is_same_v<Type, meta_base_node>) {
-            auto *member = find_member<&meta_base_node::type>(elem.details->base, node.type);
-            member ? (*member = node) : elem.details->base.emplace_back(node);
+            auto *member = find_member(parent->details->base, node.id);
+            member ? (*member = node) : parent->details->base.emplace_back(node);
         } else if constexpr(std::is_same_v<Type, meta_conv_node>) {
-            auto *member = find_member<&meta_conv_node::type>(elem.details->conv, node.type);
-            member ? (*member = node) : elem.details->conv.emplace_back(node);
+            auto *member = find_member(parent->details->conv, node.id);
+            member ? (*member = node) : parent->details->conv.emplace_back(node);
         } else {
             static_assert(std::is_same_v<Type, meta_ctor_node>, "Unexpected type");
-            auto *member = find_member<&meta_ctor_node::id>(elem.details->ctor, node.id);
-            member ? (*member = node) : elem.details->ctor.emplace_back(node);
+            auto *member = find_member(parent->details->ctor, node.id);
+            member ? (*member = node) : parent->details->ctor.emplace_back(node);
         }
     }
 
     void data(meta_data_node node) {
-        auto &elem = fetch_node();
+        state = mode::data;
+        bucket = node.id;
 
-        reset_bucket(node.id);
-
-        if(auto *member = find_member<&meta_data_node::id>(elem.details->data, node.id); member == nullptr) {
-            elem.details->data.emplace_back(std::move(node));
+        if(auto *member = find_member(parent->details->data, node.id); member == nullptr) {
+            parent->details->data.emplace_back(std::move(node));
         } else if(member->set != node.set || member->get != node.get) {
             *member = std::move(node);
         }
     }
 
     void func(meta_func_node node) {
-        auto &elem = fetch_node();
+        state = mode::func;
+        bucket = node.id;
+        invoke = node.invoke;
 
-        reset_bucket(node.id, node.invoke);
-
-        if(auto *member = find_member<&meta_func_node::id>(elem.details->func, node.id); member == nullptr) {
-            elem.details->func.emplace_back(std::move(node));
+        if(auto *member = find_member(parent->details->func, node.id); member == nullptr) {
+            parent->details->func.emplace_back(std::move(node));
         } else if(auto *overload = find_overload(member, node.invoke); overload == nullptr) {
             while(member->next != nullptr) { member = member->next.get(); }
             member->next = std::make_unique<meta_func_node>(std::move(node));
@@ -107,44 +102,56 @@ protected:
     }
 
     void traits(const meta_traits value, const bool unset) {
-        auto set_or_unset_on = [=](auto &node) {
+        const auto set_or_unset_on = [=](auto &node) {
             node.traits = (unset ? (node.traits & ~value) : (node.traits | value));
         };
 
-        if(bucket == parent) {
-            set_or_unset_on(fetch_node());
-        } else if(invoke == nullptr) {
+        switch(state) {
+        case mode::type:
+            set_or_unset_on(*parent);
+            break;
+        case mode::data:
             set_or_unset_on(*find_member_or_assert());
-        } else {
+            break;
+        case mode::func:
             set_or_unset_on(*find_overload_or_assert());
+            break;
         }
     }
 
     void custom(meta_custom_node node) {
-        if(bucket == parent) {
-            fetch_node().custom = std::move(node);
-        } else if(invoke == nullptr) {
+        switch(state) {
+        case mode::type:
+            parent->custom = std::move(node);
+            break;
+        case mode::data:
             find_member_or_assert()->custom = std::move(node);
-        } else {
+            break;
+        case mode::func:
             find_overload_or_assert()->custom = std::move(node);
+            break;
         }
     }
 
 public:
     basic_meta_factory(meta_ctx &area, meta_type_node node)
         : ctx{&area},
-          parent{node.info->hash()},
-          bucket{parent} {
-        if(auto *curr = meta_context::from(*ctx).value.try_emplace(parent, std::make_unique<meta_type_node>(std::move(node))).first->second.get(); curr->details == nullptr) {
-            curr->details = std::make_unique<meta_type_descriptor>();
+          bucket{node.info->hash()},
+          state{mode::type} {
+        if(const auto it = meta_context::from(*ctx).bucket.find(bucket); it == meta_context::from(*ctx).bucket.cend()) {
+            parent = meta_context::from(*ctx).bucket.emplace(node.info->hash(), std::make_unique<meta_type_node>(std::move(node))).first->second.get();
+            parent->details = std::make_unique<meta_type_descriptor>();
+        } else {
+            parent = it->second.get();
         }
     }
 
 private:
     meta_ctx *ctx{};
-    id_type parent{};
     id_type bucket{};
     invoke_type *invoke{};
+    meta_type_node *parent{};
+    mode state{};
 };
 
 } // namespace internal
@@ -202,10 +209,18 @@ public:
      * @return A meta factory for the parent type.
      */
     template<typename Base>
+    requires std::derived_from<Type, Base>
     meta_factory base() noexcept {
-        static_assert(!std::is_same_v<Type, Base> && std::is_base_of_v<Base, Type>, "Invalid base type");
-        auto *const op = +[](const void *instance) noexcept { return static_cast<const void *>(static_cast<const Base *>(static_cast<const Type *>(instance))); };
-        base_type::insert_or_assign(internal::meta_base_node{type_id<Base>().hash(), &internal::resolve<Base>, op});
+        if constexpr(!std::same_as<Type, Base>) {
+            auto *const op = +[](const void *instance) noexcept { return static_cast<const void *>(static_cast<const Base *>(static_cast<const Type *>(instance))); };
+
+            base_type::insert_or_assign(
+                internal::meta_base_node{
+                    type_id<Base>().hash(),
+                    &internal::resolve<Base>,
+                    op});
+        }
+
         return *this;
     }
 
@@ -223,9 +238,14 @@ public:
      */
     template<auto Candidate>
     auto conv() noexcept {
-        using conv_type = std::remove_const_t<std::remove_reference_t<std::invoke_result_t<decltype(Candidate), Type &>>>;
+        using conv_type = std::remove_cvref_t<std::invoke_result_t<decltype(Candidate), Type &>>;
         auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, std::invoke(Candidate, *static_cast<const Type *>(instance))); };
-        base_type::insert_or_assign(internal::meta_conv_node{type_id<conv_type>().hash(), op});
+
+        base_type::insert_or_assign(
+            internal::meta_conv_node{
+                type_id<conv_type>().hash(),
+                op});
+
         return *this;
     }
 
@@ -240,9 +260,14 @@ public:
      */
     template<typename To>
     meta_factory conv() noexcept {
-        using conv_type = std::remove_const_t<std::remove_reference_t<To>>;
+        using conv_type = std::remove_cvref_t<To>;
         auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, static_cast<To>(*static_cast<const Type *>(instance))); };
-        base_type::insert_or_assign(internal::meta_conv_node{type_id<conv_type>().hash(), op});
+
+        base_type::insert_or_assign(
+            internal::meta_conv_node{
+                type_id<conv_type>().hash(),
+                op});
+
         return *this;
     }
 
@@ -263,8 +288,15 @@ public:
     meta_factory ctor() noexcept {
         using descriptor = meta_function_helper_t<Type, decltype(Candidate)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
-        static_assert(std::is_same_v<std::remove_const_t<std::remove_reference_t<typename descriptor::return_type>>, Type>, "The function doesn't return an object of the required type");
-        base_type::insert_or_assign(internal::meta_ctor_node{type_id<typename descriptor::args_type>().hash(), descriptor::args_type::size, &meta_arg<typename descriptor::args_type>, &meta_construct<Type, Candidate, Policy>});
+        static_assert(std::is_same_v<std::remove_cvref_t<typename descriptor::return_type>, Type>, "The function doesn't return an object of the required type");
+
+        base_type::insert_or_assign(
+            internal::meta_ctor_node{
+                type_id<typename descriptor::args_type>().hash(),
+                descriptor::args_type::size,
+                &meta_arg<typename descriptor::args_type>,
+                &meta_construct<Type, Candidate, Policy>});
+
         return *this;
     }
 
@@ -283,7 +315,13 @@ public:
         // default constructor is already implicitly generated, no need for redundancy
         if constexpr(sizeof...(Args) != 0u) {
             using descriptor = meta_function_helper_t<Type, Type (*)(Args...)>;
-            base_type::insert_or_assign(internal::meta_ctor_node{type_id<typename descriptor::args_type>().hash(), descriptor::args_type::size, &meta_arg<typename descriptor::args_type>, &meta_construct<Type, Args...>});
+
+            base_type::insert_or_assign(
+                internal::meta_ctor_node{
+                    type_id<typename descriptor::args_type>().hash(),
+                    descriptor::args_type::size,
+                    &meta_arg<typename descriptor::args_type>,
+                    &meta_construct<Type, Args...>});
         }
 
         return *this;
@@ -328,8 +366,8 @@ public:
                     /* this is never static */
                     std::is_const_v<std::remove_reference_t<data_type>> ? internal::meta_traits::is_const : internal::meta_traits::is_none,
                     1u,
-                    &internal::resolve<std::remove_const_t<std::remove_reference_t<data_type>>>,
-                    &meta_arg<type_list<std::remove_const_t<std::remove_reference_t<data_type>>>>,
+                    &internal::resolve<std::remove_cvref_t<data_type>>,
+                    &meta_arg<type_list<std::remove_cvref_t<data_type>>>,
                     &meta_setter<Type, Data>,
                     &meta_getter<Type, Data, Policy>});
         } else {
@@ -347,8 +385,8 @@ public:
                     name,
                     ((!std::is_pointer_v<decltype(Data)> || std::is_const_v<data_type>) ? internal::meta_traits::is_const : internal::meta_traits::is_none) | internal::meta_traits::is_static,
                     1u,
-                    &internal::resolve<std::remove_const_t<std::remove_reference_t<data_type>>>,
-                    &meta_arg<type_list<std::remove_const_t<std::remove_reference_t<data_type>>>>,
+                    &internal::resolve<std::remove_cvref_t<data_type>>,
+                    &meta_arg<type_list<std::remove_cvref_t<data_type>>>,
                     &meta_setter<Type, Data>,
                     &meta_getter<Type, Data, Policy>});
         }
@@ -404,12 +442,12 @@ public:
                     /* this is never static */
                     internal::meta_traits::is_const,
                     0u,
-                    &internal::resolve<std::remove_const_t<std::remove_reference_t<typename descriptor::return_type>>>,
+                    &internal::resolve<std::remove_cvref_t<typename descriptor::return_type>>,
                     &meta_arg<type_list<>>,
                     &meta_setter<Type, Setter>,
                     &meta_getter<Type, Getter, Policy>});
         } else {
-            using args_type = typename meta_function_helper_t<Type, decltype(Setter)>::args_type;
+            using args_type = meta_function_helper_t<Type, decltype(Setter)>::args_type;
 
             base_type::data(
                 internal::meta_data_node{
@@ -418,7 +456,7 @@ public:
                     /* this is never static nor const */
                     internal::meta_traits::is_none,
                     1u,
-                    &internal::resolve<std::remove_const_t<std::remove_reference_t<typename descriptor::return_type>>>,
+                    &internal::resolve<std::remove_cvref_t<typename descriptor::return_type>>,
                     &meta_arg<type_list<type_list_element_t<static_cast<std::size_t>(args_type::size != 1u), args_type>>>,
                     &meta_setter<Type, Setter>,
                     &meta_getter<Type, Getter, Policy>});
@@ -464,7 +502,7 @@ public:
                 name,
                 (descriptor::is_const ? internal::meta_traits::is_const : internal::meta_traits::is_none) | (descriptor::is_static ? internal::meta_traits::is_static : internal::meta_traits::is_none),
                 descriptor::args_type::size,
-                &internal::resolve<std::conditional_t<std::is_same_v<Policy, as_void_t>, void, std::remove_const_t<std::remove_reference_t<typename descriptor::return_type>>>>,
+                &internal::resolve<std::conditional_t<std::is_same_v<Policy, as_void_t>, void, std::remove_cvref_t<typename descriptor::return_type>>>,
                 &meta_arg<typename descriptor::args_type>,
                 &meta_invoke<Type, Candidate, Policy>});
 
@@ -517,9 +555,9 @@ public:
 inline void meta_reset(meta_ctx &ctx, const id_type id) noexcept {
     auto &context = internal::meta_context::from(ctx);
 
-    for(auto it = context.value.begin(); it != context.value.end();) {
+    for(auto it = context.bucket.begin(); it != context.bucket.end();) {
         if(it->second->id == id) {
-            it = context.value.erase(it);
+            it = context.bucket.erase(it);
         } else {
             ++it;
         }
@@ -551,7 +589,7 @@ inline void meta_reset(const id_type id) noexcept {
  */
 template<typename Type>
 void meta_reset(meta_ctx &ctx) noexcept {
-    internal::meta_context::from(ctx).value.erase(type_id<Type>().hash());
+    internal::meta_context::from(ctx).bucket.erase(type_id<Type>().hash());
 }
 
 /**
@@ -574,7 +612,7 @@ void meta_reset() noexcept {
  * @param ctx The context from which to reset meta types.
  */
 inline void meta_reset(meta_ctx &ctx) noexcept {
-    internal::meta_context::from(ctx).value.clear();
+    internal::meta_context::from(ctx).bucket.clear();
 }
 
 /**

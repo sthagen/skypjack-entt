@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <array>
+#include <compare>
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -15,12 +17,14 @@
 #include "../container/dense_map.hpp"
 #include "../core/algorithm.hpp"
 #include "../core/any.hpp"
+#include "../core/concepts.hpp"
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
 #include "../core/memory.hpp"
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
-#include "../core/utility.hpp"
+#include "../stl/functional.hpp"
+#include "../stl/iterator.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
 #include "group.hpp"
@@ -31,12 +35,12 @@
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename It>
 class registry_storage_iterator final {
-    template<typename Other>
+    template<typename>
     friend class registry_storage_iterator;
 
     using mapped_type = std::remove_reference_t<decltype(std::declval<It>()->second)>;
@@ -107,58 +111,29 @@ public:
         return operator*();
     }
 
-    template<typename Lhs, typename Rhs>
-    friend constexpr std::ptrdiff_t operator-(const registry_storage_iterator<Lhs> &, const registry_storage_iterator<Rhs> &) noexcept;
+    template<typename Other>
+    [[nodiscard]] constexpr std::ptrdiff_t operator-(const registry_storage_iterator<Other> &other) const noexcept {
+        return it - other.it;
+    }
 
-    template<typename Lhs, typename Rhs>
-    friend constexpr bool operator==(const registry_storage_iterator<Lhs> &, const registry_storage_iterator<Rhs> &) noexcept;
+    template<typename Other>
+    [[nodiscard]] constexpr bool operator==(const registry_storage_iterator<Other> &other) const noexcept {
+        return it == other.it;
+    }
 
-    template<typename Lhs, typename Rhs>
-    friend constexpr bool operator<(const registry_storage_iterator<Lhs> &, const registry_storage_iterator<Rhs> &) noexcept;
+    template<typename Other>
+    [[nodiscard]] constexpr auto operator<=>(const registry_storage_iterator<Other> &other) const noexcept {
+        return it <=> other.it;
+    }
 
 private:
     It it;
 };
 
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr std::ptrdiff_t operator-(const registry_storage_iterator<Lhs> &lhs, const registry_storage_iterator<Rhs> &rhs) noexcept {
-    return lhs.it - rhs.it;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator==(const registry_storage_iterator<Lhs> &lhs, const registry_storage_iterator<Rhs> &rhs) noexcept {
-    return lhs.it == rhs.it;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator!=(const registry_storage_iterator<Lhs> &lhs, const registry_storage_iterator<Rhs> &rhs) noexcept {
-    return !(lhs == rhs);
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator<(const registry_storage_iterator<Lhs> &lhs, const registry_storage_iterator<Rhs> &rhs) noexcept {
-    return lhs.it < rhs.it;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator>(const registry_storage_iterator<Lhs> &lhs, const registry_storage_iterator<Rhs> &rhs) noexcept {
-    return rhs < lhs;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator<=(const registry_storage_iterator<Lhs> &lhs, const registry_storage_iterator<Rhs> &rhs) noexcept {
-    return !(lhs > rhs);
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator>=(const registry_storage_iterator<Lhs> &lhs, const registry_storage_iterator<Rhs> &rhs) noexcept {
-    return !(lhs < rhs);
-}
-
 template<typename Allocator>
 class registry_context {
     using alloc_traits = std::allocator_traits<Allocator>;
-    using allocator_type = typename alloc_traits::template rebind_alloc<std::pair<const id_type, basic_any<0u>>>;
+    using allocator_type = alloc_traits::template rebind_alloc<std::pair<const id_type, basic_any<0u>>>;
 
 public:
     explicit registry_context(const allocator_type &allocator)
@@ -180,7 +155,7 @@ public:
 
     template<typename Type>
     Type &insert_or_assign(const id_type id, Type &&value) {
-        return any_cast<std::remove_const_t<std::remove_reference_t<Type>> &>(ctx.insert_or_assign(id, std::forward<Type>(value)).first->second);
+        return any_cast<std::remove_cvref_t<Type> &>(ctx.insert_or_assign(id, std::forward<Type>(value)).first->second);
     }
 
     template<typename Type>
@@ -223,7 +198,7 @@ public:
     }
 
 private:
-    dense_map<id_type, basic_any<0u>, identity, std::equal_to<>, allocator_type> ctx;
+    dense_map<id_type, basic_any<0u>, stl::identity, std::equal_to<>, allocator_type> ctx;
 };
 
 } // namespace internal
@@ -234,20 +209,18 @@ private:
  * @tparam Entity A valid entity type.
  * @tparam Allocator Type of allocator used to manage memory and elements.
  */
-template<typename Entity, typename Allocator>
+template<entity_like Entity, typename Allocator>
 class basic_registry {
     using base_type = basic_sparse_set<Entity, Allocator>;
     using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(std::is_same_v<typename alloc_traits::value_type, Entity>, "Invalid value type");
     // std::shared_ptr because of its type erased allocator which is useful here
-    using pool_container_type = dense_map<id_type, std::shared_ptr<base_type>, identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<std::pair<const id_type, std::shared_ptr<base_type>>>>;
-    using group_container_type = dense_map<id_type, std::shared_ptr<internal::group_descriptor>, identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<std::pair<const id_type, std::shared_ptr<internal::group_descriptor>>>>;
+    using pool_container_type = dense_map<id_type, std::shared_ptr<base_type>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<std::pair<const id_type, std::shared_ptr<base_type>>>>;
+    using group_container_type = dense_map<id_type, std::shared_ptr<internal::group_descriptor>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<std::pair<const id_type, std::shared_ptr<internal::group_descriptor>>>>;
     using traits_type = entt_traits<Entity>;
 
-    template<typename Type>
+    template<cvref_unqualified Type>
     [[nodiscard]] auto &assure([[maybe_unused]] const id_type id = type_hash<Type>::value()) {
-        static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
-
         if constexpr(std::is_same_v<Type, entity_type>) {
             ENTT_ASSERT(id == type_hash<Type>::value(), "User entity storage not allowed");
             return entities;
@@ -259,16 +232,7 @@ class basic_registry {
                 return static_cast<storage_type &>(*it->second);
             }
 
-            using alloc_type = typename storage_type::allocator_type;
-            typename pool_container_type::mapped_type cpool{};
-
-            if constexpr(std::is_void_v<Type> && !std::is_constructible_v<alloc_type, allocator_type>) {
-                // std::allocator<void> has no cross constructors (waiting for C++20)
-                cpool = std::allocate_shared<storage_type>(get_allocator(), alloc_type{});
-            } else {
-                cpool = std::allocate_shared<storage_type>(get_allocator(), get_allocator());
-            }
-
+            typename pool_container_type::mapped_type cpool = std::allocate_shared<storage_type>(get_allocator(), get_allocator());
             pools.emplace(id, cpool);
             cpool->bind(*this);
 
@@ -276,10 +240,8 @@ class basic_registry {
         }
     }
 
-    template<typename Type>
+    template<cvref_unqualified Type>
     [[nodiscard]] const auto *assure([[maybe_unused]] const id_type id = type_hash<Type>::value()) const {
-        static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
-
         if constexpr(std::is_same_v<Type, entity_type>) {
             ENTT_ASSERT(id == type_hash<Type>::value(), "User entity storage not allowed");
             return &entities;
@@ -305,9 +267,9 @@ public:
     /*! @brief Allocator type. */
     using allocator_type = Allocator;
     /*! @brief Underlying entity identifier. */
-    using entity_type = typename traits_type::value_type;
+    using entity_type = traits_type::value_type;
     /*! @brief Underlying version type. */
-    using version_type = typename traits_type::version_type;
+    using version_type = traits_type::version_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Common type among all storage types. */
@@ -324,7 +286,7 @@ public:
      * @tparam Type Storage value type, eventually const.
      */
     template<typename Type>
-    using storage_for_type = typename storage_for<Type, Entity, typename alloc_traits::template rebind_alloc<std::remove_const_t<Type>>>::type;
+    using storage_for_type = storage_for<Type, Entity, typename alloc_traits::template rebind_alloc<std::remove_const_t<Type>>>::type;
 
     /*! @brief Default constructor. */
     basic_registry()
@@ -522,11 +484,11 @@ public:
      *
      * @sa create
      *
-     * @tparam It Type of forward iterator.
+     * @tparam It Type of output iterator.
      * @param first An iterator to the first element of the range to generate.
      * @param last An iterator past the last element of the range to generate.
      */
-    template<typename It>
+    template<stl::output_iterator<entity_type> It>
     void create(It first, It last) {
         entities.generate(std::move(first), std::move(last));
     }
@@ -543,7 +505,7 @@ public:
      */
     version_type destroy(const entity_type entt) {
         for(size_type pos = pools.size(); pos != 0u; --pos) {
-            pools.begin()[static_cast<typename pool_container_type::difference_type>(pos - 1u)].second->remove(entt);
+            pools.begin()[static_cast<pool_container_type::difference_type>(pos - 1u)].second->remove(entt);
         }
 
         entities.erase(entt);
@@ -573,14 +535,12 @@ public:
      *
      * @sa destroy
      *
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      */
-    template<typename It>
-    void destroy(It first, It last) {
+    void destroy(stl::input_iterator auto first, stl::input_iterator auto last) {
         const auto to = entities.sort_as(first, last);
-        const auto from = entities.cend() - static_cast<typename common_type::difference_type>(entities.free_list());
+        const auto from = entities.cend() - static_cast<common_type::difference_type>(entities.free_list());
 
         for(auto &&curr: pools) {
             curr.second->remove(from, to);
@@ -616,12 +576,11 @@ public:
      * @sa emplace
      *
      * @tparam Type Type of element to create.
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      */
-    template<typename Type, typename It>
-    void insert(It first, It last) {
+    template<typename Type>
+    void insert(stl::input_iterator auto first, stl::input_iterator auto last) {
         ENTT_ASSERT(std::all_of(first, last, [this](const auto entt) { return valid(entt); }), "Invalid entity");
         assure<Type>().insert(std::move(first), std::move(last));
     }
@@ -632,13 +591,12 @@ public:
      * @sa emplace
      *
      * @tparam Type Type of element to create.
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      * @param value An instance of the element to assign.
      */
-    template<typename Type, typename It>
-    void insert(It first, It last, const Type &value) {
+    template<typename Type>
+    void insert(stl::input_iterator auto first, stl::input_iterator auto last, const Type &value) {
         ENTT_ASSERT(std::all_of(first, last, [this](const auto entt) { return valid(entt); }), "Invalid entity");
         assure<Type>().insert(std::move(first), std::move(last), value);
     }
@@ -748,7 +706,7 @@ public:
      * @param last An iterator past the last element of the range of entities.
      * @return The number of elements actually removed.
      */
-    template<typename Type, typename... Other, typename It>
+    template<typename Type, typename... Other, stl::input_iterator It>
     size_type remove(It first, It last) {
         size_type count{};
 
@@ -801,7 +759,7 @@ public:
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      */
-    template<typename Type, typename... Other, typename It>
+    template<typename Type, typename... Other, stl::input_iterator It>
     void erase(It first, It last) {
         if constexpr(std::is_same_v<It, typename common_type::iterator>) {
             std::array cpools{static_cast<common_type *>(&assure<Type>()), static_cast<common_type *>(&assure<Other>())...};
@@ -980,7 +938,7 @@ public:
     void clear() {
         if constexpr(sizeof...(Type) == 0u) {
             for(size_type pos = pools.size(); pos; --pos) {
-                pools.begin()[static_cast<typename pool_container_type::difference_type>(pos - 1u)].second->clear();
+                pools.begin()[static_cast<pool_container_type::difference_type>(pos - 1u)].second->clear();
             }
 
             const auto elem = entities.each();
@@ -1104,7 +1062,7 @@ public:
     basic_group<owned_t<storage_for_type<Owned>...>, get_t<storage_for_type<Get>...>, exclude_t<storage_for_type<Exclude>...>>
     group(get_t<Get...> = get_t{}, exclude_t<Exclude...> = exclude_t{}) {
         using group_type = basic_group<owned_t<storage_for_type<Owned>...>, get_t<storage_for_type<Get>...>, exclude_t<storage_for_type<Exclude>...>>;
-        using handler_type = typename group_type::handler;
+        using handler_type = group_type::handler;
 
         if(auto it = groups.find(group_type::group_id()); it != groups.cend()) {
             return {*std::static_pointer_cast<handler_type>(it->second)};
@@ -1128,7 +1086,7 @@ public:
     [[nodiscard]] basic_group<owned_t<storage_for_type<const Owned>...>, get_t<storage_for_type<const Get>...>, exclude_t<storage_for_type<const Exclude>...>>
     group_if_exists(get_t<Get...> = get_t{}, exclude_t<Exclude...> = exclude_t{}) const {
         using group_type = basic_group<owned_t<storage_for_type<const Owned>...>, get_t<storage_for_type<const Get>...>, exclude_t<storage_for_type<const Exclude>...>>;
-        using handler_type = typename group_type::handler;
+        using handler_type = group_type::handler;
 
         if(auto it = groups.find(group_type::group_id()); it != groups.cend()) {
             return {*std::static_pointer_cast<handler_type>(it->second)};

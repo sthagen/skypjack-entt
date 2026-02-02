@@ -6,19 +6,19 @@
 #include <entt/meta/factory.hpp>
 #include <entt/meta/meta.hpp>
 
-struct clazz {
-    void incr() {
-        ++value;
-    }
-
-    void decr() {
-        --value;
-    }
-
-    int value{};
-};
-
 struct MetaHandle: ::testing::Test {
+    struct clazz {
+        void incr() {
+            ++value;
+        }
+
+        void decr() {
+            --value;
+        }
+
+        int value{};
+    };
+
     void SetUp() override {
         using namespace entt::literals;
 
@@ -51,7 +51,6 @@ TEST_F(MetaHandle, Handle) {
 
     ASSERT_TRUE(handle->invoke("incr"_hs));
     ASSERT_FALSE(chandle->invoke("incr"_hs));
-    ASSERT_FALSE(std::as_const(handle)->invoke("incr"_hs));
     ASSERT_EQ(instance.value, 1);
 
     auto any = entt::forward_as_meta(instance);
@@ -60,7 +59,6 @@ TEST_F(MetaHandle, Handle) {
 
     ASSERT_TRUE(handle->invoke("decr"_hs));
     ASSERT_FALSE(chandle->invoke("decr"_hs));
-    ASSERT_FALSE(std::as_const(handle)->invoke("decr"_hs));
     ASSERT_EQ(instance.value, 0);
 }
 

@@ -15,7 +15,7 @@
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename>
@@ -181,7 +181,7 @@ public:
     /*! Basic registry type. */
     using registry_type = Registry;
     /*! @brief Underlying entity identifier. */
-    using entity_type = typename registry_type::entity_type;
+    using entity_type = registry_type::entity_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Raw task function type. */

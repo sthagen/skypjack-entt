@@ -40,10 +40,8 @@ jobs:
   windows:
     strategy:
       matrix:
-        toolset: [default, v142, v143, clang-cl]
+        toolset: [default, v143, clang-cl]
         include:
-          - toolset: v142
-            toolset_option: -T"v142"
           - toolset: v143
             toolset_option: -T"v143"
           - toolset: clang-cl
@@ -87,7 +85,7 @@ jobs:
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
         id_type: ["std::uint32_t", "std::uint64_t"]
-        cxx_std: [cxx_std_17, cxx_std_20]
+        cxx_std: [cxx_std_20, cxx_std_23]
 
     timeout-minutes: 15
     runs-on: ${{ matrix.os }}

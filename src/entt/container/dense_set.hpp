@@ -1,7 +1,10 @@
 #ifndef ENTT_CONTAINER_DENSE_SET_HPP
 #define ENTT_CONTAINER_DENSE_SET_HPP
 
+#include <bit>
 #include <cmath>
+#include <compare>
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -15,11 +18,12 @@
 #include "../core/bit.hpp"
 #include "../core/compressed_pair.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/iterator.hpp"
 #include "fwd.hpp"
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 static constexpr std::size_t dense_set_placeholder_position = (std::numeric_limits<std::size_t>::max)();
@@ -29,8 +33,10 @@ class dense_set_iterator final {
     template<typename>
     friend class dense_set_iterator;
 
+    static_assert(std::is_pointer_v<It>, "Not a pointer type");
+
 public:
-    using value_type = typename It::value_type::second_type;
+    using value_type = std::remove_const_t<std::remove_pointer_t<It>>::second_type;
     using pointer = const value_type *;
     using reference = const value_type &;
     using difference_type = std::ptrdiff_t;
@@ -42,7 +48,8 @@ public:
     constexpr dense_set_iterator(const It iter) noexcept
         : it{iter} {}
 
-    template<typename Other, typename = std::enable_if_t<!std::is_same_v<It, Other> && std::is_constructible_v<It, Other>>>
+    template<typename Other>
+    requires (!std::same_as<It, Other> && std::constructible_from<It, Other>)
     constexpr dense_set_iterator(const dense_set_iterator<Other> &other) noexcept
         : it{other.it} {}
 
@@ -94,61 +101,34 @@ public:
         return operator[](0);
     }
 
-    template<typename Lhs, typename Rhs>
-    friend constexpr std::ptrdiff_t operator-(const dense_set_iterator<Lhs> &, const dense_set_iterator<Rhs> &) noexcept;
+    template<typename Other>
+    [[nodiscard]] constexpr std::ptrdiff_t operator-(const dense_set_iterator<Other> &other) const noexcept {
+        return it - other.it;
+    }
 
-    template<typename Lhs, typename Rhs>
-    friend constexpr bool operator==(const dense_set_iterator<Lhs> &, const dense_set_iterator<Rhs> &) noexcept;
+    template<typename Other>
+    [[nodiscard]] constexpr bool operator==(const dense_set_iterator<Other> &other) const noexcept {
+        return it == other.it;
+    }
 
-    template<typename Lhs, typename Rhs>
-    friend constexpr bool operator<(const dense_set_iterator<Lhs> &, const dense_set_iterator<Rhs> &) noexcept;
+    template<typename Other>
+    [[nodiscard]] constexpr auto operator<=>(const dense_set_iterator<Other> &other) const noexcept {
+        return it <=> other.it;
+    }
 
 private:
     It it;
 };
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr std::ptrdiff_t operator-(const dense_set_iterator<Lhs> &lhs, const dense_set_iterator<Rhs> &rhs) noexcept {
-    return lhs.it - rhs.it;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator==(const dense_set_iterator<Lhs> &lhs, const dense_set_iterator<Rhs> &rhs) noexcept {
-    return lhs.it == rhs.it;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator!=(const dense_set_iterator<Lhs> &lhs, const dense_set_iterator<Rhs> &rhs) noexcept {
-    return !(lhs == rhs);
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator<(const dense_set_iterator<Lhs> &lhs, const dense_set_iterator<Rhs> &rhs) noexcept {
-    return lhs.it < rhs.it;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator>(const dense_set_iterator<Lhs> &lhs, const dense_set_iterator<Rhs> &rhs) noexcept {
-    return rhs < lhs;
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator<=(const dense_set_iterator<Lhs> &lhs, const dense_set_iterator<Rhs> &rhs) noexcept {
-    return !(lhs > rhs);
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator>=(const dense_set_iterator<Lhs> &lhs, const dense_set_iterator<Rhs> &rhs) noexcept {
-    return !(lhs < rhs);
-}
 
 template<typename It>
 class dense_set_local_iterator final {
     template<typename>
     friend class dense_set_local_iterator;
 
+    static_assert(std::is_pointer_v<It>, "Not a pointer type");
+
 public:
-    using value_type = typename It::value_type::second_type;
+    using value_type = std::remove_const_t<std::remove_pointer_t<It>>::second_type;
     using pointer = const value_type *;
     using reference = const value_type &;
     using difference_type = std::ptrdiff_t;
@@ -160,13 +140,14 @@ public:
         : it{iter},
           offset{pos} {}
 
-    template<typename Other, typename = std::enable_if_t<!std::is_same_v<It, Other> && std::is_constructible_v<It, Other>>>
+    template<typename Other>
+    requires (!std::same_as<It, Other> && std::constructible_from<It, Other>)
     constexpr dense_set_local_iterator(const dense_set_local_iterator<Other> &other) noexcept
         : it{other.it},
           offset{other.offset} {}
 
     constexpr dense_set_local_iterator &operator++() noexcept {
-        return offset = it[static_cast<typename It::difference_type>(offset)].first, *this;
+        return offset = it[static_cast<difference_type>(offset)].first, *this;
     }
 
     constexpr dense_set_local_iterator operator++(int) noexcept {
@@ -175,11 +156,16 @@ public:
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
-        return std::addressof(it[static_cast<typename It::difference_type>(offset)].second);
+        return std::addressof(it[static_cast<difference_type>(offset)].second);
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
         return *operator->();
+    }
+
+    template<typename Other>
+    [[nodiscard]] constexpr bool operator==(const dense_set_local_iterator<Other> &other) const noexcept {
+        return offset == other.offset;
     }
 
     [[nodiscard]] constexpr std::size_t index() const noexcept {
@@ -190,16 +176,6 @@ private:
     It it{};
     std::size_t offset{dense_set_placeholder_position};
 };
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator==(const dense_set_local_iterator<Lhs> &lhs, const dense_set_local_iterator<Rhs> &rhs) noexcept {
-    return lhs.index() == rhs.index();
-}
-
-template<typename Lhs, typename Rhs>
-[[nodiscard]] constexpr bool operator!=(const dense_set_local_iterator<Lhs> &lhs, const dense_set_local_iterator<Rhs> &rhs) noexcept {
-    return !(lhs == rhs);
-}
 
 } // namespace internal
 /*! @endcond */
@@ -237,7 +213,7 @@ class dense_set {
     [[nodiscard]] auto constrained_find(const Other &value, const std::size_t bucket) {
         for(auto offset = sparse.first()[bucket]; offset != placeholder_position; offset = packed.first()[offset].first) {
             if(packed.second()(packed.first()[offset].second, value)) {
-                return begin() + static_cast<typename iterator::difference_type>(offset);
+                return begin() + static_cast<iterator::difference_type>(offset);
             }
         }
 
@@ -248,7 +224,7 @@ class dense_set {
     [[nodiscard]] auto constrained_find(const Other &value, const std::size_t bucket) const {
         for(auto offset = sparse.first()[bucket]; offset != placeholder_position; offset = packed.first()[offset].first) {
             if(packed.second()(packed.first()[offset].second, value)) {
-                return cbegin() + static_cast<typename const_iterator::difference_type>(offset);
+                return cbegin() + static_cast<const_iterator::difference_type>(offset);
             }
         }
 
@@ -303,17 +279,17 @@ public:
     /*! @brief Type of function to use to compare the elements for equality. */
     using key_equal = KeyEqual;
     /*! @brief Random access iterator type. */
-    using iterator = internal::dense_set_iterator<typename packed_container_type::iterator>;
+    using iterator = internal::dense_set_iterator<typename packed_container_type::pointer>;
     /*! @brief Constant random access iterator type. */
-    using const_iterator = internal::dense_set_iterator<typename packed_container_type::const_iterator>;
+    using const_iterator = internal::dense_set_iterator<typename packed_container_type::const_pointer>;
     /*! @brief Reverse iterator type. */
     using reverse_iterator = std::reverse_iterator<iterator>;
     /*! @brief Constant reverse iterator type. */
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     /*! @brief Forward iterator type. */
-    using local_iterator = internal::dense_set_local_iterator<typename packed_container_type::iterator>;
+    using local_iterator = internal::dense_set_local_iterator<typename packed_container_type::pointer>;
     /*! @brief Constant forward iterator type. */
-    using const_local_iterator = internal::dense_set_local_iterator<typename packed_container_type::const_iterator>;
+    using const_local_iterator = internal::dense_set_local_iterator<typename packed_container_type::const_pointer>;
 
     /*! @brief Default constructor. */
     dense_set()
@@ -427,7 +403,7 @@ public:
      * @return An iterator to the first instance of the internal array.
      */
     [[nodiscard]] const_iterator cbegin() const noexcept {
-        return packed.first().begin();
+        return packed.first().data();
     }
 
     /*! @copydoc cbegin */
@@ -437,7 +413,7 @@ public:
 
     /*! @copydoc begin */
     [[nodiscard]] iterator begin() noexcept {
-        return packed.first().begin();
+        return packed.first().data();
     }
 
     /**
@@ -446,7 +422,7 @@ public:
      * internal array.
      */
     [[nodiscard]] const_iterator cend() const noexcept {
-        return packed.first().end();
+        return packed.first().data() + packed.first().size();
     }
 
     /*! @copydoc cend */
@@ -456,7 +432,7 @@ public:
 
     /*! @copydoc end */
     [[nodiscard]] iterator end() noexcept {
-        return packed.first().end();
+        return packed.first().data() + packed.first().size();
     }
 
     /**
@@ -548,12 +524,10 @@ public:
 
     /**
      * @brief Inserts elements into the container, if they do not exist.
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of elements.
      * @param last An iterator past the last element of the range of elements.
      */
-    template<typename It>
-    void insert(It first, It last) {
+    void insert(stl::input_iterator auto first, stl::input_iterator auto last) {
         for(; first != last; ++first) {
             insert(*first);
         }
@@ -648,13 +622,11 @@ public:
 
     /**
      * @brief Returns the number of elements matching a key (either 1 or 0).
-     * @tparam Other Type of the key value of an element to search for.
      * @param key Key value of an element to search for.
      * @return Number of elements matching the key (either 1 or 0).
      */
-    template<typename Other>
-    [[nodiscard]] std::enable_if_t<is_transparent_v<hasher> && is_transparent_v<key_equal>, std::conditional_t<false, Other, size_type>>
-    count(const Other &key) const {
+    [[nodiscard]] size_type count(const auto &key) const
+    requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         return find(key) != end();
     }
 
@@ -675,21 +647,18 @@ public:
 
     /**
      * @brief Finds an element that compares _equivalent_ to a given value.
-     * @tparam Other Type of an element to search for.
      * @param value Value of an element to search for.
      * @return An iterator to an element with the given value. If no such
      * element is found, a past-the-end iterator is returned.
      */
-    template<typename Other>
-    [[nodiscard]] std::enable_if_t<is_transparent_v<hasher> && is_transparent_v<key_equal>, std::conditional_t<false, Other, iterator>>
-    find(const Other &value) {
+    [[nodiscard]] iterator find(const auto &value)
+    requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         return constrained_find(value, value_to_bucket(value));
     }
 
     /*! @copydoc find */
-    template<typename Other>
-    [[nodiscard]] std::enable_if_t<is_transparent_v<hasher> && is_transparent_v<key_equal>, std::conditional_t<false, Other, const_iterator>>
-    find(const Other &value) const {
+    [[nodiscard]] const_iterator find(const auto &value) const
+    requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         return constrained_find(value, value_to_bucket(value));
     }
 
@@ -713,22 +682,19 @@ public:
     /**
      * @brief Returns a range containing all elements that compare _equivalent_
      * to a given value.
-     * @tparam Other Type of an element to search for.
      * @param value Value of an element to search for.
      * @return A pair of iterators pointing to the first element and past the
      * last element of the range.
      */
-    template<typename Other>
-    [[nodiscard]] std::enable_if_t<is_transparent_v<hasher> && is_transparent_v<key_equal>, std::conditional_t<false, Other, std::pair<iterator, iterator>>>
-    equal_range(const Other &value) {
+    [[nodiscard]] std::pair<iterator, iterator> equal_range(const auto &value)
+    requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         const auto it = find(value);
         return {it, it + !(it == end())};
     }
 
     /*! @copydoc equal_range */
-    template<typename Other>
-    [[nodiscard]] std::enable_if_t<is_transparent_v<hasher> && is_transparent_v<key_equal>, std::conditional_t<false, Other, std::pair<const_iterator, const_iterator>>>
-    equal_range(const Other &value) const {
+    [[nodiscard]] std::pair<const_iterator, const_iterator> equal_range(const auto &value) const
+    requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         const auto it = find(value);
         return {it, it + !(it == cend())};
     }
@@ -745,13 +711,11 @@ public:
     /**
      * @brief Checks if the container contains an element that compares
      * _equivalent_ to a given value.
-     * @tparam Other Type of an element to search for.
      * @param value Value of an element to search for.
      * @return True if there is such an element, false otherwise.
      */
-    template<typename Other>
-    [[nodiscard]] std::enable_if_t<is_transparent_v<hasher> && is_transparent_v<key_equal>, std::conditional_t<false, Other, bool>>
-    contains(const Other &value) const {
+    [[nodiscard]] bool contains(const auto &value) const
+    requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         return (find(value) != cend());
     }
 
@@ -761,7 +725,7 @@ public:
      * @return An iterator to the beginning of the given bucket.
      */
     [[nodiscard]] const_local_iterator cbegin(const size_type index) const {
-        return {packed.first().begin(), sparse.first()[index]};
+        return {packed.first().data(), sparse.first()[index]};
     }
 
     /**
@@ -779,7 +743,7 @@ public:
      * @return An iterator to the beginning of the given bucket.
      */
     [[nodiscard]] local_iterator begin(const size_type index) {
-        return {packed.first().begin(), sparse.first()[index]};
+        return {packed.first().data(), sparse.first()[index]};
     }
 
     /**
@@ -879,7 +843,7 @@ public:
         const auto cap = static_cast<size_type>(static_cast<float>(size()) / max_load_factor());
         value = value > cap ? value : cap;
 
-        if(const auto sz = next_power_of_two(value); sz != bucket_count()) {
+        if(const auto sz = std::bit_ceil(value); sz != bucket_count()) {
             sparse.first().resize(sz);
 
             for(auto &&elem: sparse.first()) {

@@ -12,29 +12,30 @@
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename Ret, typename... Args>
-constexpr auto function_pointer(Ret (*)(Args...)) -> Ret (*)(Args...);
+auto function_pointer(Ret (*)(Args...)) -> Ret (*)(Args...);
 
 template<typename Ret, typename Type, typename... Args, typename Other>
-constexpr auto function_pointer(Ret (*)(Type, Args...), Other &&) -> Ret (*)(Args...);
+auto function_pointer(Ret (*)(Type, Args...), Other &&) -> Ret (*)(Args...);
 
 template<typename Class, typename Ret, typename... Args, typename... Other>
-constexpr auto function_pointer(Ret (Class::*)(Args...), Other &&...) -> Ret (*)(Args...);
+auto function_pointer(Ret (Class::*)(Args...), Other &&...) -> Ret (*)(Args...);
 
 template<typename Class, typename Ret, typename... Args, typename... Other>
-constexpr auto function_pointer(Ret (Class::*)(Args...) const, Other &&...) -> Ret (*)(Args...);
+auto function_pointer(Ret (Class::*)(Args...) const, Other &&...) -> Ret (*)(Args...);
 
-template<typename Class, typename Type, typename... Other, typename = std::enable_if_t<std::is_member_object_pointer_v<Type Class::*>>>
-constexpr auto function_pointer(Type Class::*, Other &&...) -> Type (*)();
+template<typename Class, typename Type, typename... Other>
+requires std::is_member_object_pointer_v<Type Class::*>
+auto function_pointer(Type Class::*, Other &&...) -> Type (*)();
 
 template<typename... Type>
 using function_pointer_t = decltype(function_pointer(std::declval<Type>()...));
 
 template<typename... Class, typename Ret, typename... Args>
-[[nodiscard]] constexpr auto index_sequence_for(Ret (*)(Args...)) {
+[[nodiscard]] ENTT_CONSTEVAL auto index_sequence_for(Ret (*)(Args...)) {
     return std::index_sequence_for<Class..., Args...>{};
 }
 
@@ -284,19 +285,6 @@ private:
     const void *instance{};
     delegate_type *fn{};
 };
-
-/**
- * @brief Compares the contents of two delegates.
- * @tparam Ret Return type of a function type.
- * @tparam Args Types of arguments of a function type.
- * @param lhs A valid delegate object.
- * @param rhs A valid delegate object.
- * @return True if the two contents differ, false otherwise.
- */
-template<typename Ret, typename... Args>
-[[nodiscard]] bool operator!=(const delegate<Ret(Args...)> &lhs, const delegate<Ret(Args...)> &rhs) noexcept {
-    return !(lhs == rhs);
-}
 
 /**
  * @brief Deduction guide.

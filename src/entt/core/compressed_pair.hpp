@@ -1,6 +1,7 @@
 #ifndef ENTT_CORE_COMPRESSED_PAIR_HPP
 #define ENTT_CORE_COMPRESSED_PAIR_HPP
 
+#include <concepts>
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
@@ -10,20 +11,21 @@
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
-template<typename Type, std::size_t, typename = void>
+template<typename Type, std::size_t>
 struct compressed_pair_element {
     using reference = Type &;
     using const_reference = const Type &;
 
-    template<typename Dummy = Type, typename = std::enable_if_t<std::is_default_constructible_v<Dummy>>>
     // NOLINTNEXTLINE(modernize-use-equals-default)
-    constexpr compressed_pair_element() noexcept(std::is_nothrow_default_constructible_v<Type>) {}
+    constexpr compressed_pair_element() noexcept(std::is_nothrow_default_constructible_v<Type>)
+    requires std::default_initializable<Type> {}
 
-    template<typename Arg, typename = std::enable_if_t<!std::is_same_v<std::remove_const_t<std::remove_reference_t<Arg>>, compressed_pair_element>>>
+    template<typename Arg>
     constexpr compressed_pair_element(Arg &&arg) noexcept(std::is_nothrow_constructible_v<Type, Arg>)
+    requires (!std::same_as<std::remove_cvref_t<Arg>, compressed_pair_element>)
         : value{std::forward<Arg>(arg)} {}
 
     template<typename... Args, std::size_t... Index>
@@ -43,17 +45,19 @@ private:
 };
 
 template<typename Type, std::size_t Tag>
-struct compressed_pair_element<Type, Tag, std::enable_if_t<is_ebco_eligible_v<Type>>>: Type {
+requires is_ebco_eligible_v<Type>
+struct compressed_pair_element<Type, Tag>: Type {
     using reference = Type &;
     using const_reference = const Type &;
     using base_type = Type;
 
-    template<typename Dummy = Type, typename = std::enable_if_t<std::is_default_constructible_v<Dummy>>>
     constexpr compressed_pair_element() noexcept(std::is_nothrow_default_constructible_v<base_type>)
+    requires std::default_initializable<Type>
         : base_type{} {}
 
-    template<typename Arg, typename = std::enable_if_t<!std::is_same_v<std::remove_const_t<std::remove_reference_t<Arg>>, compressed_pair_element>>>
+    template<typename Arg>
     constexpr compressed_pair_element(Arg &&arg) noexcept(std::is_nothrow_constructible_v<base_type, Arg>)
+    requires (!std::same_as<std::remove_cvref_t<Arg>, compressed_pair_element>)
         : base_type{std::forward<Arg>(arg)} {}
 
     template<typename... Args, std::size_t... Index>
@@ -99,11 +103,9 @@ public:
      *
      * This constructor is only available when the types that the pair stores
      * are both at least default constructible.
-     *
-     * @tparam Dummy Dummy template parameter used for internal purposes.
      */
-    template<bool Dummy = true, typename = std::enable_if_t<Dummy && std::is_default_constructible_v<first_type> && std::is_default_constructible_v<second_type>>>
     constexpr compressed_pair() noexcept(std::is_nothrow_default_constructible_v<first_base> && std::is_nothrow_default_constructible_v<second_base>)
+    requires std::default_initializable<first_type> && std::default_initializable<second_type>
         : first_base{},
           second_base{} {}
 
@@ -203,22 +205,22 @@ public:
      * reference to the second element if `Index` is 1.
      */
     template<std::size_t Index>
+    requires (Index <= 1u)
     [[nodiscard]] constexpr decltype(auto) get() noexcept {
         if constexpr(Index == 0u) {
             return first();
         } else {
-            static_assert(Index == 1u, "Index out of bounds");
             return second();
         }
     }
 
     /*! @copydoc get */
     template<std::size_t Index>
+    requires (Index <= 1u)
     [[nodiscard]] constexpr decltype(auto) get() const noexcept {
         if constexpr(Index == 0u) {
             return first();
         } else {
-            static_assert(Index == 1u, "Index out of bounds");
             return second();
         }
     }
@@ -263,9 +265,8 @@ struct tuple_size<entt::compressed_pair<First, Second>>: integral_constant<size_
  * @tparam Second The type of the second element that the pair stores.
  */
 template<size_t Index, typename First, typename Second>
-struct tuple_element<Index, entt::compressed_pair<First, Second>>: conditional<Index == 0u, First, Second> {
-    static_assert(Index < 2u, "Index out of bounds");
-};
+requires (Index <= 1u)
+struct tuple_element<Index, entt::compressed_pair<First, Second>>: conditional<Index == 0u, First, Second> {};
 
 } // namespace std
 

@@ -15,15 +15,23 @@
 #include "../../common/empty.h"
 #include "../../common/pointer_stable.h"
 
-struct shadow {
-    entt::entity target{entt::null};
+struct SnapshotCommonBase: testing::Test {
+    struct shadow {
+        entt::entity target{entt::null};
 
-    static void listener(entt::entity &elem, entt::registry &registry, const entt::entity entt) {
-        elem = registry.get<shadow>(entt).target;
-    }
+        static void listener(entt::entity &elem, entt::registry &registry, const entt::entity entt) {
+            elem = registry.get<shadow>(entt).target;
+        }
+    };
 };
 
-TEST(BasicSnapshot, Constructors) {
+struct BasicSnapshot: SnapshotCommonBase {};
+struct BasicSnapshotLoader: SnapshotCommonBase {};
+struct BasicContinuousLoader: SnapshotCommonBase {};
+
+using BasicSnapshotLoaderDeathTest = BasicSnapshotLoader;
+
+TEST_F(BasicSnapshot, Constructors) {
     static_assert(!std::is_default_constructible_v<entt::basic_snapshot<entt::registry>>, "Default constructible type not allowed");
     static_assert(!std::is_copy_constructible_v<entt::basic_snapshot<entt::registry>>, "Copy constructible type not allowed");
     static_assert(!std::is_copy_assignable_v<entt::basic_snapshot<entt::registry>>, "Copy assignable type not allowed");
@@ -37,7 +45,7 @@ TEST(BasicSnapshot, Constructors) {
     ASSERT_NO_THROW(snapshot = std::move(other));
 }
 
-TEST(BasicSnapshot, GetEntityType) {
+TEST_F(BasicSnapshot, GetEntityType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -52,11 +60,11 @@ TEST(BasicSnapshot, GetEntityType) {
 
     ASSERT_EQ(data.size(), 2u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), storage.size());
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), storage.size());
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(&data[1u]), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[1u]), storage.free_list());
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(&data[1u]), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[1u]), storage.free_list());
 
     constexpr auto number_of_entities = 3u;
     std::array<entt::entity, number_of_entities> entity{};
@@ -69,11 +77,11 @@ TEST(BasicSnapshot, GetEntityType) {
 
     ASSERT_EQ(data.size(), 5u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), storage.size());
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), storage.size());
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(&data[1u]), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[1u]), storage.free_list());
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(&data[1u]), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[1u]), storage.free_list());
 
     ASSERT_NE(entt::any_cast<entt::entity>(&data[2u]), nullptr);
     ASSERT_EQ(entt::any_cast<entt::entity>(data[2u]), storage.data()[0u]);
@@ -85,7 +93,7 @@ TEST(BasicSnapshot, GetEntityType) {
     ASSERT_EQ(entt::any_cast<entt::entity>(data[4u]), storage.data()[2u]);
 }
 
-TEST(BasicSnapshot, GetType) {
+TEST_F(BasicSnapshot, GetType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -108,16 +116,16 @@ TEST(BasicSnapshot, GetType) {
 
     ASSERT_EQ(data.size(), 1u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), 0u);
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), 0u);
 
     data.clear();
     snapshot.get<int>(archive);
 
     ASSERT_EQ(data.size(), 5u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), storage.size());
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), storage.size());
 
     ASSERT_NE(entt::any_cast<entt::entity>(&data[1u]), nullptr);
     ASSERT_EQ(entt::any_cast<entt::entity>(data[1u]), entity[0u]);
@@ -132,7 +140,7 @@ TEST(BasicSnapshot, GetType) {
     ASSERT_EQ(entt::any_cast<int>(data[4u]), value[2u]);
 }
 
-TEST(BasicSnapshot, GetPointerStableType) {
+TEST_F(BasicSnapshot, GetPointerStableType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -155,16 +163,16 @@ TEST(BasicSnapshot, GetPointerStableType) {
 
     ASSERT_EQ(data.size(), 1u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), 0u);
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), 0u);
 
     data.clear();
     snapshot.get<test::pointer_stable>(archive);
 
     ASSERT_EQ(data.size(), 6u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), storage.size());
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), storage.size());
 
     ASSERT_NE(entt::any_cast<entt::entity>(&data[1u]), nullptr);
     ASSERT_EQ(entt::any_cast<entt::entity>(data[1u]), entity[0u]);
@@ -182,7 +190,7 @@ TEST(BasicSnapshot, GetPointerStableType) {
     ASSERT_EQ(entt::any_cast<test::pointer_stable>(data[5u]), value[2u]);
 }
 
-TEST(BasicSnapshot, GetEmptyType) {
+TEST_F(BasicSnapshot, GetEmptyType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -204,16 +212,16 @@ TEST(BasicSnapshot, GetEmptyType) {
 
     ASSERT_EQ(data.size(), 1u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), 0u);
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), 0u);
 
     data.clear();
     snapshot.get<test::empty>(archive);
 
     ASSERT_EQ(data.size(), 3u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), storage.size());
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), storage.size());
 
     ASSERT_NE(entt::any_cast<entt::entity>(&data[1u]), nullptr);
     ASSERT_EQ(entt::any_cast<entt::entity>(data[1u]), entity[0u]);
@@ -222,7 +230,7 @@ TEST(BasicSnapshot, GetEmptyType) {
     ASSERT_EQ(entt::any_cast<entt::entity>(data[2u]), entity[2u]);
 }
 
-TEST(BasicSnapshot, GetTypeSparse) {
+TEST_F(BasicSnapshot, GetTypeSparse) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -244,16 +252,16 @@ TEST(BasicSnapshot, GetTypeSparse) {
 
     ASSERT_EQ(data.size(), 1u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), 0u);
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), 0u);
 
     data.clear();
     snapshot.get<int>(archive, entity.begin(), entity.end());
 
     ASSERT_EQ(data.size(), 6u);
 
-    ASSERT_NE(entt::any_cast<typename traits_type::entity_type>(data.data()), nullptr);
-    ASSERT_EQ(entt::any_cast<typename traits_type::entity_type>(data[0u]), static_cast<typename traits_type::entity_type>(std::distance(entity.begin(), entity.end())));
+    ASSERT_NE(entt::any_cast<traits_type::entity_type>(data.data()), nullptr);
+    ASSERT_EQ(entt::any_cast<traits_type::entity_type>(data[0u]), static_cast<traits_type::entity_type>(std::distance(entity.begin(), entity.end())));
 
     ASSERT_NE(entt::any_cast<entt::entity>(&data[1u]), nullptr);
     ASSERT_EQ(entt::any_cast<entt::entity>(data[1u]), entity[0u]);
@@ -271,7 +279,7 @@ TEST(BasicSnapshot, GetTypeSparse) {
     ASSERT_EQ(entt::any_cast<int>(data[5u]), value[2u]);
 }
 
-TEST(BasicSnapshotLoader, Constructors) {
+TEST_F(BasicSnapshotLoader, Constructors) {
     static_assert(!std::is_default_constructible_v<entt::basic_snapshot_loader<entt::registry>>, "Default constructible type not allowed");
     static_assert(!std::is_copy_constructible_v<entt::basic_snapshot_loader<entt::registry>>, "Copy constructible type not allowed");
     static_assert(!std::is_copy_assignable_v<entt::basic_snapshot_loader<entt::registry>>, "Copy assignable type not allowed");
@@ -290,14 +298,14 @@ TEST(BasicSnapshotLoader, Constructors) {
     ASSERT_NO_THROW(loader = std::move(other));
 }
 
-ENTT_DEBUG_TEST(BasicSnapshotLoaderDeathTest, Constructors) {
+ENTT_DEBUG_TEST_F(BasicSnapshotLoaderDeathTest, Constructors) {
     entt::registry registry;
     registry.emplace<int>(registry.create());
 
     ASSERT_DEATH([[maybe_unused]] const entt::basic_snapshot_loader loader{registry}, "");
 }
 
-TEST(BasicSnapshotLoader, GetEntityType) {
+TEST_F(BasicSnapshotLoader, GetEntityType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -313,8 +321,8 @@ TEST(BasicSnapshotLoader, GetEntityType) {
     ASSERT_FALSE(registry.valid(entity[1u]));
     ASSERT_FALSE(registry.valid(entity[2u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(0u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(0u));
+    data.emplace_back(static_cast<traits_type::entity_type>(0u));
+    data.emplace_back(static_cast<traits_type::entity_type>(0u));
 
     loader.get<entt::entity>(archive);
 
@@ -325,8 +333,8 @@ TEST(BasicSnapshotLoader, GetEntityType) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(storage.free_list(), 0u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(3u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(3u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
@@ -348,7 +356,7 @@ TEST(BasicSnapshotLoader, GetEntityType) {
     ASSERT_EQ(registry.create(), entity[2u]);
 }
 
-TEST(BasicSnapshotLoader, GetType) {
+TEST_F(BasicSnapshotLoader, GetType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -364,7 +372,7 @@ TEST(BasicSnapshotLoader, GetType) {
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
 
@@ -376,7 +384,7 @@ TEST(BasicSnapshotLoader, GetType) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(registry.storage<int>("other"_hs).size(), 1u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
@@ -396,7 +404,7 @@ TEST(BasicSnapshotLoader, GetType) {
     ASSERT_EQ(storage.get(entity[1u]), value[1u]);
 }
 
-TEST(BasicSnapshotLoader, GetEmptyType) {
+TEST_F(BasicSnapshotLoader, GetEmptyType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -411,7 +419,7 @@ TEST(BasicSnapshotLoader, GetEmptyType) {
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity[0u]);
 
     loader.get<test::empty>(archive, "other"_hs);
@@ -422,7 +430,7 @@ TEST(BasicSnapshotLoader, GetEmptyType) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(registry.storage<test::empty>("other"_hs).size(), 1u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
@@ -437,7 +445,7 @@ TEST(BasicSnapshotLoader, GetEmptyType) {
     ASSERT_TRUE(storage.contains(entity[1u]));
 }
 
-TEST(BasicSnapshotLoader, GetTypeSparse) {
+TEST_F(BasicSnapshotLoader, GetTypeSparse) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -453,7 +461,7 @@ TEST(BasicSnapshotLoader, GetTypeSparse) {
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
     data.emplace_back(static_cast<entt::entity>(entt::null));
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
@@ -466,7 +474,7 @@ TEST(BasicSnapshotLoader, GetTypeSparse) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(registry.storage<int>("other"_hs).size(), 1u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(3u));
+    data.emplace_back(static_cast<traits_type::entity_type>(3u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
@@ -488,7 +496,7 @@ TEST(BasicSnapshotLoader, GetTypeSparse) {
     ASSERT_EQ(storage.get(entity[1u]), value[1u]);
 }
 
-TEST(BasicSnapshotLoader, GetTypeWithListener) {
+TEST_F(BasicSnapshotLoader, GetTypeWithListener) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::registry registry;
@@ -505,7 +513,7 @@ TEST(BasicSnapshotLoader, GetTypeWithListener) {
 
     registry.on_construct<shadow>().connect<&shadow::listener>(check);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity);
     data.emplace_back(value);
 
@@ -515,7 +523,7 @@ TEST(BasicSnapshotLoader, GetTypeWithListener) {
     ASSERT_EQ(check, entity);
 }
 
-TEST(BasicSnapshotLoader, Orphans) {
+TEST_F(BasicSnapshotLoader, Orphans) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -530,13 +538,13 @@ TEST(BasicSnapshotLoader, Orphans) {
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity[0u]);
     data.emplace_back(value);
 
@@ -552,7 +560,7 @@ TEST(BasicSnapshotLoader, Orphans) {
     ASSERT_FALSE(registry.valid(entity[1u]));
 }
 
-TEST(BasicContinuousLoader, Constructors) {
+TEST_F(BasicContinuousLoader, Constructors) {
     static_assert(!std::is_default_constructible_v<entt::basic_continuous_loader<entt::registry>>, "Default constructible type not allowed");
     static_assert(!std::is_copy_constructible_v<entt::basic_continuous_loader<entt::registry>>, "Copy constructible type not allowed");
     static_assert(!std::is_copy_assignable_v<entt::basic_continuous_loader<entt::registry>>, "Copy assignable type not allowed");
@@ -566,7 +574,7 @@ TEST(BasicContinuousLoader, Constructors) {
     ASSERT_NO_THROW(loader = std::move(other));
 }
 
-TEST(BasicContinuousLoader, GetEntityType) {
+TEST_F(BasicContinuousLoader, GetEntityType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -582,8 +590,8 @@ TEST(BasicContinuousLoader, GetEntityType) {
     ASSERT_FALSE(registry.valid(entity[1u]));
     ASSERT_FALSE(registry.valid(entity[2u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(0u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(0u));
+    data.emplace_back(static_cast<traits_type::entity_type>(0u));
+    data.emplace_back(static_cast<traits_type::entity_type>(0u));
 
     loader.get<entt::entity>(archive);
 
@@ -602,8 +610,8 @@ TEST(BasicContinuousLoader, GetEntityType) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(storage.free_list(), 0u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(3u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(3u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
@@ -630,8 +638,8 @@ TEST(BasicContinuousLoader, GetEntityType) {
 
     ASSERT_EQ(registry.create(), entity[2u]);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(3u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(3u));
+    data.emplace_back(static_cast<traits_type::entity_type>(3u));
+    data.emplace_back(static_cast<traits_type::entity_type>(3u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
@@ -664,8 +672,8 @@ TEST(BasicContinuousLoader, GetEntityType) {
     ASSERT_NE(loader.map(entity[1u]), static_cast<entt::entity>(entt::null));
     ASSERT_FALSE(registry.valid(loader.map(entity[1u])));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
 
     data.emplace_back(entity[1u]);
 
@@ -676,8 +684,8 @@ TEST(BasicContinuousLoader, GetEntityType) {
     ASSERT_TRUE(registry.valid(loader.map(entity[1u])));
     ASSERT_EQ(storage[3u], loader.map(entity[1u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(3u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(3u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
 
     data.emplace_back(entity[1u]);
     data.emplace_back(entity[2u]);
@@ -701,7 +709,7 @@ TEST(BasicContinuousLoader, GetEntityType) {
     ASSERT_EQ(storage[1u], loader.map(entity[1u]));
 }
 
-TEST(BasicContinuousLoader, GetType) {
+TEST_F(BasicContinuousLoader, GetType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -720,7 +728,7 @@ TEST(BasicContinuousLoader, GetType) {
     ASSERT_FALSE(registry.valid(loader.map(entity[0u])));
     ASSERT_FALSE(registry.valid(loader.map(entity[1u])));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
 
@@ -735,7 +743,7 @@ TEST(BasicContinuousLoader, GetType) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(registry.storage<int>("other"_hs).size(), 1u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
@@ -758,7 +766,7 @@ TEST(BasicContinuousLoader, GetType) {
     ASSERT_EQ(storage.get(loader.map(entity[1u])), value[1u]);
 }
 
-TEST(BasicContinuousLoader, GetTypeExtended) {
+TEST_F(BasicContinuousLoader, GetTypeExtended) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -784,13 +792,13 @@ TEST(BasicContinuousLoader, GetTypeExtended) {
     ASSERT_FALSE(registry.valid(loader.map(entity[0u])));
     ASSERT_FALSE(registry.valid(loader.map(entity[1u])));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity[1u]);
     data.emplace_back(value);
 
@@ -811,7 +819,7 @@ TEST(BasicContinuousLoader, GetTypeExtended) {
     ASSERT_EQ(storage.get(loader.map(entity[1u])).target, loader.map(entity[0u]));
 }
 
-TEST(BasicContinuousLoader, GetEmptyType) {
+TEST_F(BasicContinuousLoader, GetEmptyType) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -829,7 +837,7 @@ TEST(BasicContinuousLoader, GetEmptyType) {
     ASSERT_FALSE(registry.valid(loader.map(entity[0u])));
     ASSERT_FALSE(registry.valid(loader.map(entity[1u])));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity[0u]);
 
     loader.get<test::empty>(archive, "other"_hs);
@@ -843,7 +851,7 @@ TEST(BasicContinuousLoader, GetEmptyType) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(registry.storage<test::empty>("other"_hs).size(), 1u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
@@ -861,7 +869,7 @@ TEST(BasicContinuousLoader, GetEmptyType) {
     ASSERT_TRUE(storage.contains(loader.map(entity[1u])));
 }
 
-TEST(BasicContinuousLoader, GetTypeSparse) {
+TEST_F(BasicContinuousLoader, GetTypeSparse) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -880,7 +888,7 @@ TEST(BasicContinuousLoader, GetTypeSparse) {
     ASSERT_FALSE(registry.valid(loader.map(entity[0u])));
     ASSERT_FALSE(registry.valid(loader.map(entity[1u])));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
     data.emplace_back(static_cast<entt::entity>(entt::null));
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
@@ -896,7 +904,7 @@ TEST(BasicContinuousLoader, GetTypeSparse) {
     ASSERT_EQ(storage.size(), 0u);
     ASSERT_EQ(registry.storage<int>("other"_hs).size(), 1u);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(3u));
+    data.emplace_back(static_cast<traits_type::entity_type>(3u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(value[0u]);
@@ -921,7 +929,7 @@ TEST(BasicContinuousLoader, GetTypeSparse) {
     ASSERT_EQ(storage.get(loader.map(entity[1u])), value[1u]);
 }
 
-TEST(BasicContinuousLoader, GetTypeWithListener) {
+TEST_F(BasicContinuousLoader, GetTypeWithListener) {
     using traits_type = entt::entt_traits<entt::entity>;
 
     entt::registry registry;
@@ -938,7 +946,7 @@ TEST(BasicContinuousLoader, GetTypeWithListener) {
 
     registry.on_construct<shadow>().connect<&shadow::listener>(check);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity);
     data.emplace_back(value);
 
@@ -948,7 +956,7 @@ TEST(BasicContinuousLoader, GetTypeWithListener) {
     ASSERT_EQ(check, entity);
 }
 
-TEST(BasicContinuousLoader, Orphans) {
+TEST_F(BasicContinuousLoader, Orphans) {
     using namespace entt::literals;
     using traits_type = entt::entt_traits<entt::entity>;
 
@@ -963,13 +971,13 @@ TEST(BasicContinuousLoader, Orphans) {
     ASSERT_FALSE(registry.valid(entity[0u]));
     ASSERT_FALSE(registry.valid(entity[1u]));
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
-    data.emplace_back(static_cast<typename traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
+    data.emplace_back(static_cast<traits_type::entity_type>(2u));
 
     data.emplace_back(entity[0u]);
     data.emplace_back(entity[1u]);
 
-    data.emplace_back(static_cast<typename traits_type::entity_type>(1u));
+    data.emplace_back(static_cast<traits_type::entity_type>(1u));
     data.emplace_back(entity[0u]);
     data.emplace_back(value);
 

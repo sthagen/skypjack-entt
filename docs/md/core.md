@@ -201,19 +201,15 @@ in order to meet them.
 
 # Bit
 
-Finding out the population count of an unsigned integral value (`popcount`),
-whether a number is a power of two or not (`has_single_bit`) as well as the next
-power of two given a random value (`next_power_of_two`) can be useful.<br/>
-For example, it helps to allocate memory in pages having a size suitable for the
-fast modulus:
+Some general purpose utilities, such as the fast module function:
 
 ```cpp
 const std::size_t result = entt::fast_mod(value, modulus);
 ```
 
-Where `modulus` is necessarily a power of two. Perhaps not everyone knows that
-this type of operation is far superior in terms of performance to the basic
-modulus and for this reason preferred in many areas.
+Where `modulus` is necessarily a power of two. This type of operation is far
+superior in terms of performance to the basic modulus and for this reason
+preferred in many areas.
 
 # Compressed pair
 
@@ -449,9 +445,9 @@ Some are geared towards simplifying the implementation of (internal or external)
 allocator aware containers. Others are designed to help the developer with
 everyday problems.
 
-The former are very specific and for niche problems. These are tools designed to
-unwrap fancy or plain pointers (`to_address`) or to help forget the meaning of
-acronyms like _POCCA_, _POCMA_ or _POCS_.<br/>
+The former are very specific and for niche problems. For example, there are
+tools designed to help forget the meaning of acronyms like _POCCA_, _POCMA_ or
+_POCS_.<br/>
 I will not describe them here in detail. Instead, I recommend reading the inline
 documentation to those interested in the subject.
 
@@ -639,7 +635,7 @@ These are the information made available by `type_info`:
   This is also an alias for the following:
 
   ```cpp
-  auto idx = entt::type_index<std::remove_const_t<std::remove_reference_t<a_type>>>::value();
+  auto idx = entt::type_index<std::remove_cvref_t<a_type>>::value();
   ```
 
 * The hash value associated with a given type:
@@ -651,7 +647,7 @@ These are the information made available by `type_info`:
   This is also an alias for the following:
 
   ```cpp
-  auto hash = entt::type_hash<std::remove_const_t<std::remove_reference_t<a_type>>>::value();
+  auto hash = entt::type_hash<std::remove_cvref_t<a_type>>::value();
   ```
 
 * The name associated with a given type:
@@ -663,7 +659,7 @@ These are the information made available by `type_info`:
   This is also an alias for the following:
 
   ```cpp
-  auto name = entt::type_name<std::remove_const_t<std::remove_reference_t<a_type>>>::value();
+  auto name = entt::type_name<std::remove_cvref_t<a_type>>::value();
   ```
 
 Where all accessed features are available at compile-time, the `type_info` class
@@ -918,10 +914,6 @@ mostly depends on the flow of execution.
 It is not possible to escape the temptation to add utilities of some kind to a
 library. In fact, `EnTT` also provides a handful of tools to simplify the
 life of developers:
-
-* `entt::identity`: the identity function object that will be available with
-  C++20. It returns its argument unchanged and nothing more. It is useful as a
-  sort of _do nothing_ function in template programming.
 
 * `entt::overload`: a tool to disambiguate different overloads from their
   function type. It works with both free and member functions.<br/>

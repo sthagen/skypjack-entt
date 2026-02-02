@@ -79,7 +79,7 @@ TEST_F(UnpackAsValue, Functionalities) {
 TEST(IntegralConstant, Functionalities) {
     const entt::integral_constant<3> constant{};
 
-    testing::StaticAssertTypeEq<typename entt::integral_constant<3>::value_type, int>();
+    testing::StaticAssertTypeEq<entt::integral_constant<3>::value_type, int>();
     ASSERT_EQ(constant.value, 3);
 }
 
@@ -119,7 +119,7 @@ TEST(TypeList, Functionalities) {
     testing::StaticAssertTypeEq<entt::type_list_diff_t<entt::type_list<int, char, double>, entt::type_list<char, double>>, entt::type_list<int>>();
     testing::StaticAssertTypeEq<entt::type_list_diff_t<entt::type_list<int, char, double>, entt::type_list<char>>, entt::type_list<int, double>>();
 
-    testing::StaticAssertTypeEq<entt::type_list_transform_t<entt::type_list<int, char>, entt::type_identity>, entt::type_list<int, char>>();
+    testing::StaticAssertTypeEq<entt::type_list_transform_t<entt::type_list<int, char>, std::type_identity>, entt::type_list<int, char>>();
     testing::StaticAssertTypeEq<entt::type_list_transform_t<entt::type_list<int, char>, std::add_const>, entt::type_list<const int, const char>>();
     testing::StaticAssertTypeEq<entt::type_list_transform_t<entt::type_list<int, char>, multi_argument_operation>, entt::type_list<void, void>>();
 
@@ -275,5 +275,5 @@ TEST(NthArgument, Functionalities) {
 TEST(Tag, Functionalities) {
     using namespace entt::literals;
     ASSERT_EQ(entt::tag<"foobar"_hs>::value, entt::hashed_string::value("foobar"));
-    testing::StaticAssertTypeEq<typename entt::tag<"foobar"_hs>::value_type, entt::id_type>();
+    testing::StaticAssertTypeEq<entt::tag<"foobar"_hs>::value_type, entt::id_type>();
 }

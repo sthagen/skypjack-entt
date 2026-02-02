@@ -14,66 +14,6 @@
 #include <entt/meta/template.hpp>
 #include "../../common/empty.h"
 
-struct base {
-    base() = default;
-
-    base(char cv)
-        : value{cv} {}
-
-    [[nodiscard]] char get() const {
-        return value;
-    }
-
-    char value;
-};
-
-struct clazz: base {
-    clazz()
-        : base{} {}
-
-    clazz(int iv)
-        : base{},
-          value{iv} {}
-
-    clazz(char cv, int iv) // NOLINT
-        : base{cv},
-          value{iv} {}
-
-    [[nodiscard]] int func(int iv) {
-        return (value = iv);
-    }
-
-    [[nodiscard]] int cfunc(int) const {
-        return value;
-    }
-
-    static void move_to_bucket(const clazz &instance) {
-        bucket = instance.value;
-    }
-
-    int value{};
-    inline static int bucket{}; // NOLINT
-};
-
-struct argument {
-    argument(int val)
-        : value{val} {}
-
-    [[nodiscard]] int get() const {
-        return value;
-    }
-
-    [[nodiscard]] int get_mul() const {
-        return value * 2;
-    }
-
-private:
-    int value{};
-};
-
-template<typename...>
-struct template_clazz {};
-
 class MetaContext: public ::testing::Test {
     static void init_global_context() {
         using namespace entt::literals;
@@ -126,6 +66,66 @@ class MetaContext: public ::testing::Test {
     }
 
 public:
+    struct base {
+        base() = default;
+
+        base(char cv)
+            : value{cv} {}
+
+        [[nodiscard]] char get() const {
+            return value;
+        }
+
+        char value;
+    };
+
+    struct clazz: base {
+        clazz()
+            : base{} {}
+
+        clazz(int iv)
+            : base{},
+              value{iv} {}
+
+        clazz(char cv, int iv) // NOLINT
+            : base{cv},
+              value{iv} {}
+
+        [[nodiscard]] int func(int iv) {
+            return (value = iv);
+        }
+
+        [[nodiscard]] int cfunc(int) const {
+            return value;
+        }
+
+        static void move_to_bucket(const clazz &instance) {
+            bucket = instance.value;
+        }
+
+        int value{};
+        inline static int bucket{}; // NOLINT
+    };
+
+    struct argument {
+        argument(int val)
+            : value{val} {}
+
+        [[nodiscard]] int get() const {
+            return value;
+        }
+
+        [[nodiscard]] int get_mul() const {
+            return value * 2;
+        }
+
+    private:
+        int value{};
+    };
+
+    template<typename...>
+    struct template_clazz {};
+
     void SetUp() override {
         init_global_context();
         init_local_context();
@@ -218,7 +218,7 @@ TEST_F(MetaContext, MetaBase) {
     ASSERT_EQ((std::distance(global.base().cbegin(), global.base().cend())), 0);
     ASSERT_EQ((std::distance(local.base().cbegin(), local.base().cend())), 1);
 
-    ASSERT_EQ(local.base().cbegin()->second.info(), entt::type_id<base>());
+    ASSERT_EQ(local.base().cbegin()->second.type().info(), entt::type_id<base>());
 
     ASSERT_FALSE(entt::resolve(entt::type_id<base>()));
     ASSERT_TRUE(entt::resolve(ctx(), entt::type_id<base>()));
@@ -305,17 +305,17 @@ TEST_F(MetaContext, MetaCtor) {
     ASSERT_EQ(any.cast<const clazz &>().value, 0);
     ASSERT_EQ(other.cast<const clazz &>().value, 0);
 
-    const argument argument{2};
+    const argument value{2};
 
-    any = global.construct(argument);
-    other = local.construct(argument);
+    any = global.construct(value);
+    other = local.construct(value);
 
     ASSERT_TRUE(any);
     ASSERT_FALSE(other);
     ASSERT_EQ(any.cast<const clazz &>().value, 2);
 
-    any = global.construct('c', argument);
-    other = local.construct('c', argument);
+    any = global.construct('c', value);
+    other = local.construct('c', value);
 
     ASSERT_FALSE(any);
     ASSERT_TRUE(other);

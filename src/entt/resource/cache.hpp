@@ -1,6 +1,8 @@
 #ifndef ENTT_RESOURCE_RESOURCE_CACHE_HPP
 #define ENTT_RESOURCE_RESOURCE_CACHE_HPP
 
+#include <compare>
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -12,14 +14,14 @@
 #include "../core/compressed_pair.hpp"
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
-#include "../core/utility.hpp"
+#include "../stl/functional.hpp"
 #include "fwd.hpp"
 #include "loader.hpp"
 #include "resource.hpp"
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename Type, typename It>
@@ -40,7 +42,8 @@ public:
     constexpr resource_cache_iterator(const It iter) noexcept
         : it{iter} {}
 
-    template<typename Other, typename = std::enable_if_t<!std::is_same_v<It, Other> && std::is_constructible_v<It, Other>>>
+    template<typename Other>
+    requires (!std::same_as<It, Other> && std::constructible_from<It, Other>)
     constexpr resource_cache_iterator(const resource_cache_iterator<std::remove_const_t<Type>, Other> &other) noexcept
         : it{other.it} {}
 
@@ -92,53 +95,24 @@ public:
         return operator*();
     }
 
-    template<typename... Lhs, typename... Rhs>
-    friend constexpr std::ptrdiff_t operator-(const resource_cache_iterator<Lhs...> &, const resource_cache_iterator<Rhs...> &) noexcept;
+    template<typename... Args>
+    [[nodiscard]] constexpr std::ptrdiff_t operator-(const resource_cache_iterator<Args...> &other) const noexcept {
+        return it - other.it;
+    }
 
-    template<typename... Lhs, typename... Rhs>
-    friend constexpr bool operator==(const resource_cache_iterator<Lhs...> &, const resource_cache_iterator<Rhs...> &) noexcept;
+    template<typename... Args>
+    [[nodiscard]] constexpr bool operator==(const resource_cache_iterator<Args...> &other) const noexcept {
+        return it == other.it;
+    }
 
-    template<typename... Lhs, typename... Rhs>
-    friend constexpr bool operator<(const resource_cache_iterator<Lhs...> &, const resource_cache_iterator<Rhs...> &) noexcept;
+    template<typename... Args>
+    [[nodiscard]] constexpr auto operator<=>(const resource_cache_iterator<Args...> &other) const noexcept {
+        return it <=> other.it;
+    }
 
 private:
     It it;
 };
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr std::ptrdiff_t operator-(const resource_cache_iterator<Lhs...> &lhs, const resource_cache_iterator<Rhs...> &rhs) noexcept {
-    return lhs.it - rhs.it;
-}
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator==(const resource_cache_iterator<Lhs...> &lhs, const resource_cache_iterator<Rhs...> &rhs) noexcept {
-    return lhs.it == rhs.it;
-}
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator!=(const resource_cache_iterator<Lhs...> &lhs, const resource_cache_iterator<Rhs...> &rhs) noexcept {
-    return !(lhs == rhs);
-}
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator<(const resource_cache_iterator<Lhs...> &lhs, const resource_cache_iterator<Rhs...> &rhs) noexcept {
-    return lhs.it < rhs.it;
-}
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator>(const resource_cache_iterator<Lhs...> &lhs, const resource_cache_iterator<Rhs...> &rhs) noexcept {
-    return rhs < lhs;
-}
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator<=(const resource_cache_iterator<Lhs...> &lhs, const resource_cache_iterator<Rhs...> &rhs) noexcept {
-    return !(lhs > rhs);
-}
-
-template<typename... Lhs, typename... Rhs>
-[[nodiscard]] constexpr bool operator>=(const resource_cache_iterator<Lhs...> &lhs, const resource_cache_iterator<Rhs...> &rhs) noexcept {
-    return !(lhs < rhs);
-}
 
 } // namespace internal
 /*! @endcond */
@@ -153,8 +127,8 @@ template<typename Type, typename Loader, typename Allocator>
 class resource_cache {
     using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(std::is_same_v<typename alloc_traits::value_type, Type>, "Invalid value type");
-    using container_allocator = typename alloc_traits::template rebind_alloc<std::pair<const id_type, typename Loader::result_type>>;
-    using container_type = dense_map<id_type, typename Loader::result_type, identity, std::equal_to<>, container_allocator>;
+    using container_allocator = alloc_traits::template rebind_alloc<std::pair<const id_type, typename Loader::result_type>>;
+    using container_type = dense_map<id_type, typename Loader::result_type, stl::identity, std::equal_to<>, container_allocator>;
 
 public:
     /*! @brief Allocator type. */
@@ -322,7 +296,7 @@ public:
     }
 
     /**
-     * @brief Force loads a resource, if its identifier does not exist.
+     * @brief Force loads a resource, even if its identifier already exists.
      * @copydetails load
      */
     template<typename... Args>

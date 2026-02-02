@@ -1,6 +1,6 @@
 # Doxygen configuration (documentation)
 
-find_package(Doxygen 1.13)
+find_package(Doxygen 1.14)
 
 if(DOXYGEN_FOUND)
     include(FetchContent)
@@ -12,15 +12,10 @@ if(DOXYGEN_FOUND)
         GIT_SHALLOW 1
     )
 
-    FetchContent_GetProperties(doxygen-awesome-css)
-
-    if(NOT doxygen-awesome-css_POPULATED)
-        FetchContent_Populate(doxygen-awesome-css)
-        set(doxygen-awesome-css_INCLUDE_DIR ${doxygen-awesome-css_SOURCE_DIR})
-    endif()
-
+    FetchContent_MakeAvailable(doxygen-awesome-css)
+    
     set(DOXY_SOURCE_DIRECTORY ${EnTT_SOURCE_DIR}/src)
-    set(DOXY_CSS_DIRECTORY ${doxygen-awesome-css_INCLUDE_DIR})
+    set(DOXY_CSS_DIRECTORY ${doxygen-awesome-css_SOURCE_DIR})
     set(DOXY_DOCS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set(DOXY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -37,6 +32,7 @@ if(DOXYGEN_FOUND)
             md/core.md
             md/entity.md
             md/faq.md
+            md/graph.md
             md/lib.md
             md/links.md
             md/locator.md
@@ -46,7 +42,6 @@ if(DOXYGEN_FOUND)
             md/reference.md
             md/resource.md
             md/signal.md
-            md/unreal.md
             doxy.in
     )
 

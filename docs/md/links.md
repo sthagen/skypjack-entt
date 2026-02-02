@@ -145,6 +145,10 @@ I hope the following lists can grow much more in the future.
     a roguelite top-down shooter with a high-contrast vector line aesthetic.
   * [EnTT Dino](https://github.com/omgitsaheadcrab/entt_dino): a Dinosaur Game
     clone in C++ using only `SDL2` and `EnTT`.
+  * [Bim!](https://github.com/j-jorge/bim): a last-man-standing arcade online
+    game for Android.
+  * [MonsterWar](https://github.com/WispSnow/MonsterWar): a tower defense game
+    developed in C++ with `SDL3`, `EnTT`, and a few other libraries.
 
 ## Engines and the like:
 
@@ -247,6 +251,9 @@ I hope the following lists can grow much more in the future.
     (or those yet to be).
   * [Physecs](https://github.com/thfProjects/Physecs): real-time 3D rigid body
     physics simulation built on `EnTT`.
+  * [KODZA](https://gitlab.com/arqitek/kodza/): A work in progress game engine.
+  * [Omnix](https://github.com/Ace-codes-swift/Omnix): An under-development,
+    multi-purpose 3D engine for `macOS`, using `EnTT` for the ECS.
 
 ## Articles, videos and blog posts:
 

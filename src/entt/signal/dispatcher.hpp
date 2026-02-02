@@ -9,15 +9,16 @@
 #include <vector>
 #include "../container/dense_map.hpp"
 #include "../core/compressed_pair.hpp"
+#include "../core/concepts.hpp"
 #include "../core/fwd.hpp"
 #include "../core/type_info.hpp"
-#include "../core/utility.hpp"
+#include "../stl/functional.hpp"
 #include "fwd.hpp"
 #include "sigh.hpp"
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 struct basic_dispatcher_handler {
@@ -28,10 +29,8 @@ struct basic_dispatcher_handler {
     [[nodiscard]] virtual std::size_t size() const noexcept = 0;
 };
 
-template<typename Type, typename Allocator>
+template<cvref_unqualified Type, typename Allocator>
 class dispatcher_handler final: public basic_dispatcher_handler {
-    static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Invalid type");
-
     using alloc_traits = std::allocator_traits<Allocator>;
     using signal_type = sigh<void(Type &), Allocator>;
     using container_type = std::vector<Type, typename alloc_traits::template rebind_alloc<Type>>;
@@ -44,13 +43,12 @@ public:
           events{allocator} {}
 
     void publish() override {
-        const auto length = events.size();
+        container_type other{};
+        other.swap(events);
 
-        for(std::size_t pos{}; pos < length; ++pos) {
-            signal.publish(events[pos]);
+        for(auto &&elem: other) {
+            signal.publish(elem);
         }
-
-        events.erase(events.cbegin(), events.cbegin() + static_cast<typename container_type::difference_type>(length));
     }
 
     void disconnect(void *instance) override {
@@ -114,12 +112,11 @@ class basic_dispatcher {
     using mapped_type = std::shared_ptr<internal::basic_dispatcher_handler>;
 
     using alloc_traits = std::allocator_traits<Allocator>;
-    using container_allocator = typename alloc_traits::template rebind_alloc<std::pair<const key_type, mapped_type>>;
-    using container_type = dense_map<key_type, mapped_type, identity, std::equal_to<>, container_allocator>;
+    using container_allocator = alloc_traits::template rebind_alloc<std::pair<const key_type, mapped_type>>;
+    using container_type = dense_map<key_type, mapped_type, stl::identity, std::equal_to<>, container_allocator>;
 
-    template<typename Type>
+    template<cvref_unqualified Type>
     [[nodiscard]] handler_type<Type> &assure(const id_type id) {
-        static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
         auto &&ptr = pools.first()[id];
 
         if(!ptr) {
@@ -130,10 +127,8 @@ class basic_dispatcher {
         return static_cast<handler_type<Type> &>(*ptr);
     }
 
-    template<typename Type>
+    template<cvref_unqualified Type>
     [[nodiscard]] const handler_type<Type> *assure(const id_type id) const {
-        static_assert(std::is_same_v<Type, std::decay_t<Type>>, "Non-decayed types not allowed");
-
         if(auto it = pools.first().find(id); it != pools.first().cend()) {
             return static_cast<const handler_type<Type> *>(it->second.get());
         }

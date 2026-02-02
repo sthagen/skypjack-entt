@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <gtest/gtest.h>
 #include <entt/core/hashed_string.hpp>
@@ -15,59 +16,59 @@
 #include "../../common/config.h"
 #include "../../common/meta_traits.h"
 
-struct base {
-    virtual ~base() = default;
-    int value{3};
-};
-
-struct derived: base {};
-
-struct clazz {
-    operator int() const {
-        return h;
-    }
-
-    int i{0};
-    const int j{1}; // NOLINT
-    base instance{};
-    inline static int h{2};       // NOLINT
-    inline static const int k{3}; // NOLINT
-};
-
-struct setter_getter {
-    int setter(double val) {
-        return value = static_cast<int>(val);
-    }
-
-    [[nodiscard]] int getter() const {
-        return value;
-    }
-
-    int setter_with_ref(const int &val) {
-        return value = val;
-    }
-
-    [[nodiscard]] const int &getter_with_ref() const {
-        return value;
-    }
-
-    static int static_setter(setter_getter &type, int value) {
-        return type.value = value;
-    }
-
-    static int static_getter(const setter_getter &type) {
-        return type.value;
-    }
-
-    int value{0};
-};
-
-struct array {
-    inline static int global[2]; // NOLINT
-    int local[4];                // NOLINT
-};
-
 struct MetaData: ::testing::Test {
+    struct base {
+        virtual ~base() = default;
+        int value{3};
+    };
+
+    struct derived: base {};
+
+    struct clazz {
+        operator int() const {
+            return h;
+        }
+
+        int i{0};
+        const int j{1}; // NOLINT
+        base instance{};
+        inline static int h{2};       // NOLINT
+        inline static const int k{3}; // NOLINT
+    };
+
+    struct setter_getter {
+        int setter(double val) {
+            return value = static_cast<int>(val);
+        }
+
+        [[nodiscard]] int getter() const {
+            return value;
+        }
+
+        int setter_with_ref(const int &val) {
+            return value = val;
+        }
+
+        [[nodiscard]] const int &getter_with_ref() const {
+            return value;
+        }
+
+        static int static_setter(setter_getter &type, int value) {
+            return type.value = value;
+        }
+
+        static int static_getter(const setter_getter &type) {
+            return type.value;
+        }
+
+        int value{0};
+    };
+
+    struct array {
+        inline static int global[2]; // NOLINT
+        int local[4];                // NOLINT
+    };
+
     void SetUp() override {
         using namespace entt::literals;
 
@@ -169,13 +170,13 @@ TEST_F(MetaData, Name) {
     const entt::meta_type type = entt::resolve<clazz>();
     const entt::meta_type other = entt::resolve<setter_getter>();
 
-    ASSERT_EQ(type.data("i"_hs).name(), nullptr);
-    ASSERT_STREQ(type.data("j"_hs).name(), "j");
-    ASSERT_STREQ(type.data("h"_hs).name(), "hhh");
+    ASSERT_EQ(type.data("i"_hs).name(), std::string_view{});
+    ASSERT_EQ(type.data("j"_hs).name(), std::string_view{"j"});
+    ASSERT_EQ(type.data("h"_hs).name(), std::string_view{"hhh"});
 
-    ASSERT_EQ(other.data("z"_hs).name(), nullptr);
-    ASSERT_STREQ(other.data("w"_hs).name(), "w");
-    ASSERT_STREQ(other.data("z_ro"_hs).name(), "readonly");
+    ASSERT_EQ(other.data("z"_hs).name(), std::string_view{});
+    ASSERT_EQ(other.data("w"_hs).name(), std::string_view{"w"});
+    ASSERT_EQ(other.data("z_ro"_hs).name(), std::string_view{"readonly"});
 }
 
 TEST_F(MetaData, Comparison) {

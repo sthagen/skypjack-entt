@@ -2,6 +2,7 @@
 #define ENTT_GRAPH_FLOW_HPP
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -15,7 +16,8 @@
 #include "../core/compressed_pair.hpp"
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
-#include "../core/utility.hpp"
+#include "../stl/functional.hpp"
+#include "../stl/iterator.hpp"
 #include "adjacency_matrix.hpp"
 #include "fwd.hpp"
 
@@ -29,9 +31,9 @@ template<typename Allocator>
 class basic_flow {
     using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(std::is_same_v<typename alloc_traits::value_type, id_type>, "Invalid value type");
-    using task_container_type = dense_set<id_type, identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<id_type>>;
+    using task_container_type = dense_set<id_type, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<id_type>>;
     using ro_rw_container_type = std::vector<std::pair<std::size_t, bool>, typename alloc_traits::template rebind_alloc<std::pair<std::size_t, bool>>>;
-    using deps_container_type = dense_map<id_type, ro_rw_container_type, identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<std::pair<const id_type, ro_rw_container_type>>>;
+    using deps_container_type = dense_map<id_type, ro_rw_container_type, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<std::pair<const id_type, ro_rw_container_type>>>;
     using adjacency_matrix_type = adjacency_matrix<directed_tag, typename alloc_traits::template rebind_alloc<std::size_t>>;
 
     void emplace(const id_type res, const bool is_rw) {
@@ -206,7 +208,7 @@ public:
      * @return The requested identifier.
      */
     [[nodiscard]] id_type operator[](const size_type pos) const {
-        return vertices.cbegin()[static_cast<typename task_container_type::difference_type>(pos)];
+        return vertices.cbegin()[static_cast<task_container_type::difference_type>(pos)];
     }
 
     /*! @brief Clears the flow builder. */
@@ -283,14 +285,11 @@ public:
 
     /**
      * @brief Assigns a range of read-only resources to the current task.
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of elements.
      * @param last An iterator past the last element of the range of elements.
      * @return This flow builder.
      */
-    template<typename It>
-    std::enable_if_t<std::is_same_v<std::remove_const_t<typename std::iterator_traits<It>::value_type>, id_type>, basic_flow &>
-    ro(It first, It last) {
+    basic_flow &ro(stl::input_iterator auto first, stl::input_iterator auto last) {
         for(; first != last; ++first) {
             emplace(*first, false);
         }
@@ -310,14 +309,11 @@ public:
 
     /**
      * @brief Assigns a range of writable resources to the current task.
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of elements.
      * @param last An iterator past the last element of the range of elements.
      * @return This flow builder.
      */
-    template<typename It>
-    std::enable_if_t<std::is_same_v<std::remove_const_t<typename std::iterator_traits<It>::value_type>, id_type>, basic_flow &>
-    rw(It first, It last) {
+    basic_flow &rw(stl::input_iterator auto first, stl::input_iterator auto last) {
         for(; first != last; ++first) {
             emplace(*first, true);
         }

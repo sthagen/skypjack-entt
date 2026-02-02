@@ -1,6 +1,7 @@
 #ifndef ENTT_ENTITY_SNAPSHOT_HPP
 #define ENTT_ENTITY_SNAPSHOT_HPP
 
+#include <concepts>
 #include <cstddef>
 #include <iterator>
 #include <tuple>
@@ -10,13 +11,14 @@
 #include "../config/config.h"
 #include "../container/dense_map.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/iterator.hpp"
 #include "entity.hpp"
 #include "fwd.hpp"
 #include "view.hpp"
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 template<typename Registry>
@@ -52,7 +54,7 @@ public:
     /*! Basic registry type. */
     using registry_type = Registry;
     /*! @brief Underlying entity identifier. */
-    using entity_type = typename registry_type::entity_type;
+    using entity_type = registry_type::entity_type;
 
     /**
      * @brief Constructs an instance that is bound to a given registry.
@@ -95,10 +97,10 @@ public:
         if(const auto *storage = reg->template storage<Type>(id); storage) {
             const typename registry_type::common_type &base = *storage;
 
-            archive(static_cast<typename traits_type::entity_type>(storage->size()));
+            archive(static_cast<traits_type::entity_type>(storage->size()));
 
             if constexpr(std::is_same_v<Type, entity_type>) {
-                archive(static_cast<typename traits_type::entity_type>(storage->free_list()));
+                archive(static_cast<traits_type::entity_type>(storage->free_list()));
 
                 for(auto first = base.rbegin(), last = base.rend(); first != last; ++first) {
                     archive(*first);
@@ -129,19 +131,18 @@ public:
      * the entities in a range.
      * @tparam Type Type of elements to serialize.
      * @tparam Archive Type of output archive.
-     * @tparam It Type of input iterator.
      * @param archive A valid reference to an output archive.
      * @param first An iterator to the first element of the range to serialize.
      * @param last An iterator past the last element of the range to serialize.
      * @param id Optional name used to map the storage within the registry.
      * @return An object of this type to continue creating the snapshot.
      */
-    template<typename Type, typename Archive, typename It>
-    const basic_snapshot &get(Archive &archive, It first, It last, const id_type id = type_hash<Type>::value()) const {
+    template<typename Type, typename Archive>
+    const basic_snapshot &get(Archive &archive, stl::input_iterator auto first, stl::input_iterator auto last, const id_type id = type_hash<Type>::value()) const {
         static_assert(!std::is_same_v<Type, entity_type>, "Entity types not supported");
 
         if(const auto *storage = reg->template storage<Type>(id); storage && !storage->empty()) {
-            archive(static_cast<typename traits_type::entity_type>(std::distance(first, last)));
+            archive(static_cast<traits_type::entity_type>(std::distance(first, last)));
 
             for(; first != last; ++first) {
                 if(const auto entt = *first; storage->contains(entt)) {
@@ -181,7 +182,7 @@ public:
     /*! Basic registry type. */
     using registry_type = Registry;
     /*! @brief Underlying entity identifier. */
-    using entity_type = typename registry_type::entity_type;
+    using entity_type = registry_type::entity_type;
 
     /**
      * @brief Constructs an instance that is bound to a given registry.
@@ -307,7 +308,7 @@ class basic_continuous_loader {
     static_assert(!std::is_const_v<Registry>, "Non-const registry type required");
     using traits_type = entt_traits<typename Registry::entity_type>;
 
-    void restore(typename Registry::entity_type entt) {
+    void restore(Registry::entity_type entt) {
         if(const auto entity = to_entity(entt); remloc.contains(entity) && remloc[entity].first == entt) {
             if(!reg->valid(remloc[entity].second)) {
                 remloc[entity].second = reg->create();
@@ -324,7 +325,7 @@ class basic_continuous_loader {
 
         for(auto &&pair: container) {
             using first_type = std::remove_const_t<typename std::decay_t<decltype(pair)>::first_type>;
-            using second_type = typename std::decay_t<decltype(pair)>::second_type;
+            using second_type = std::decay_t<decltype(pair)>::second_type;
 
             if constexpr(std::is_same_v<first_type, entity_type> && std::is_same_v<second_type, entity_type>) {
                 other.emplace(map(pair.first), map(pair.second));
@@ -366,7 +367,7 @@ public:
     /*! Basic registry type. */
     using registry_type = Registry;
     /*! @brief Underlying entity identifier. */
-    using entity_type = typename registry_type::entity_type;
+    using entity_type = registry_type::entity_type;
 
     /**
      * @brief Constructs an instance that is bound to a given registry.

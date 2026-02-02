@@ -4,33 +4,38 @@
 #include <entt/entity/registry.hpp>
 #include <entt/entity/storage.hpp>
 
-template<typename Type, typename Entity>
-struct entt::storage_type<Type, Entity> {
+struct SignalLess: testing::Test {
+    enum my_entity : std::uint32_t {};
+
+    template<typename>
+    struct has_on_construct: std::false_type {};
+
+    template<typename Type>
+    requires requires { &entt::storage_type_t<Type, my_entity>::on_construct; }
+    struct has_on_construct<Type>: std::true_type {};
+
+    template<typename Type>
+    static constexpr auto has_on_construct_v = has_on_construct<Type>::value;
+};
+
+template<typename Type>
+struct entt::storage_type<Type, SignalLess::my_entity> {
     // no signal regardless of element type ...
-    using type = basic_storage<Type, Entity>;
+    using type = basic_storage<Type, SignalLess::my_entity>;
 };
 
-template<typename Entity>
-struct entt::storage_type<char, Entity> {
+template<>
+struct entt::storage_type<char, SignalLess::my_entity> {
     // ... unless it's char, because yes.
-    using type = sigh_mixin<basic_storage<char, Entity>>;
+    using type = sigh_mixin<basic_storage<char, SignalLess::my_entity>>;
 };
 
-template<typename, typename, typename = void>
-struct has_on_construct: std::false_type {};
-
-template<typename Entity, typename Type>
-struct has_on_construct<Entity, Type, std::void_t<decltype(&entt::storage_type_t<Type>::on_construct)>>: std::true_type {};
-
-template<typename Entity, typename Type>
-inline constexpr auto has_on_construct_v = has_on_construct<Entity, Type>::value;
-
-TEST(Example, SignalLess) {
+TEST_F(SignalLess, Example) {
     // invoking registry::on_construct<int> is a compile-time error
-    ASSERT_FALSE((has_on_construct_v<entt::entity, int>));
-    ASSERT_TRUE((has_on_construct_v<entt::entity, char>));
+    ASSERT_FALSE((has_on_construct_v<int>));
+    ASSERT_TRUE((has_on_construct_v<char>));
 
-    entt::registry registry;
+    entt::basic_registry<my_entity> registry;
     const std::array entity{registry.create()};
 
     // literally a test for storage_adapter_mixin

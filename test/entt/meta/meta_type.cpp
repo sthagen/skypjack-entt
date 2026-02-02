@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 #include <gtest/gtest.h>
@@ -20,108 +21,108 @@
 #include "../../common/config.h"
 #include "../../common/meta_traits.h"
 
-template<typename Type>
-void set(Type &elem, Type value) {
-    elem = value;
-}
-
-template<typename Type>
-Type get(Type &elem) {
-    return elem;
-}
-
-struct base {
-    char value{'c'};
-
-    static int f() {
-        return 0;
-    }
-};
-
-struct derived: base {
-    derived()
-        : base{} {}
-};
-
-struct abstract {
-    virtual ~abstract() = default;
-
-    virtual void func(int) {}
-    void base_only(int) {}
-};
-
-struct concrete: base, abstract {
-    void func(int val) override {
-        abstract::func(val);
-        value = val;
-    }
-
-    int value{3};
-};
-
-struct clazz {
-    clazz() = default;
-
-    clazz(const base &, int val)
-        : value{val} {}
-
-    void member() {}
-    static void func() {}
-
-    [[nodiscard]] operator int() const {
-        return value;
-    }
-
-    int value{};
-};
-
-struct overloaded_func {
-    [[nodiscard]] int f(const base &, int first, int second) {
-        return f(first, second);
-    }
-
-    [[nodiscard]] int f(int first, const int second) {
-        value = first;
-        return second * second;
-    }
-
-    [[nodiscard]] int f(int val) {
-        return 2 * std::as_const(*this).f(val);
-    }
-
-    [[nodiscard]] int f(int val) const {
-        return val * value;
-    }
-
-    [[nodiscard]] float f(int first, const float second) {
-        value = first;
-        return second + second;
-    }
-
-    int value{};
-};
-
-struct from_void_callback {
-    from_void_callback(bool &ref)
-        : cb{&ref} {}
-
-    from_void_callback(const from_void_callback &) = delete;
-    from_void_callback &operator=(const from_void_callback &) = delete;
-
-    ~from_void_callback() {
-        *cb = !*cb;
-    }
-
-private:
-    bool *cb;
-};
-
-enum class property_type : std::uint8_t {
-    value,
-    other
-};
-
 struct MetaType: ::testing::Test {
+    template<typename Type>
+    static void set(Type &elem, Type value) {
+        elem = value;
+    }
+
+    template<typename Type>
+    static Type get(Type &elem) {
+        return elem;
+    }
+
+    struct base {
+        char value{'c'};
+
+        static int f() {
+            return 0;
+        }
+    };
+
+    struct derived: base {
+        derived()
+            : base{} {}
+    };
+
+    struct abstract {
+        virtual ~abstract() = default;
+
+        virtual void func(int) {}
+        void base_only(int) {}
+    };
+
+    struct concrete: base, abstract {
+        void func(int val) override {
+            abstract::func(val);
+            value = val;
+        }
+
+        int value{3};
+    };
+
+    struct clazz {
+        clazz() = default;
+
+        clazz(const base &, int val)
+            : value{val} {}
+
+        void member() {}
+        static void func() {}
+
+        [[nodiscard]] operator int() const {
+            return value;
+        }
+
+        int value{};
+    };
+
+    struct overloaded_func {
+        [[nodiscard]] int f(const base &, int first, int second) {
+            return f(first, second);
+        }
+
+        [[nodiscard]] int f(int first, const int second) {
+            value = first;
+            return second * second;
+        }
+
+        [[nodiscard]] int f(int val) {
+            return 2 * std::as_const(*this).f(val);
+        }
+
+        [[nodiscard]] int f(int val) const {
+            return val * value;
+        }
+
+        [[nodiscard]] float f(int first, const float second) {
+            value = first;
+            return second + second;
+        }
+
+        int value{};
+    };
+
+    struct from_void_callback {
+        from_void_callback(bool &ref)
+            : cb{&ref} {}
+
+        from_void_callback(const from_void_callback &) = delete;
+        from_void_callback &operator=(const from_void_callback &) = delete;
+
+        ~from_void_callback() {
+            *cb = !*cb;
+        }
+
+    private:
+        bool *cb;
+    };
+
+    enum class property_type : std::uint8_t {
+        value,
+        other
+    };
+
     void SetUp() override {
         using namespace entt::literals;
 
@@ -313,10 +314,10 @@ TEST_F(MetaType, IdAndInfo) {
 TEST_F(MetaType, Name) {
     using namespace entt::literals;
 
-    ASSERT_EQ(entt::resolve<base>().name(), nullptr);
-    ASSERT_STREQ(entt::resolve<derived>().name(), "derived");
-    ASSERT_STREQ(entt::resolve<unsigned int>().name(), "uint");
-    ASSERT_EQ(entt::resolve<void>().name(), nullptr);
+    ASSERT_EQ(entt::resolve<base>().name(), std::string_view{});
+    ASSERT_EQ(entt::resolve<derived>().name(), std::string_view{"derived"});
+    ASSERT_EQ(entt::resolve<unsigned int>().name(), std::string_view{"uint"});
+    ASSERT_EQ(entt::resolve<void>().name(), std::string_view{});
 }
 
 TEST_F(MetaType, SizeOf) {
@@ -422,7 +423,7 @@ TEST_F(MetaType, Base) {
 
     for(auto curr: type.base()) {
         ASSERT_EQ(curr.first, entt::type_id<base>().hash());
-        ASSERT_EQ(curr.second, entt::resolve<base>());
+        ASSERT_EQ(curr.second.type(), entt::resolve<base>());
     }
 }
 
@@ -906,7 +907,7 @@ TEST_F(MetaType, Variables) {
 TEST_F(MetaType, ResetAndReRegistrationAfterReset) {
     using namespace entt::literals;
 
-    ASSERT_FALSE(entt::internal::meta_context::from(entt::locator<entt::meta_ctx>::value_or()).value.empty());
+    ASSERT_FALSE(entt::internal::meta_context::from(entt::locator<entt::meta_ctx>::value_or()).bucket.empty());
 
     entt::meta_reset<double>();
     entt::meta_reset<unsigned int>();
@@ -923,7 +924,7 @@ TEST_F(MetaType, ResetAndReRegistrationAfterReset) {
     ASSERT_FALSE(entt::resolve("derived"_hs));
     ASSERT_FALSE(entt::resolve("class"_hs));
 
-    ASSERT_TRUE(entt::internal::meta_context::from(entt::locator<entt::meta_ctx>::value_or()).value.empty());
+    ASSERT_TRUE(entt::internal::meta_context::from(entt::locator<entt::meta_ctx>::value_or()).bucket.empty());
 
     // implicitly generated default constructor is not cleared
     ASSERT_TRUE(entt::resolve<clazz>().construct());

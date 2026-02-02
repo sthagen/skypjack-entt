@@ -16,6 +16,7 @@
 #include <vector>
 #include "../container/dense_map.hpp"
 #include "../container/dense_set.hpp"
+#include "../core/concepts.hpp"
 #include "../core/type_traits.hpp"
 #include "context.hpp"
 #include "fwd.hpp"
@@ -24,32 +25,35 @@
 
 namespace entt {
 
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
-template<typename Type, typename = void>
+template<typename Type>
 struct sequence_container_extent: integral_constant<meta_dynamic_extent> {};
 
 template<typename Type>
-struct sequence_container_extent<Type, std::enable_if_t<is_complete_v<std::tuple_size<Type>>>>: integral_constant<std::tuple_size_v<Type>> {};
+requires is_complete_v<std::tuple_size<Type>>
+struct sequence_container_extent<Type>: integral_constant<std::tuple_size_v<Type>> {};
 
 template<typename Type>
 inline constexpr std::size_t sequence_container_extent_v = sequence_container_extent<Type>::value;
 
-template<typename, typename = void>
+template<typename>
 struct key_only_associative_container: std::true_type {};
 
 template<typename Type>
-struct key_only_associative_container<Type, std::void_t<typename Type::mapped_type>>: std::false_type {};
+requires requires { typename Type::mapped_type; }
+struct key_only_associative_container<Type>: std::false_type {};
 
 template<typename Type>
 inline constexpr bool key_only_associative_container_v = key_only_associative_container<Type>::value;
 
-template<typename, typename = void>
+template<typename>
 struct reserve_aware_container: std::false_type {};
 
 template<typename Type>
-struct reserve_aware_container<Type, std::void_t<decltype(&Type::reserve)>>: std::true_type {};
+requires requires(Type cont) { cont.reserve(0u); }
+struct reserve_aware_container<Type>: std::true_type {};
 
 template<typename Type>
 inline constexpr bool reserve_aware_container_v = reserve_aware_container<Type>::value;
@@ -61,19 +65,15 @@ inline constexpr bool reserve_aware_container_v = reserve_aware_container<Type>:
  * @brief General purpose implementation of meta sequence container traits.
  * @tparam Type Type of underlying sequence container.
  */
-template<typename Type>
+template<cvref_unqualified Type>
 struct basic_meta_sequence_container_traits {
-    static_assert(std::is_same_v<Type, std::remove_const_t<std::remove_reference_t<Type>>>, "Unexpected type");
-
     /*! @brief Unsigned integer type. */
-    using size_type = typename meta_sequence_container::size_type;
+    using size_type = meta_sequence_container::size_type;
     /*! @brief Meta iterator type. */
-    using iterator = typename meta_sequence_container::iterator;
+    using iterator = meta_sequence_container::iterator;
 
     /*! @brief Number of elements, or `meta_dynamic_extent` if dynamic. */
     static constexpr std::size_t extent = internal::sequence_container_extent_v<Type>;
-    /*! @brief True in case of fixed size containers, false otherwise. */
-    [[deprecated("use ::extent instead")]] static constexpr bool fixed_size = (extent != meta_dynamic_extent);
 
     /**
      * @brief Returns the number of elements in a container.
@@ -160,7 +160,7 @@ struct basic_meta_sequence_container_traits {
             auto *const non_const = any_cast<typename Type::iterator>(&it.base());
             return {area, static_cast<Type *>(container)->insert(
                               non_const ? *non_const : any_cast<const typename Type::const_iterator &>(it.base()),
-                              (value != nullptr) ? *static_cast<const typename Type::value_type *>(value) : *static_cast<const std::remove_reference_t<typename Type::const_reference> *>(cref))};
+                              (value != nullptr) ? *static_cast<const Type::value_type *>(value) : *static_cast<const std::remove_reference_t<typename Type::const_reference> *>(cref))};
         } else {
             return iterator{};
         }
@@ -187,14 +187,12 @@ struct basic_meta_sequence_container_traits {
  * @brief General purpose implementation of meta associative container traits.
  * @tparam Type Type of underlying associative container.
  */
-template<typename Type>
+template<cvref_unqualified Type>
 struct basic_meta_associative_container_traits {
-    static_assert(std::is_same_v<Type, std::remove_const_t<std::remove_reference_t<Type>>>, "Unexpected type");
-
     /*! @brief Unsigned integer type. */
-    using size_type = typename meta_associative_container::size_type;
+    using size_type = meta_associative_container::size_type;
     /*! @brief Meta iterator type. */
-    using iterator = typename meta_associative_container::iterator;
+    using iterator = meta_associative_container::iterator;
 
     /*! @brief True in case of key-only containers, false otherwise. */
     static constexpr bool key_only = internal::key_only_associative_container_v<Type>;
@@ -257,9 +255,9 @@ struct basic_meta_associative_container_traits {
      */
     [[nodiscard]] static bool insert(void *container, const void *key, [[maybe_unused]] const void *value) {
         if constexpr(key_only) {
-            return static_cast<Type *>(container)->insert(*static_cast<const typename Type::key_type *>(key)).second;
+            return static_cast<Type *>(container)->insert(*static_cast<const Type::key_type *>(key)).second;
         } else {
-            return static_cast<Type *>(container)->emplace(*static_cast<const typename Type::key_type *>(key), *static_cast<const typename Type::mapped_type *>(value)).second;
+            return static_cast<Type *>(container)->emplace(*static_cast<const Type::key_type *>(key), *static_cast<const Type::mapped_type *>(value)).second;
         }
     }
 
@@ -270,7 +268,7 @@ struct basic_meta_associative_container_traits {
      * @return Number of elements removed (either 0 or 1).
      */
     [[nodiscard]] static size_type erase(void *container, const void *key) {
-        return static_cast<Type *>(container)->erase(*static_cast<const typename Type::key_type *>(key));
+        return static_cast<Type *>(container)->erase(*static_cast<const Type::key_type *>(key));
     }
 
     /**
@@ -282,8 +280,8 @@ struct basic_meta_associative_container_traits {
      * @return An iterator to the element with the given key, if any.
      */
     static iterator find(const meta_ctx &area, void *container, const void *as_const, const void *key) {
-        return (container != nullptr) ? iterator{area, std::bool_constant<key_only>{}, static_cast<Type *>(container)->find(*static_cast<const typename Type::key_type *>(key))}
-                                      : iterator{area, std::bool_constant<key_only>{}, static_cast<const Type *>(as_const)->find(*static_cast<const typename Type::key_type *>(key))};
+        return (container != nullptr) ? iterator{area, std::bool_constant<key_only>{}, static_cast<Type *>(container)->find(*static_cast<const Type::key_type *>(key))}
+                                      : iterator{area, std::bool_constant<key_only>{}, static_cast<const Type *>(as_const)->find(*static_cast<const Type::key_type *>(key))};
     }
 };
 

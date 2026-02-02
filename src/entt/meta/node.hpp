@@ -2,6 +2,7 @@
 #define ENTT_META_NODE_HPP
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <memory>
 #include <type_traits>
@@ -9,21 +10,19 @@
 #include <vector>
 #include "../config/config.h"
 #include "../core/bit.hpp"
+#include "../core/concepts.hpp"
 #include "../core/enum.hpp"
 #include "../core/fwd.hpp"
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
 #include "../core/utility.hpp"
 #include "context.hpp"
+#include "fwd.hpp"
 #include "type_traits.hpp"
 
 namespace entt {
 
-class meta_any;
-class meta_type;
-class meta_handle;
-
-/*! @cond TURN_OFF_DOXYGEN */
+/*! @cond ENTT_INTERNAL */
 namespace internal {
 
 enum class meta_traits : std::uint32_t {
@@ -45,16 +44,16 @@ enum class meta_traits : std::uint32_t {
 };
 
 template<typename Type>
+requires std::is_enum_v<Type>
 [[nodiscard]] auto meta_to_user_traits(const meta_traits traits) noexcept {
-    static_assert(std::is_enum_v<Type>, "Invalid enum type");
-    constexpr auto shift = popcount(static_cast<std::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
+    constexpr auto shift = std::popcount(static_cast<std::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
     return Type{static_cast<std::underlying_type_t<Type>>(static_cast<std::underlying_type_t<meta_traits>>(traits) >> shift)};
 }
 
 template<typename Type>
+requires std::is_enum_v<Type>
 [[nodiscard]] auto user_to_meta_traits(const Type value) noexcept {
-    static_assert(std::is_enum_v<Type>, "Invalid enum type");
-    constexpr auto shift = popcount(static_cast<std::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
+    constexpr auto shift = std::popcount(static_cast<std::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
     const auto traits = static_cast<std::underlying_type_t<internal::meta_traits>>(static_cast<std::underlying_type_t<Type>>(value));
     ENTT_ASSERT(traits < ((~static_cast<std::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits)) >> shift), "Invalid traits");
     return meta_traits{traits << shift};
@@ -63,18 +62,18 @@ template<typename Type>
 struct meta_type_node;
 
 struct meta_custom_node {
-    id_type type{};
+    id_type id{};
     std::shared_ptr<void> value{};
 };
 
 struct meta_base_node {
-    id_type type{};
-    const meta_type_node &(*resolve)(const meta_context &) noexcept {};
+    id_type id{};
+    const meta_type_node &(*type)(const meta_context &) noexcept {};
     const void *(*cast)(const void *) noexcept {};
 };
 
 struct meta_conv_node {
-    id_type type{};
+    id_type id{};
     meta_any (*conv)(const meta_ctx &, const void *){};
 };
 
@@ -148,15 +147,15 @@ struct meta_type_node {
     std::unique_ptr<meta_type_descriptor> details{};
 };
 
-template<auto Member, typename Type, typename Value>
+template<typename Type, typename Value>
 [[nodiscard]] auto *find_member(Type &from, const Value value) {
     for(auto &&elem: from) {
-        if((elem.*Member) == value) {
+        if(elem.id == value) {
             return &elem;
         }
     }
 
-    return static_cast<typename Type::value_type *>(nullptr);
+    return static_cast<Type::value_type *>(nullptr);
 }
 
 [[nodiscard]] inline auto *find_overload(meta_func_node *curr, std::remove_pointer_t<decltype(meta_func_node::invoke)> *const ref) {
@@ -166,16 +165,16 @@ template<auto Member, typename Type, typename Value>
 
 template<auto Member>
 [[nodiscard]] auto *look_for(const meta_context &context, const meta_type_node &node, const id_type id, bool recursive) {
-    using value_type = typename std::remove_reference_t<decltype((node.details.get()->*Member))>::value_type;
+    using value_type = std::remove_reference_t<decltype((node.details.get()->*Member))>::value_type;
 
     if(node.details) {
-        if(auto *member = find_member<&value_type::id>((node.details.get()->*Member), id); member != nullptr) {
+        if(auto *member = find_member((node.details.get()->*Member), id); member != nullptr) {
             return member;
         }
 
         if(recursive) {
             for(auto &&curr: node.details->base) {
-                if(auto *elem = look_for<Member>(context, curr.resolve(context), id, recursive); elem) {
+                if(auto *elem = look_for<Member>(context, curr.type(context), id, recursive); elem) {
                     return elem;
                 }
             }
@@ -185,13 +184,13 @@ template<auto Member>
     return static_cast<value_type *>(nullptr);
 }
 
-template<typename Type>
+template<cvref_unqualified Type>
 const meta_type_node &resolve(const meta_context &) noexcept;
 
 template<typename... Args>
 [[nodiscard]] const meta_type_node &meta_arg_node(const meta_context &context, type_list<Args...>, const std::size_t index) noexcept {
     using resolve_type = const meta_type_node &(*)(const meta_context &) noexcept;
-    constexpr std::array<resolve_type, sizeof...(Args)> list{&resolve<std::remove_const_t<std::remove_reference_t<Args>>>...};
+    constexpr std::array<resolve_type, sizeof...(Args)> list{&resolve<std::remove_cvref_t<Args>>...};
     ENTT_ASSERT(index < sizeof...(Args), "Out of bounds");
     return list[index](context);
 }
@@ -199,9 +198,9 @@ template<typename... Args>
 [[nodiscard]] inline const void *try_cast(const meta_context &context, const meta_type_node &from, const id_type to, const void *instance) noexcept {
     if(from.details) {
         for(auto &&curr: from.details->base) {
-            if(const void *other = curr.cast(instance); curr.type == to) {
+            if(const void *other = curr.cast(instance); curr.id == to) {
                 return other;
-            } else if(const void *elem = try_cast(context, curr.resolve(context), to, other); elem) {
+            } else if(const void *elem = try_cast(context, curr.type(context), to, other); elem) {
                 return elem;
             }
         }
@@ -271,13 +270,12 @@ auto setup_node_for() noexcept {
 }
 
 [[nodiscard]] inline const meta_type_node *try_resolve(const meta_context &context, const type_info &info) noexcept {
-    const auto it = context.value.find(info.hash());
-    return (it != context.value.end()) ? it->second.get() : nullptr;
+    const auto it = context.bucket.find(info.hash());
+    return (it != context.bucket.end()) ? it->second.get() : nullptr;
 }
 
-template<typename Type>
+template<cvref_unqualified Type>
 [[nodiscard]] const meta_type_node &resolve(const meta_context &context) noexcept {
-    static_assert(std::is_same_v<Type, std::remove_const_t<std::remove_reference_t<Type>>>, "Invalid type");
     static const meta_type_node node = setup_node_for<Type>();
     const auto *elem = try_resolve(context, *node.info);
     return (elem == nullptr) ? node : *elem;

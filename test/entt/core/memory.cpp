@@ -13,14 +13,6 @@
 #include "../../common/throwing_type.hpp"
 #include "../../common/tracked_memory_resource.hpp"
 
-TEST(ToAddress, Functionalities) {
-    const std::shared_ptr<int> shared = std::make_shared<int>();
-    auto *plain = &*shared;
-
-    ASSERT_EQ(entt::to_address(shared), plain);
-    ASSERT_EQ(entt::to_address(plain), plain);
-}
-
 TEST(PoccaPocmaAndPocs, Functionalities) {
     test::basic_test_allocator<int> lhs;
     test::basic_test_allocator<int> rhs;
@@ -75,7 +67,7 @@ TEST(AllocateUnique, NoUsesAllocatorConstruction) {
 }
 
 TEST(AllocateUnique, UsesAllocatorConstruction) {
-    using string_type = typename test::tracked_memory_resource::string_type;
+    using string_type = test::tracked_memory_resource::string_type;
 
     test::tracked_memory_resource memory_resource{};
     std::pmr::polymorphic_allocator<string_type> allocator{&memory_resource};
@@ -186,7 +178,7 @@ TEST(UninitializedConstructUsingAllocator, NoUsesAllocatorConstruction) {
 #    include <memory_resource>
 
 TEST(UninitializedConstructUsingAllocator, UsesAllocatorConstruction) {
-    using string_type = typename test::tracked_memory_resource::string_type;
+    using string_type = test::tracked_memory_resource::string_type;
 
     test::tracked_memory_resource memory_resource{};
     const std::pmr::polymorphic_allocator<string_type> allocator{&memory_resource};

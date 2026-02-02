@@ -18,14 +18,11 @@ TODO:
 * auto type info data from types if present
 * storage entity: fast range-push from above
 * table: pop back to support swap and pop, single column access, empty type optimization
-* review cmake warning about FetchContent_Populate (need .28 and EXCLUDE_FROM_ALL for FetchContent)
 * suppress -Wself-move on CI with g++13
 * runtime types support for meta for types that aren't backed by C++ types
 * built-in no-pagination storage - no_pagination page size as limits::max
 * any cdynamic to support const ownership construction
 * allow passing arguments to meta setter/getter (we can fallback on meta invoke probably)
-* FetchContent_Populate -> FetchContent_MakeAvailable warnings
-* doc: IMPLICIT_DIR_DOCS for dir docs or \dir
 * meta non-const allow_cast overloads: (const int &) to (int &) is not allowed, but (const int &) to (double &) is allowed (support only for convertibles)
 * review build process for testbed (i.e. tests first due to SDL)
 * use unique_ptr or any for meta_custom_node
@@ -35,3 +32,10 @@ TODO:
 * archetype-like a-là EnTT support (see my own notes)
 * meta: conversion_helper machinery has lot of room for improvements
 * organizer: view/storage only based model, no registry
+* introduce a way to inject stl from outside too
+* review sentinels (std::default_sentinel and the like)
+* review non-const to const iterator conversions
+* auto-detect meta pointer-like types from dedicated type member
+* export optional as meta_pointer like (or refine meta-pointer like detection)
+* ENTT_FORCE_STL on the CI
+* redesign snapshot as a whole

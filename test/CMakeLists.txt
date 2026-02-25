@@ -240,6 +240,7 @@ SETUP_BASIC_TEST(
         entt/core/any.cpp
         entt/core/bit.cpp
         entt/core/compressed_pair.cpp
+        entt/core/concepts.cpp
         entt/core/enum.cpp
         entt/core/family.cpp
         entt/core/hashed_string.cpp
@@ -314,10 +315,10 @@ SETUP_BASIC_TEST(
         entt/meta/meta_ctor.cpp
         entt/meta/meta_custom.cpp
         entt/meta/meta_data.cpp
+        entt/meta/meta_dereference.cpp
         entt/meta/meta_factory.cpp
         entt/meta/meta_func.cpp
         entt/meta/meta_handle.cpp
-        entt/meta/meta_pointer.cpp
         entt/meta/meta_range.cpp
         entt/meta/meta_template.cpp
         entt/meta/meta_type.cpp
@@ -367,6 +368,7 @@ SETUP_BASIC_TEST(
     NAME stl
     SOURCES
         entt/stl/functional.cpp
+        entt/stl/iterator.cpp
         entt/stl/memory.cpp
     DEFS ENTT_USE_STL
 )

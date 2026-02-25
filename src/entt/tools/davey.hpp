@@ -5,7 +5,7 @@
 #include <ios>
 #include <sstream>
 #include <string>
-#include <imgui.h>
+#include "../config/config.h"
 #include "../entity/mixin.hpp"
 #include "../entity/registry.hpp"
 #include "../entity/sparse_set.hpp"
@@ -16,6 +16,10 @@
 #include "../meta/meta.hpp"
 #include "../meta/pointer.hpp"
 #include "../meta/resolve.hpp"
+
+#if __has_include(<imgui.h>)
+#    include <imgui.h>
+#endif
 
 namespace entt {
 
@@ -130,6 +134,10 @@ static void present_element(const meta_any &obj, OnEntity on_entity) {
             const std::string underlying_type{data.type().info().name()};
             ImGui::Text("%s: %s", label, underlying_type.data());
         }
+    }
+
+    for([[maybe_unused]] const auto [id, base]: obj.type().base()) {
+        present_element<Entity>(obj.allow_cast(base.type()), on_entity);
     }
 }
 

@@ -131,6 +131,22 @@ TEST_F(MetaAny, Empty) {
     ASSERT_FALSE(std::as_const(any).as_associative_container());
 }
 
+TEST_F(MetaAny, EmptyAsRef) {
+    entt::meta_any any{};
+
+    ASSERT_FALSE(any);
+    ASSERT_FALSE(any.type());
+    ASSERT_EQ(any.base().data(), nullptr);
+    ASSERT_EQ(any, entt::meta_any{});
+
+    auto other = any.as_ref();
+
+    ASSERT_FALSE(other);
+    ASSERT_FALSE(other.type());
+    ASSERT_EQ(other.base().data(), nullptr);
+    ASSERT_EQ(other, entt::meta_any{});
+}
+
 TEST_F(MetaAny, Context) {
     entt::meta_any any{};
     const entt::meta_ctx ctx{};
@@ -1600,4 +1616,25 @@ TEST_F(MetaAny, ForwardAsMeta) {
 
     ASSERT_NE(any.base().data(), &value);
     ASSERT_EQ(ref.base().data(), &value);
+}
+
+TEST_F(MetaAny, NonCopyableType) {
+    const std::unique_ptr<int> value{};
+    entt::meta_any any{std::in_place_type<std::unique_ptr<int>>};
+    entt::meta_any other = entt::forward_as_meta(value);
+
+    ASSERT_TRUE(any);
+    ASSERT_TRUE(other);
+
+    ASSERT_FALSE(any.assign(std::move(other)));
+
+    entt::meta_any copy{any};
+
+    ASSERT_TRUE(any);
+    ASSERT_FALSE(copy);
+
+    copy = any;
+
+    ASSERT_TRUE(any);
+    ASSERT_FALSE(copy);
 }

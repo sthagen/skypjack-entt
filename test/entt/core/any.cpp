@@ -9,12 +9,9 @@
 #include <gtest/gtest.h>
 #include <entt/core/any.hpp>
 #include <entt/core/type_info.hpp>
-#include "../../common/aggregate.h"
 #include "../../common/config.h"
 #include "../../common/linter.hpp"
-#include "../../common/new_delete.h"
-#include "../../common/non_comparable.h"
-#include "../../common/non_movable.h"
+#include "../../common/value_type.h"
 
 template<std::size_t Len>
 struct tracker {

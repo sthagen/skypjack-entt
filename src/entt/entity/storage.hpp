@@ -261,13 +261,15 @@ class basic_storage: public basic_sparse_set<Entity, typename std::allocator_tra
         const auto from = (sz + traits_type::page_size - 1u) / traits_type::page_size;
         allocator_type allocator{get_allocator()};
 
-        for(auto pos = sz, length = base_type::size(); pos < length; ++pos) {
-            if constexpr(traits_type::in_place_delete) {
-                if(base_type::data()[pos] != tombstone) {
+        if constexpr(!std::is_trivially_destructible_v<element_type>) {
+            for(auto pos = sz, length = base_type::size(); pos < length; ++pos) {
+                if constexpr(traits_type::in_place_delete) {
+                    if(base_type::data()[pos] != tombstone) {
+                        alloc_traits::destroy(allocator, std::addressof(element_at(pos)));
+                    }
+                } else {
                     alloc_traits::destroy(allocator, std::addressof(element_at(pos)));
                 }
-            } else {
-                alloc_traits::destroy(allocator, std::addressof(element_at(pos)));
             }
         }
 
@@ -322,31 +324,38 @@ protected:
             auto &elem = element_at(base_type::index(*first));
 
             if constexpr(traits_type::in_place_delete) {
-                base_type::in_place_pop(first);
+                base_type::in_place_pop(*first);
                 alloc_traits::destroy(allocator, std::addressof(elem));
+            } else if constexpr(std::is_trivially_destructible_v<element_type>) {
+                elem = std::move(element_at(base_type::size() - 1u));
+                base_type::swap_and_pop(*first);
             } else {
                 auto &other = element_at(base_type::size() - 1u);
                 // destroying on exit allows reentrant destructors
                 [[maybe_unused]] auto unused = std::exchange(elem, std::move(other));
                 alloc_traits::destroy(allocator, std::addressof(other));
-                base_type::swap_and_pop(first);
+                base_type::swap_and_pop(*first);
             }
         }
     }
 
     /*! @brief Erases all entities of a storage. */
     void pop_all() override {
-        allocator_type allocator{get_allocator()};
+        if constexpr(std::is_trivially_destructible_v<element_type>) {
+            base_type::pop_all();
+        } else {
+            allocator_type allocator{get_allocator()};
 
-        for(auto first = base_type::begin(); !(first.index() < 0); ++first) {
-            if constexpr(traits_type::in_place_delete) {
-                if(*first != tombstone) {
-                    base_type::in_place_pop(first);
+            for(auto first = base_type::begin(); !(first.index() < 0); ++first) {
+                if constexpr(traits_type::in_place_delete) {
+                    if(*first != tombstone) {
+                        base_type::in_place_pop(*first);
+                        alloc_traits::destroy(allocator, std::addressof(element_at(static_cast<size_type>(first.index()))));
+                    }
+                } else {
+                    base_type::swap_and_pop(*first);
                     alloc_traits::destroy(allocator, std::addressof(element_at(static_cast<size_type>(first.index()))));
                 }
-            } else {
-                base_type::swap_and_pop(first);
-                alloc_traits::destroy(allocator, std::addressof(element_at(static_cast<size_type>(first.index()))));
             }
         }
     }

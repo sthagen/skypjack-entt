@@ -6,8 +6,7 @@
 #include <entt/core/type_info.hpp>
 #include <entt/meta/context.hpp>
 #include <entt/meta/meta.hpp>
-#include "../../../common/boxed_type.h"
-#include "../../../common/empty.h"
+#include "../../../common/value_type.h"
 
 #define ASSIGN_TYPE_ID(clazz) \
     template<> \

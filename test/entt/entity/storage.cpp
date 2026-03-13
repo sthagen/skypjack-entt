@@ -12,10 +12,8 @@
 #include <entt/entity/component.hpp>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/storage.hpp>
-#include "../../common/aggregate.h"
 #include "../../common/config.h"
 #include "../../common/linter.hpp"
-#include "../../common/new_delete.h"
 #include "../../common/throwing_allocator.hpp"
 #include "../../common/throwing_type.hpp"
 #include "../../common/tracked_memory_resource.hpp"

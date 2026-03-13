@@ -19,11 +19,8 @@
 #include <entt/entity/storage.hpp>
 #include <entt/entity/view.hpp>
 #include <entt/signal/sigh.hpp>
-#include "../../common/aggregate.h"
 #include "../../common/config.h"
-#include "../../common/empty.h"
 #include "../../common/mixin.hpp"
-#include "../../common/non_default_constructible.h"
 #include "../../common/value_type.h"
 
 struct Registry: testing::Test {

@@ -206,7 +206,7 @@ private:
  * @tparam Entity A valid entity type.
  * @tparam Allocator Type of allocator used to manage memory and elements.
  */
-template<typename Type, entity_like Entity, typename Allocator>
+template<typename Type, typename Entity, typename Allocator>
 class basic_storage: public basic_sparse_set<Entity, typename std::allocator_traits<Allocator>::template rebind_alloc<Entity>> {
     using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(std::is_same_v<typename alloc_traits::value_type, Type>, "Invalid value type");
@@ -719,16 +719,15 @@ public:
      *
      * @sa construct
      *
-     * @tparam EIt Type of input iterator.
-     * @tparam CIt Type of input iterator.
+     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      * @param from An iterator to the first element of the range of objects.
      * @return Iterator pointing to the first element inserted, if any.
      */
-    template<typename EIt, typename CIt>
-    requires std::same_as<typename std::iterator_traits<CIt>::value_type, value_type>
-    iterator insert(EIt first, EIt last, CIt from) {
+    template<stl::input_iterator It>
+    requires std::same_as<typename std::iterator_traits<It>::value_type, value_type>
+    iterator insert(stl::input_iterator auto first, stl::input_iterator auto last, It from) {
         for(; first != last; ++first, ++from) {
             emplace_element(*first, true, *from);
         }
@@ -774,7 +773,7 @@ private:
 };
 
 /*! @copydoc basic_storage */
-template<typename Type, entity_like Entity, typename Allocator>
+template<typename Type, typename Entity, typename Allocator>
 requires (component_traits<Type, Entity>::page_size == 0u)
 class basic_storage<Type, Entity, Allocator>
     : public basic_sparse_set<Entity, typename std::allocator_traits<Allocator>::template rebind_alloc<Entity>> {
@@ -892,7 +891,7 @@ public:
      *
      * @param entt A valid identifier.
      */
-    void emplace(const entity_type entt) {
+    void emplace(const entity_type entt, const auto &...) {
         base_type::try_emplace(entt, false);
     }
 
@@ -910,12 +909,10 @@ public:
 
     /**
      * @brief Assigns entities to a storage.
-     * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
      */
-    template<stl::input_iterator It>
-    void insert(It first, It last) {
+    void insert(stl::input_iterator auto first, stl::input_iterator auto last, const auto &...) {
         for(; first != last; ++first) {
             base_type::try_emplace(*first, true);
         }
@@ -959,7 +956,7 @@ public:
  * @tparam Entity A valid entity type.
  * @tparam Allocator Type of allocator used to manage memory and elements.
  */
-template<entity_like Entity, typename Allocator>
+template<typename Entity, typename Allocator>
 class basic_storage<Entity, Entity, Allocator>
     : public basic_sparse_set<Entity, Allocator> {
     using alloc_traits = std::allocator_traits<Allocator>;

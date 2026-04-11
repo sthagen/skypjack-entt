@@ -19,17 +19,16 @@ template<typename>
 struct entt_traits;
 
 template<typename Type>
-requires std::is_enum_v<Type>
+requires requires {
+    requires std::is_enum_v<Type>;
+    typename internal::entt_traits<std::underlying_type_t<Type>>::value_type;
+}
 struct entt_traits<Type>: entt_traits<std::underlying_type_t<Type>> {
     using value_type = Type;
 };
 
 template<typename Type>
-requires requires {
-    typename Type::entity_type;
-    requires std::convertible_to<Type, typename Type::entity_type>;
-    requires std::constructible_from<Type, typename Type::entity_type>;
-}
+requires requires { typename Type::entity_type; }
 struct entt_traits<Type>
     : entt_traits<typename Type::entity_type> {
     using value_type = Type;
@@ -59,6 +58,15 @@ struct entt_traits<std::uint64_t> {
 
 } // namespace internal
 /*! @endcond */
+
+/**
+ * @brief Specifies that a type is an entity-like type.
+ * @tparam Type Type to check.
+ */
+template<typename Type>
+concept entity_like = requires {
+    typename internal::entt_traits<Type>::value_type;
+};
 
 /**
  * @brief Common basic entity traits implementation.
@@ -180,7 +188,7 @@ struct entt_traits: basic_entt_traits<internal::entt_traits<Type>> {
  * @param value The value to convert.
  * @return The integral representation of the given value.
  */
-template<entity_like Entity>
+template<typename Entity>
 [[nodiscard]] constexpr entt_traits<Entity>::entity_type to_integral(const Entity value) noexcept {
     return entt_traits<Entity>::to_integral(value);
 }
@@ -191,7 +199,7 @@ template<entity_like Entity>
  * @param value The value to convert.
  * @return The integral representation of the entity part.
  */
-template<entity_like Entity>
+template<typename Entity>
 [[nodiscard]] constexpr entt_traits<Entity>::entity_type to_entity(const Entity value) noexcept {
     return entt_traits<Entity>::to_entity(value);
 }
@@ -202,7 +210,7 @@ template<entity_like Entity>
  * @param value The value to convert.
  * @return The integral representation of the version part.
  */
-template<entity_like Entity>
+template<typename Entity>
 [[nodiscard]] constexpr entt_traits<Entity>::version_type to_version(const Entity value) noexcept {
     return entt_traits<Entity>::to_version(value);
 }

@@ -98,9 +98,13 @@ set_target_properties(odr PROPERTIES POSITION_INDEPENDENT_CODE ON)
 SETUP_TARGET(odr)
 
 function(SETUP_BASIC_TEST)
-    cmake_parse_arguments(BASIC_TEST "DEFS" "NAME" "SOURCES" ${ARGN})
+    set(options DEFS)
+    set(oneValueArgs NAME)
+    set(multiValueArgs SOURCES INCLUDE)
+    cmake_parse_arguments(BASIC_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     add_executable(${BASIC_TEST_NAME} $<TARGET_OBJECTS:odr> ${BASIC_TEST_SOURCES})
     target_link_libraries(${BASIC_TEST_NAME} PRIVATE GTest::Main Threads::Threads)
+    target_include_directories(${BASIC_TEST_NAME} PRIVATE ${BASIC_TEST_INCLUDE})
     SETUP_TARGET(${BASIC_TEST_NAME} ${BASIC_TEST_UNPARSED_ARGUMENTS})
     add_test(NAME ${BASIC_TEST_NAME} COMMAND ${BASIC_TEST_NAME})
     set_tests_properties(${BASIC_TEST_NAME} PROPERTIES TIMEOUT 60)
@@ -215,6 +219,12 @@ if(ENTT_BUILD_SNAPSHOT)
 endif()
 
 # Test config
+
+SETUP_BASIC_TEST(
+    NAME config_ext
+    SOURCES entt/config/config.cpp
+    INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 SETUP_BASIC_TEST(
     NAME config

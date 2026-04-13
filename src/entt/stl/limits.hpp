@@ -6,6 +6,8 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::numeric_limits;
+
 } // namespace entt::stl
 /*! @endcond */
 

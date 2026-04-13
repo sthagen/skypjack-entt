@@ -25,7 +25,7 @@ namespace entt {
 /*! @cond ENTT_INTERNAL */
 namespace internal {
 
-static constexpr stl::size_t dense_set_placeholder_position = (std::numeric_limits<stl::size_t>::max)();
+static constexpr stl::size_t dense_set_placeholder_position = (stl::numeric_limits<stl::size_t>::max)();
 
 template<typename It>
 class dense_set_iterator final {

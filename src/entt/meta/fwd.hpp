@@ -1,8 +1,8 @@
 #ifndef ENTT_META_FWD_HPP
 #define ENTT_META_FWD_HPP
 
-#include <limits>
 #include "../stl/cstddef.hpp"
+#include "../stl/limits.hpp"
 
 namespace entt {
 

@@ -76,6 +76,7 @@ namespace entt::stl {}
 #include "stl/cstdint.hpp"
 #include "stl/functional.hpp"
 #include "stl/iterator.hpp"
+#include "stl/limits.hpp"
 #include "stl/memory.hpp"
 #include "stl/tuple.hpp"
 #include "stl/type_traits.hpp"

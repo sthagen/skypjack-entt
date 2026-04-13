@@ -6,6 +6,8 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::bit_ceil;
+
 } // namespace entt::stl
 /*! @endcond */
 

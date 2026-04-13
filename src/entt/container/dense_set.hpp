@@ -839,7 +839,7 @@ public:
         const auto cap = static_cast<size_type>(static_cast<float>(size()) / max_load_factor());
         value = value > cap ? value : cap;
 
-        if(const auto sz = std::bit_ceil(value); sz != bucket_count()) {
+        if(const auto sz = stl::bit_ceil(value); sz != bucket_count()) {
             sparse.first().resize(sz);
 
             for(auto &&elem: sparse.first()) {

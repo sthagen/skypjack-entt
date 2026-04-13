@@ -1,7 +1,6 @@
 #ifndef ENTT_CONTAINER_DENSE_SET_HPP
 #define ENTT_CONTAINER_DENSE_SET_HPP
 
-#include <bit>
 #include <cmath>
 #include <compare>
 #include <concepts>
@@ -11,6 +10,7 @@
 #include "../core/bit.hpp"
 #include "../core/compressed_pair.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/bit.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/limits.hpp"

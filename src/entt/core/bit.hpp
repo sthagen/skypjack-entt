@@ -1,9 +1,9 @@
 #ifndef ENTT_CORE_BIT_HPP
 #define ENTT_CORE_BIT_HPP
 
-#include <bit>
 #include <concepts>
 #include "../config/config.h"
+#include "../stl/bit.hpp"
 #include "../stl/cstddef.hpp"
 
 namespace entt {

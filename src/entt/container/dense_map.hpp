@@ -1,7 +1,6 @@
 #ifndef ENTT_CONTAINER_DENSE_MAP_HPP
 #define ENTT_CONTAINER_DENSE_MAP_HPP
 
-#include <bit>
 #include <cmath>
 #include <compare>
 #include <concepts>
@@ -13,6 +12,7 @@
 #include "../core/iterator.hpp"
 #include "../core/memory.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/bit.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/limits.hpp"

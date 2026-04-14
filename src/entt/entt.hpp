@@ -81,6 +81,7 @@ namespace entt::stl {}
 #include "stl/limits.hpp"
 #include "stl/memory.hpp"
 #include "stl/string.hpp"
+#include "stl/string_view.hpp"
 #include "stl/tuple.hpp"
 #include "stl/type_traits.hpp"
 #include "stl/utility.hpp"

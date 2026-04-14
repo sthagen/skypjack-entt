@@ -3,7 +3,6 @@
 
 #include <concepts>
 #include <memory>
-#include <string_view>
 #include "../config/config.h"
 #include "../core/any.hpp"
 #include "../core/concepts.hpp"
@@ -16,6 +15,7 @@
 #include "../stl/array.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
+#include "../stl/string_view.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
 #include "adl_pointer.hpp"
@@ -856,8 +856,8 @@ struct meta_data: meta_object<internal::meta_data_node> {
      * @brief Returns the name assigned to a data member, if any.
      * @return The name assigned to the data member, if any.
      */
-    [[nodiscard]] std::string_view name() const noexcept {
-        return (node_or_assert().name == nullptr) ? std::string_view{} : std::string_view{node_or_assert().name};
+    [[nodiscard]] stl::string_view name() const noexcept {
+        return (node_or_assert().name == nullptr) ? stl::string_view{} : stl::string_view{node_or_assert().name};
     }
 
     /**
@@ -949,8 +949,8 @@ struct meta_func: meta_object<internal::meta_func_node> {
      * @brief Returns the name assigned to a member function, if any.
      * @return The name assigned to the member function, if any.
      */
-    [[nodiscard]] std::string_view name() const noexcept {
-        return (node_or_assert().name == nullptr) ? std::string_view{} : std::string_view{node_or_assert().name};
+    [[nodiscard]] stl::string_view name() const noexcept {
+        return (node_or_assert().name == nullptr) ? stl::string_view{} : stl::string_view{node_or_assert().name};
     }
 
     /**
@@ -1140,8 +1140,8 @@ public:
      * @brief Returns the name assigned to a type, if any.
      * @return The name assigned to the type, if any.
      */
-    [[nodiscard]] std::string_view name() const noexcept {
-        return (fetch_node().name == nullptr) ? std::string_view{} : std::string_view{fetch_node().name};
+    [[nodiscard]] stl::string_view name() const noexcept {
+        return (fetch_node().name == nullptr) ? stl::string_view{} : stl::string_view{fetch_node().name};
     }
 
     /**

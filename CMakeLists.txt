@@ -207,6 +207,7 @@ if(ENTT_INCLUDE_HEADERS)
         stl/limits.hpp
         stl/memory.hpp
         stl/string.hpp
+        stl/string_view.hpp
         stl/tuple.hpp
         stl/type_traits.hpp
         stl/utility.hpp

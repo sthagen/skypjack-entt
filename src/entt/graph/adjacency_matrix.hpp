@@ -2,11 +2,11 @@
 #define ENTT_GRAPH_ADJACENCY_MATRIX_HPP
 
 #include <concepts>
-#include <memory>
 #include "../config/config.h"
 #include "../core/iterator.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
 #include "../stl/vector.hpp"

@@ -2,7 +2,6 @@
 #define ENTT_SIGNAL_DISPATCHER_HPP
 
 #include <functional>
-#include <memory>
 #include "../container/dense_map.hpp"
 #include "../core/compressed_pair.hpp"
 #include "../core/concepts.hpp"
@@ -10,6 +9,7 @@
 #include "../core/type_info.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/functional.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
 #include "../stl/vector.hpp"

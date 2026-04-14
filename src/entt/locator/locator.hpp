@@ -2,8 +2,8 @@
 #define ENTT_LOCATOR_LOCATOR_HPP
 
 #include <concepts>
-#include <memory>
 #include "../config/config.h"
+#include "../stl/memory.hpp"
 #include "../stl/utility.hpp"
 
 namespace entt {

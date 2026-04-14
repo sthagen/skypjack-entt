@@ -2,7 +2,7 @@
 #define ENTT_CONTAINER_FWD_HPP
 
 #include <functional>
-#include <memory>
+#include "../stl/memory.hpp"
 #include "../stl/utility.hpp"
 #include "../stl/vector.hpp"
 

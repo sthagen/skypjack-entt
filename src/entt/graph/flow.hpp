@@ -3,7 +3,6 @@
 
 #include <concepts>
 #include <functional>
-#include <memory>
 #include "../config/config.h"
 #include "../container/dense_map.hpp"
 #include "../container/dense_set.hpp"
@@ -14,6 +13,7 @@
 #include "../stl/cstddef.hpp"
 #include "../stl/functional.hpp"
 #include "../stl/iterator.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
 #include "../stl/vector.hpp"

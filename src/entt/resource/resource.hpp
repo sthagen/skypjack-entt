@@ -3,7 +3,7 @@
 
 #include <compare>
 #include <concepts>
-#include <memory>
+#include "../stl/memory.hpp"
 #include "../stl/utility.hpp"
 #include "fwd.hpp"
 

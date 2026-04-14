@@ -1,10 +1,10 @@
 #ifndef ENTT_META_CTX_HPP
 #define ENTT_META_CTX_HPP
 
-#include <memory>
 #include "../container/dense_map.hpp"
 #include "../core/fwd.hpp"
 #include "../stl/functional.hpp"
+#include "../stl/memory.hpp"
 #include "fwd.hpp"
 
 namespace entt {

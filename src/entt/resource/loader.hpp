@@ -1,7 +1,7 @@
 #ifndef ENTT_RESOURCE_LOADER_HPP
 #define ENTT_RESOURCE_LOADER_HPP
 
-#include <memory>
+#include "../stl/memory.hpp"
 #include "../stl/utility.hpp"
 #include "fwd.hpp"
 

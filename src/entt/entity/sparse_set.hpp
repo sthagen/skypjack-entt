@@ -3,7 +3,6 @@
 
 #include <compare>
 #include <concepts>
-#include <memory>
 #include "../config/config.h"
 #include "../core/algorithm.hpp"
 #include "../core/any.hpp"
@@ -11,6 +10,7 @@
 #include "../core/type_info.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
 #include "../stl/vector.hpp"

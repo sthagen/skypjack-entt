@@ -1,7 +1,7 @@
 #ifndef ENTT_RESOURCE_FWD_HPP
 #define ENTT_RESOURCE_FWD_HPP
 
-#include <memory>
+#include "../stl/memory.hpp"
 
 namespace entt {
 

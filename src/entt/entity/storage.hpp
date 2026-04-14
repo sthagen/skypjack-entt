@@ -3,7 +3,6 @@
 
 #include <compare>
 #include <concepts>
-#include <memory>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/iterator.hpp"

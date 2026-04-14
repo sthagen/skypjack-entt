@@ -2,7 +2,6 @@
 #define ENTT_META_META_HPP
 
 #include <concepts>
-#include <memory>
 #include "../config/config.h"
 #include "../core/any.hpp"
 #include "../core/concepts.hpp"
@@ -15,6 +14,7 @@
 #include "../stl/array.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/string_view.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"

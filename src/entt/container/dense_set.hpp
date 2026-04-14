@@ -4,7 +4,6 @@
 #include <compare>
 #include <concepts>
 #include <functional>
-#include <memory>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/compressed_pair.hpp"
@@ -14,6 +13,7 @@
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/limits.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/tuple.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"

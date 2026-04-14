@@ -3,7 +3,7 @@
 #ifndef ENTT_META_POINTER_HPP
 #define ENTT_META_POINTER_HPP
 
-#include <memory>
+#include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "type_traits.hpp"
 

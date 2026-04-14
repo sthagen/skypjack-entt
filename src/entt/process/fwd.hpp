@@ -1,8 +1,8 @@
 #ifndef ENTT_PROCESS_FWD_HPP
 #define ENTT_PROCESS_FWD_HPP
 
-#include <memory>
 #include "../stl/cstdint.hpp"
+#include "../stl/memory.hpp"
 
 namespace entt {
 

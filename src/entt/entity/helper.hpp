@@ -1,9 +1,9 @@
 #ifndef ENTT_ENTITY_HELPER_HPP
 #define ENTT_ENTITY_HELPER_HPP
 
-#include <memory>
 #include "../core/fwd.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
 #include "component.hpp"

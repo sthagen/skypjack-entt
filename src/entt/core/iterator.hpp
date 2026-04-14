@@ -2,9 +2,9 @@
 #define ENTT_CORE_ITERATOR_HPP
 
 #include <concepts>
-#include <memory>
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
+#include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
 

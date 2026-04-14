@@ -3,7 +3,6 @@
 
 #include <ios>
 #include <sstream>
-#include <string>
 #include "../config/config.h"
 #include "../entity/mixin.hpp"
 #include "../entity/registry.hpp"
@@ -16,6 +15,7 @@
 #include "../meta/pointer.hpp"
 #include "../meta/resolve.hpp"
 #include "../stl/cstdint.hpp"
+#include "../stl/string.hpp"
 
 #if __has_include(<imgui.h>)
 #    include <imgui.h>
@@ -30,13 +30,13 @@ template<typename Entity, typename OnEntity>
 static void present_element(const meta_any &obj, OnEntity on_entity) {
     for([[maybe_unused]] const auto [id, data]: obj.type().data()) {
         const auto elem = data.get(obj);
-        const std::string name = data.name().empty() ? std::string{data.type().info().name()} : std::string{data.name()};
+        const stl::string name = data.name().empty() ? stl::string{data.type().info().name()} : stl::string{data.name()};
         const char *const label = name.c_str();
 
         if(auto type = data.type(); type.info() == type_id<const char *>()) {
             ImGui::Text("%s: %s", label, elem.template cast<const char *>());
-        } else if(type.info() == type_id<std::string>()) {
-            ImGui::Text("%s: %s", label, elem.template cast<const std::string &>().data());
+        } else if(type.info() == type_id<stl::string>()) {
+            ImGui::Text("%s: %s", label, elem.template cast<const stl::string &>().data());
         } else if(type.info() == type_id<Entity>()) {
             if(const auto entt = elem.template cast<Entity>(); entt == null) {
                 ImGui::Text("%s: %s", label, "null");
@@ -131,7 +131,7 @@ static void present_element(const meta_any &obj, OnEntity on_entity) {
                 ImGui::TreePop();
             }
         } else {
-            const std::string underlying_type{data.type().info().name()};
+            const stl::string underlying_type{data.type().info().name()};
             ImGui::Text("%s: %s", label, underlying_type.data());
         }
     }
@@ -171,7 +171,7 @@ static void present_entity(const meta_ctx &ctx, const Entity entt, const It from
     for(auto it = from; it != to; ++it) {
         if(const auto &storage = it->second; storage.contains(entt)) {
             if(auto type = resolve(ctx, storage.info()); type) {
-                const std::string name = type.name().empty() ? std::string{storage.info().name()} : std::string{type.name()};
+                const stl::string name = type.name().empty() ? stl::string{storage.info().name()} : stl::string{type.name()};
                 const char *const label = name.c_str();
 
                 if(ImGui::TreeNode(&storage.info(), "%s", label)) {
@@ -187,7 +187,7 @@ static void present_entity(const meta_ctx &ctx, const Entity entt, const It from
                     ImGui::TreePop();
                 }
             } else {
-                const std::string name{storage.info().name()};
+                const stl::string name{storage.info().name()};
                 ImGui::Text("%s", name.data());
             }
         }
@@ -206,7 +206,7 @@ static void present_view(const meta_ctx &ctx, const basic_view<get_t<Get...>, ex
         if(ImGui::TreeNode(&type_id<typename view_type::entity_type>(), "%d [%d/%d]", to_integral(entt), to_entity(entt), to_version(entt))) {
             for(const auto *storage: range) {
                 if(auto type = resolve(ctx, storage->info()); type) {
-                    const std::string name = type.name().empty() ? std::string{storage->info().name()} : std::string{type.name()};
+                    const stl::string name = type.name().empty() ? stl::string{storage->info().name()} : stl::string{type.name()};
                     const char *const label = name.c_str();
 
                     if(ImGui::TreeNode(&storage->info(), "%s", label)) {
@@ -219,7 +219,7 @@ static void present_view(const meta_ctx &ctx, const basic_view<get_t<Get...>, ex
                         ImGui::TreePop();
                     }
                 } else {
-                    const std::string name{storage->info().name()};
+                    const stl::string name{storage->info().name()};
                     ImGui::Text("%s", name.data());
                 }
             }
@@ -312,7 +312,7 @@ void davey(const meta_ctx &ctx, const basic_registry<Entity, Allocator> &registr
     if(ImGui::BeginTabItem("Storage")) {
         for([[maybe_unused]] auto [id, storage]: registry.storage()) {
             const auto type = resolve(ctx, storage.info());
-            const std::string name = type.name().empty() ? std::string{storage.info().name()} : std::string{type.name()};
+            const stl::string name = type.name().empty() ? stl::string{storage.info().name()} : stl::string{type.name()};
             const char *const label = name.c_str();
 
             if(ImGui::TreeNode(&storage.info(), "%s (%zu)", label, storage.size())) {

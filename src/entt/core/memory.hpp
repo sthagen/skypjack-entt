@@ -200,7 +200,7 @@ constexpr auto uses_allocator_construction_args(const auto &allocator, Args &&..
  */
 template<typename Type, typename... Args>
 constexpr Type make_obj_using_allocator(const auto &allocator, Args &&...args) {
-    return std::make_from_tuple<Type>(internal::uses_allocator_construction<Type>::args(allocator, stl::forward<Args>(args)...));
+    return stl::make_from_tuple<Type>(internal::uses_allocator_construction<Type>::args(allocator, stl::forward<Args>(args)...));
 }
 
 /**

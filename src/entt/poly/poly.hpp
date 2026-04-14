@@ -97,7 +97,7 @@ class poly_vtable {
     template<typename Type, auto... Index>
     [[nodiscard]] static auto fill_vtable(stl::index_sequence<Index...>) noexcept {
         vtable_type impl{};
-        (fill_vtable_entry<Type, value_list_element_v<Index, typename Concept::template impl<Type>>>(std::get<Index>(impl)), ...);
+        (fill_vtable_entry<Type, value_list_element_v<Index, typename Concept::template impl<Type>>>(stl::get<Index>(impl)), ...);
         return impl;
     }
 
@@ -118,7 +118,7 @@ public:
         static const vtable_type vtable = fill_vtable<Type>(stl::make_index_sequence<Concept::template impl<Type>::size>{});
 
         if constexpr(is_mono) {
-            return std::get<0>(vtable);
+            return stl::get<0>(vtable);
         } else {
             return &vtable;
         }
@@ -146,7 +146,7 @@ struct poly_base {
         if constexpr(stl::is_function_v<stl::remove_pointer_t<decltype(poly.vtable)>>) {
             return poly.vtable(poly.storage, stl::forward<Args>(args)...);
         } else {
-            return std::get<Member>(*poly.vtable)(poly.storage, stl::forward<Args>(args)...);
+            return stl::get<Member>(*poly.vtable)(poly.storage, stl::forward<Args>(args)...);
         }
     }
 
@@ -159,7 +159,7 @@ struct poly_base {
             static_assert(Member == 0u, "Unknown member");
             return poly.vtable(poly.storage, stl::forward<Args>(args)...);
         } else {
-            return std::get<Member>(*poly.vtable)(poly.storage, stl::forward<Args>(args)...);
+            return stl::get<Member>(*poly.vtable)(poly.storage, stl::forward<Args>(args)...);
         }
     }
 };

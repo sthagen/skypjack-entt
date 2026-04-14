@@ -73,7 +73,7 @@ class delegate<Ret(Args...)> {
         return [](const void *, Args... args) -> return_type {
             [[maybe_unused]] const auto arguments = stl::forward_as_tuple(stl::forward<Args>(args)...);
             [[maybe_unused]] constexpr auto offset = !stl::is_invocable_r_v<Ret, decltype(Candidate), type_list_element_t<Index, type_list<Args...>>...> * (sizeof...(Args) - sizeof...(Index));
-            return static_cast<Ret>(std::invoke(Candidate, stl::forward<type_list_element_t<Index + offset, type_list<Args...>>>(std::get<Index + offset>(arguments))...));
+            return static_cast<Ret>(std::invoke(Candidate, stl::forward<type_list_element_t<Index + offset, type_list<Args...>>>(stl::get<Index + offset>(arguments))...));
         };
     }
 
@@ -83,7 +83,7 @@ class delegate<Ret(Args...)> {
             Type *curr = static_cast<Type *>(const_cast<constness_as_t<void, Type> *>(payload));
             [[maybe_unused]] const auto arguments = stl::forward_as_tuple(stl::forward<Args>(args)...);
             [[maybe_unused]] constexpr auto offset = !stl::is_invocable_r_v<Ret, decltype(Candidate), Type &, type_list_element_t<Index, type_list<Args...>>...> * (sizeof...(Args) - sizeof...(Index));
-            return static_cast<Ret>(std::invoke(Candidate, *curr, stl::forward<type_list_element_t<Index + offset, type_list<Args...>>>(std::get<Index + offset>(arguments))...));
+            return static_cast<Ret>(std::invoke(Candidate, *curr, stl::forward<type_list_element_t<Index + offset, type_list<Args...>>>(stl::get<Index + offset>(arguments))...));
         };
     }
 
@@ -93,7 +93,7 @@ class delegate<Ret(Args...)> {
             Type *curr = static_cast<Type *>(const_cast<constness_as_t<void, Type> *>(payload));
             [[maybe_unused]] const auto arguments = stl::forward_as_tuple(stl::forward<Args>(args)...);
             [[maybe_unused]] constexpr auto offset = !stl::is_invocable_r_v<Ret, decltype(Candidate), Type *, type_list_element_t<Index, type_list<Args...>>...> * (sizeof...(Args) - sizeof...(Index));
-            return static_cast<Ret>(std::invoke(Candidate, curr, stl::forward<type_list_element_t<Index + offset, type_list<Args...>>>(std::get<Index + offset>(arguments))...));
+            return static_cast<Ret>(std::invoke(Candidate, curr, stl::forward<type_list_element_t<Index + offset, type_list<Args...>>>(stl::get<Index + offset>(arguments))...));
         };
     }
 

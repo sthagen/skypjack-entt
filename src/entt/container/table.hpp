@@ -37,10 +37,10 @@ public:
     template<typename... Other>
     requires (std::constructible_from<It, Other> && ...)
     constexpr table_iterator(const table_iterator<Other...> &other) noexcept
-        : table_iterator{std::get<Other>(other.it)...} {}
+        : table_iterator{stl::get<Other>(other.it)...} {}
 
     constexpr table_iterator &operator++() noexcept {
-        return (++std::get<It>(it), ...), *this;
+        return (++stl::get<It>(it), ...), *this;
     }
 
     constexpr table_iterator operator++(int) noexcept {
@@ -49,7 +49,7 @@ public:
     }
 
     constexpr table_iterator &operator--() noexcept {
-        return (--std::get<It>(it), ...), *this;
+        return (--stl::get<It>(it), ...), *this;
     }
 
     constexpr table_iterator operator--(int) noexcept {
@@ -58,7 +58,7 @@ public:
     }
 
     constexpr table_iterator &operator+=(const difference_type value) noexcept {
-        return ((std::get<It>(it) += value), ...), *this;
+        return ((stl::get<It>(it) += value), ...), *this;
     }
 
     constexpr table_iterator operator+(const difference_type value) const noexcept {
@@ -75,7 +75,7 @@ public:
     }
 
     [[nodiscard]] constexpr reference operator[](const difference_type value) const noexcept {
-        return stl::forward_as_tuple(std::get<It>(it)[value]...);
+        return stl::forward_as_tuple(stl::get<It>(it)[value]...);
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
@@ -88,17 +88,17 @@ public:
 
     template<typename... Other>
     [[nodiscard]] constexpr stl::ptrdiff_t operator-(const table_iterator<Other...> &other) const noexcept {
-        return std::get<0>(it) - std::get<0>(other.it);
+        return stl::get<0>(it) - stl::get<0>(other.it);
     }
 
     template<typename... Other>
     [[nodiscard]] constexpr bool operator==(const table_iterator<Other...> &other) const noexcept {
-        return std::get<0>(it) == std::get<0>(other.it);
+        return stl::get<0>(it) == stl::get<0>(other.it);
     }
 
     template<typename... Other>
     [[nodiscard]] constexpr auto operator<=>(const table_iterator<Other...> &other) const noexcept {
-        return std::get<0>(it) <=> std::get<0>(other.it);
+        return stl::get<0>(it) <=> stl::get<0>(other.it);
     }
 
 private:
@@ -146,7 +146,7 @@ public:
      */
     explicit basic_table(const Container &...container) noexcept
         : payload{container...} {
-        ENTT_ASSERT((((std::get<Container>(payload).size() * sizeof...(Container)) == (std::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
+        ENTT_ASSERT((((stl::get<Container>(payload).size() * sizeof...(Container)) == (stl::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
     }
 
     /**
@@ -155,7 +155,7 @@ public:
      */
     explicit basic_table(Container &&...container) noexcept
         : payload{stl::move(container)...} {
-        ENTT_ASSERT((((std::get<Container>(payload).size() * sizeof...(Container)) == (std::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
+        ENTT_ASSERT((((stl::get<Container>(payload).size() * sizeof...(Container)) == (stl::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
     }
 
     /*! @brief Default copy constructor, deleted on purpose. */
@@ -184,7 +184,7 @@ public:
     template<class Allocator>
     basic_table(const Container &...container, const Allocator &allocator) noexcept
         : payload{Container{container, allocator}...} {
-        ENTT_ASSERT((((std::get<Container>(payload).size() * sizeof...(Container)) == (std::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
+        ENTT_ASSERT((((stl::get<Container>(payload).size() * sizeof...(Container)) == (stl::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
     }
 
     /**
@@ -196,7 +196,7 @@ public:
     template<class Allocator>
     basic_table(Container &&...container, const Allocator &allocator) noexcept
         : payload{Container{stl::move(container), allocator}...} {
-        ENTT_ASSERT((((std::get<Container>(payload).size() * sizeof...(Container)) == (std::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
+        ENTT_ASSERT((((stl::get<Container>(payload).size() * sizeof...(Container)) == (stl::get<Container>(payload).size() + ...)) && ...), "Unexpected container size");
     }
 
     /**
@@ -207,7 +207,7 @@ public:
      */
     template<class Allocator>
     basic_table(basic_table &&other, const Allocator &allocator)
-        : payload{Container{stl::move(std::get<Container>(other.payload)), allocator}...} {}
+        : payload{Container{stl::move(stl::get<Container>(other.payload)), allocator}...} {}
 
     /*! @brief Default destructor. */
     ~basic_table() = default;
@@ -246,7 +246,7 @@ public:
      * @param cap Desired capacity.
      */
     void reserve(const size_type cap) {
-        (std::get<Container>(payload).reserve(cap), ...);
+        (stl::get<Container>(payload).reserve(cap), ...);
     }
 
     /**
@@ -255,12 +255,12 @@ public:
      * @return Capacity of the table.
      */
     [[nodiscard]] size_type capacity() const noexcept {
-        return std::get<0>(payload).capacity();
+        return stl::get<0>(payload).capacity();
     }
 
     /*! @brief Requests the removal of unused capacity. */
     void shrink_to_fit() {
-        (std::get<Container>(payload).shrink_to_fit(), ...);
+        (stl::get<Container>(payload).shrink_to_fit(), ...);
     }
 
     /**
@@ -268,7 +268,7 @@ public:
      * @return Number of rows.
      */
     [[nodiscard]] size_type size() const noexcept {
-        return std::get<0>(payload).size();
+        return stl::get<0>(payload).size();
     }
 
     /**
@@ -276,7 +276,7 @@ public:
      * @return True if the table is empty, false otherwise.
      */
     [[nodiscard]] bool empty() const noexcept {
-        return std::get<0>(payload).empty();
+        return stl::get<0>(payload).empty();
     }
 
     /**
@@ -287,7 +287,7 @@ public:
      * @return An iterator to the first row of the table.
      */
     [[nodiscard]] const_iterator cbegin() const noexcept {
-        return {std::get<Container>(payload).cbegin()...};
+        return {stl::get<Container>(payload).cbegin()...};
     }
 
     /*! @copydoc cbegin */
@@ -297,7 +297,7 @@ public:
 
     /*! @copydoc begin */
     [[nodiscard]] iterator begin() noexcept {
-        return {std::get<Container>(payload).begin()...};
+        return {stl::get<Container>(payload).begin()...};
     }
 
     /**
@@ -305,7 +305,7 @@ public:
      * @return An iterator to the element following the last row of the table.
      */
     [[nodiscard]] const_iterator cend() const noexcept {
-        return {std::get<Container>(payload).cend()...};
+        return {stl::get<Container>(payload).cend()...};
     }
 
     /*! @copydoc cend */
@@ -315,7 +315,7 @@ public:
 
     /*! @copydoc end */
     [[nodiscard]] iterator end() noexcept {
-        return {std::get<Container>(payload).end()...};
+        return {stl::get<Container>(payload).end()...};
     }
 
     /**
@@ -326,7 +326,7 @@ public:
      * @return An iterator to the first row of the reversed table.
      */
     [[nodiscard]] const_reverse_iterator crbegin() const noexcept {
-        return {std::get<Container>(payload).crbegin()...};
+        return {stl::get<Container>(payload).crbegin()...};
     }
 
     /*! @copydoc crbegin */
@@ -336,7 +336,7 @@ public:
 
     /*! @copydoc rbegin */
     [[nodiscard]] reverse_iterator rbegin() noexcept {
-        return {std::get<Container>(payload).rbegin()...};
+        return {stl::get<Container>(payload).rbegin()...};
     }
 
     /**
@@ -345,7 +345,7 @@ public:
      * table.
      */
     [[nodiscard]] const_reverse_iterator crend() const noexcept {
-        return {std::get<Container>(payload).crend()...};
+        return {stl::get<Container>(payload).crend()...};
     }
 
     /*! @copydoc crend */
@@ -355,7 +355,7 @@ public:
 
     /*! @copydoc rend */
     [[nodiscard]] reverse_iterator rend() noexcept {
-        return {std::get<Container>(payload).rend()...};
+        return {stl::get<Container>(payload).rend()...};
     }
 
     /**
@@ -367,9 +367,9 @@ public:
     template<typename... Args>
     stl::tuple<typename Container::value_type &...> emplace(Args &&...args) {
         if constexpr(sizeof...(Args) == 0u) {
-            return stl::forward_as_tuple(std::get<Container>(payload).emplace_back()...);
+            return stl::forward_as_tuple(stl::get<Container>(payload).emplace_back()...);
         } else {
-            return stl::forward_as_tuple(std::get<Container>(payload).emplace_back(stl::forward<Args>(args))...);
+            return stl::forward_as_tuple(stl::get<Container>(payload).emplace_back(stl::forward<Args>(args))...);
         }
     }
 
@@ -380,7 +380,7 @@ public:
      */
     iterator erase(const_iterator pos) {
         const auto diff = pos - begin();
-        return {std::get<Container>(payload).erase(std::get<Container>(payload).begin() + diff)...};
+        return {stl::get<Container>(payload).erase(stl::get<Container>(payload).begin() + diff)...};
     }
 
     /**
@@ -399,18 +399,18 @@ public:
      */
     [[nodiscard]] stl::tuple<const typename Container::value_type &...> operator[](const size_type pos) const {
         ENTT_ASSERT(pos < size(), "Index out of bounds");
-        return stl::forward_as_tuple(std::get<Container>(payload)[pos]...);
+        return stl::forward_as_tuple(stl::get<Container>(payload)[pos]...);
     }
 
     /*! @copydoc operator[] */
     [[nodiscard]] stl::tuple<typename Container::value_type &...> operator[](const size_type pos) {
         ENTT_ASSERT(pos < size(), "Index out of bounds");
-        return stl::forward_as_tuple(std::get<Container>(payload)[pos]...);
+        return stl::forward_as_tuple(stl::get<Container>(payload)[pos]...);
     }
 
     /*! @brief Clears a table. */
     void clear() {
-        (std::get<Container>(payload).clear(), ...);
+        (stl::get<Container>(payload).clear(), ...);
     }
 
 private:

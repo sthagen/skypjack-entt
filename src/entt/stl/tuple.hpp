@@ -8,6 +8,7 @@ namespace entt::stl {
 
 using std::apply;
 using std::forward_as_tuple;
+using std::get;
 using std::make_from_tuple;
 using std::make_tuple;
 using std::tuple;

@@ -200,7 +200,7 @@ static void present_view(const meta_ctx &ctx, const basic_view<get_t<Get...>, ex
     const stl::array<const typename view_type::common_type *, sizeof...(Index)> range{view.template storage<Index>()...};
 
     for(auto tup: view.each()) {
-        const auto entt = std::get<0>(tup);
+        const auto entt = stl::get<0>(tup);
         ImGui::PushID(static_cast<int>(to_entity(entt)));
 
         if(ImGui::TreeNode(&type_id<typename view_type::entity_type>(), "%d [%d/%d]", to_integral(entt), to_entity(entt), to_version(entt))) {

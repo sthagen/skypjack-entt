@@ -7,6 +7,7 @@
 namespace entt::stl {
 
 using std::array;
+using std::get;
 
 } // namespace entt::stl
 /*! @endcond */

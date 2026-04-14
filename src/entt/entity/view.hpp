@@ -155,7 +155,7 @@ struct extended_view_iterator final {
 
     [[nodiscard]] reference operator*() const noexcept {
         return [this]<auto... Index>(stl::index_sequence<Index...>) {
-            return stl::tuple_cat(stl::make_tuple(*it), static_cast<Get *>(const_cast<constness_as_t<typename Get::base_type, Get> *>(std::get<Index>(it.pools)))->get_as_tuple(*it)...);
+            return stl::tuple_cat(stl::make_tuple(*it), static_cast<Get *>(const_cast<constness_as_t<typename Get::base_type, Get> *>(stl::get<Index>(it.pools)))->get_as_tuple(*it)...);
         }(stl::index_sequence_for<Get...>{});
     }
 
@@ -420,16 +420,16 @@ class basic_view<get_t<Get...>, exclude_t<Exclude...>>
     template<stl::size_t Curr, stl::size_t Other, typename... Args>
     [[nodiscard]] auto dispatch_get(const stl::tuple<typename base_type::entity_type, Args...> &curr) const {
         if constexpr(Curr == Other) {
-            return stl::forward_as_tuple(std::get<Args>(curr)...);
+            return stl::forward_as_tuple(stl::get<Args>(curr)...);
         } else {
-            return storage<Other>()->get_as_tuple(std::get<0>(curr));
+            return storage<Other>()->get_as_tuple(stl::get<0>(curr));
         }
     }
 
     template<stl::size_t Curr, typename Func, stl::size_t... Index>
     void each(Func func, stl::index_sequence<Index...>) const {
         for(const auto curr: storage<Curr>()->each()) {
-            if(const auto entt = std::get<0>(curr); (!internal::tombstone_check_v<Get...> || (entt != tombstone)) && ((Curr == Index || base_type::pool_at(Index)->contains(entt)) && ...) && base_type::none_of(entt)) {
+            if(const auto entt = stl::get<0>(curr); (!internal::tombstone_check_v<Get...> || (entt != tombstone)) && ((Curr == Index || base_type::pool_at(Index)->contains(entt)) && ...) && base_type::none_of(entt)) {
                 if constexpr(is_applicable_v<Func, decltype(stl::tuple_cat(stl::tuple<entity_type>{}, stl::declval<basic_view>().get({})))>) {
                     stl::apply(func, stl::tuple_cat(stl::make_tuple(entt), dispatch_get<Curr, Index>(curr)...));
                 } else {
@@ -937,7 +937,7 @@ public:
      * @param value The storage for the type to iterate.
      */
     basic_view(stl::tuple<Get &> value, stl::tuple<> = {}) noexcept
-        : basic_view{std::get<0>(value)} {}
+        : basic_view{stl::get<0>(value)} {}
 
     /**
      * @brief Constructs a view from a convertible counterpart.

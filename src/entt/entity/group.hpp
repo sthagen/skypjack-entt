@@ -63,7 +63,7 @@ public:
     }
 
     [[nodiscard]] reference operator*() const noexcept {
-        return stl::tuple_cat(stl::make_tuple(*it), index_to_element(*std::get<Owned *>(pools))..., std::get<Get *>(pools)->get_as_tuple(*it)...);
+        return stl::tuple_cat(stl::make_tuple(*it), index_to_element(*stl::get<Owned *>(pools))..., stl::get<Get *>(pools)->get_as_tuple(*it)...);
     }
 
     [[nodiscard]] pointer operator->() const noexcept {
@@ -505,9 +505,9 @@ public:
         if constexpr(sizeof...(Index) == 0) {
             return stl::apply([entt](auto *...curr) { return stl::tuple_cat(curr->get_as_tuple(entt)...); }, cpools);
         } else if constexpr(sizeof...(Index) == 1) {
-            return (std::get<Index>(cpools)->get(entt), ...);
+            return (stl::get<Index>(cpools)->get(entt), ...);
         } else {
-            return stl::tuple_cat(std::get<Index>(cpools)->get_as_tuple(entt)...);
+            return stl::tuple_cat(stl::get<Index>(cpools)->get_as_tuple(entt)...);
         }
     }
 
@@ -622,9 +622,9 @@ public:
             } else {
                 auto comp = [&compare, cpools = pools_for(stl::index_sequence_for<Get...>{})](const entity_type lhs, const entity_type rhs) {
                     if constexpr(sizeof...(Index) == 1) {
-                        return compare((std::get<Index>(cpools)->get(lhs), ...), (std::get<Index>(cpools)->get(rhs), ...));
+                        return compare((stl::get<Index>(cpools)->get(lhs), ...), (stl::get<Index>(cpools)->get(rhs), ...));
                     } else {
-                        return compare(stl::forward_as_tuple(std::get<Index>(cpools)->get(lhs)...), stl::forward_as_tuple(std::get<Index>(cpools)->get(rhs)...));
+                        return compare(stl::forward_as_tuple(stl::get<Index>(cpools)->get(lhs)...), stl::forward_as_tuple(stl::get<Index>(cpools)->get(rhs)...));
                     }
                 };
 
@@ -904,9 +904,9 @@ public:
         if constexpr(sizeof...(Index) == 0) {
             return stl::apply([entt](auto *...curr) { return stl::tuple_cat(curr->get_as_tuple(entt)...); }, cpools);
         } else if constexpr(sizeof...(Index) == 1) {
-            return (std::get<Index>(cpools)->get(entt), ...);
+            return (stl::get<Index>(cpools)->get(entt), ...);
         } else {
-            return stl::tuple_cat(std::get<Index>(cpools)->get_as_tuple(entt)...);
+            return stl::tuple_cat(stl::get<Index>(cpools)->get_as_tuple(entt)...);
         }
     }
 
@@ -1023,9 +1023,9 @@ public:
         } else {
             auto comp = [&compare, &cpools](const entity_type lhs, const entity_type rhs) {
                 if constexpr(sizeof...(Index) == 1) {
-                    return compare((std::get<Index>(cpools)->get(lhs), ...), (std::get<Index>(cpools)->get(rhs), ...));
+                    return compare((stl::get<Index>(cpools)->get(lhs), ...), (stl::get<Index>(cpools)->get(rhs), ...));
                 } else {
-                    return compare(stl::forward_as_tuple(std::get<Index>(cpools)->get(lhs)...), stl::forward_as_tuple(std::get<Index>(cpools)->get(rhs)...));
+                    return compare(stl::forward_as_tuple(stl::get<Index>(cpools)->get(lhs)...), stl::forward_as_tuple(stl::get<Index>(cpools)->get(rhs)...));
                 }
             };
 

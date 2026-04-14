@@ -158,7 +158,7 @@ public:
         : it{other.it} {}
 
     constexpr extended_storage_iterator &operator++() noexcept {
-        return ++std::get<It>(it), (++std::get<Other>(it), ...), *this;
+        return ++stl::get<It>(it), (++stl::get<Other>(it), ...), *this;
     }
 
     constexpr extended_storage_iterator operator++(int) noexcept {
@@ -171,16 +171,16 @@ public:
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
-        return {*std::get<It>(it), *std::get<Other>(it)...};
+        return {*stl::get<It>(it), *stl::get<Other>(it)...};
     }
 
     [[nodiscard]] constexpr iterator_type base() const noexcept {
-        return std::get<It>(it);
+        return stl::get<It>(it);
     }
 
     template<typename... Args>
     [[nodiscard]] constexpr bool operator==(const extended_storage_iterator<Args...> &other) const noexcept {
-        return std::get<0>(it) == std::get<0>(other.it);
+        return stl::get<0>(it) == stl::get<0>(other.it);
     }
 
 private:

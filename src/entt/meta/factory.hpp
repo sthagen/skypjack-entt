@@ -96,7 +96,7 @@ protected:
             parent->details->func.emplace_back(stl::move(node));
         } else if(auto *overload = find_overload(member, node.invoke); overload == nullptr) {
             while(member->next != nullptr) { member = member->next.get(); }
-            member->next = std::make_unique<meta_func_node>(stl::move(node));
+            member->next = stl::make_unique<meta_func_node>(stl::move(node));
         }
     }
 
@@ -138,8 +138,8 @@ public:
           bucket{node.info->hash()},
           state{mode::type} {
         if(const auto it = meta_context::from(*ctx).bucket.find(bucket); it == meta_context::from(*ctx).bucket.cend()) {
-            parent = meta_context::from(*ctx).bucket.emplace(node.info->hash(), std::make_unique<meta_type_node>(stl::move(node))).first->second.get();
-            parent->details = std::make_unique<meta_type_descriptor>();
+            parent = meta_context::from(*ctx).bucket.emplace(node.info->hash(), stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
+            parent->details = stl::make_unique<meta_type_descriptor>();
         } else {
             parent = it->second.get();
         }

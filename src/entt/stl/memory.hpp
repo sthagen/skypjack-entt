@@ -8,9 +8,10 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::make_unique;
 using std::pointer_traits;
 
-}
+} // namespace entt::stl
 
 #ifndef ENTT_FORCE_STL
 #    ifdef ENTT_HAS_VERSION

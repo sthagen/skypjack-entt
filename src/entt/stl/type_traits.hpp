@@ -27,6 +27,7 @@ using std::is_empty_v;
 using std::is_enum_v;
 using std::is_final_v;
 using std::is_function_v;
+using std::is_integral_v;
 using std::is_invocable;
 using std::is_invocable_r;
 using std::is_invocable_r_v;

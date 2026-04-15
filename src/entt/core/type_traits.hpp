@@ -577,7 +577,7 @@ struct value_list_diff<value_list<Value...>, value_list<Other...>> {
 template<typename... List>
 using value_list_diff_t = value_list_diff<List...>::type;
 
-/*! @brief Same as std::is_invocable, but with tuples. */
+/*! @brief Same as stl::is_invocable, but with tuples. */
 template<typename, typename>
 struct is_applicable: stl::false_type {};
 
@@ -607,7 +607,7 @@ struct is_applicable<Func, const Tuple<Args...>>: stl::is_invocable<Func, Args..
 template<typename Func, typename Args>
 inline constexpr bool is_applicable_v = is_applicable<Func, Args>::value;
 
-/*! @brief Same as std::is_invocable_r, but with tuples for arguments. */
+/*! @brief Same as stl::is_invocable_r, but with tuples for arguments. */
 template<typename, typename, typename>
 struct is_applicable_r: stl::false_type {};
 

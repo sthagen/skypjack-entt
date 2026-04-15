@@ -17,6 +17,7 @@ using std::invoke_result_t;
 using std::is_aggregate_v;
 using std::is_arithmetic_v;
 using std::is_array_v;
+using std::is_class_v;
 using std::is_const_v;
 using std::is_constructible_v;
 using std::is_convertible_v;

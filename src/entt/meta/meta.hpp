@@ -196,7 +196,7 @@ class meta_any {
             }
         } else if constexpr(requires(Type elem) { *elem; }) {
             if(req == internal::meta_traits::is_pointer) {
-                if constexpr(std::is_class_v<Type>) {
+                if constexpr(stl::is_class_v<Type>) {
                     if(const auto &elem = any_cast<const Type &>(value.storage); elem) {
                         return (value.storage.policy() == any_policy::cref) ? static_cast<meta_any *>(other)->emplace<decltype(*elem)>(*elem) : static_cast<meta_any *>(other)->emplace<decltype(*const_cast<Type &>(elem))>(*const_cast<Type &>(elem));
                     }

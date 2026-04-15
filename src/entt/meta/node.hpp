@@ -111,7 +111,7 @@ struct meta_func_node {
     const meta_type_node &(*ret)(const meta_context &) noexcept {};
     meta_type (*arg)(const meta_ctx &, const size_type) noexcept {};
     meta_any (*invoke)(meta_handle, meta_any *const){};
-    std::unique_ptr<meta_func_node> next;
+    stl::unique_ptr<meta_func_node> next;
     meta_custom_node custom{};
 };
 
@@ -145,7 +145,7 @@ struct meta_type_node {
     meta_any (*from_void)(const meta_ctx &, void *, const void *){};
     meta_template_node templ{};
     meta_custom_node custom{};
-    std::unique_ptr<meta_type_descriptor> details{};
+    stl::unique_ptr<meta_type_descriptor> details{};
 };
 
 template<typename Type, typename Value>

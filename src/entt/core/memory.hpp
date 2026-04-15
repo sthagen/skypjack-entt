@@ -82,7 +82,7 @@ struct allocation_deleter: private Allocator {
 };
 
 /**
- * @brief Allows `std::unique_ptr` to use allocators (waiting for C++20).
+ * @brief Allows `stl::unique_ptr` to use allocators (waiting for C++20).
  * @tparam Type Type of object to allocate for and to construct.
  * @tparam Allocator Type of allocator used to manage memory and elements.
  * @tparam Args Types of arguments to use to construct the object.
@@ -108,7 +108,7 @@ constexpr auto allocate_unique(Allocator &allocator, Args &&...args) {
         ENTT_THROW;
     }
 
-    return std::unique_ptr<Type, allocation_deleter<allocator_type>>{ptr, alloc};
+    return stl::unique_ptr<Type, allocation_deleter<allocator_type>>{ptr, alloc};
 }
 
 /*! @cond ENTT_INTERNAL */

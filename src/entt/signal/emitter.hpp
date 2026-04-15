@@ -37,7 +37,7 @@ class emitter {
     using key_type = id_type;
     using mapped_type = std::function<void(void *)>;
 
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     using container_allocator = alloc_traits::template rebind_alloc<stl::pair<const key_type, mapped_type>>;
     using container_type = dense_map<key_type, mapped_type, stl::identity, std::equal_to<>, container_allocator>;
 

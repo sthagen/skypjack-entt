@@ -234,7 +234,7 @@ class dense_map {
     static constexpr stl::size_t placeholder_position = internal::dense_map_placeholder_position;
 
     using node_type = internal::dense_map_node<Key, Type>;
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, stl::pair<const Key, Type>>, "Invalid value type");
     using sparse_container_type = stl::vector<stl::size_t, typename alloc_traits::template rebind_alloc<stl::size_t>>;
     using packed_container_type = stl::vector<node_type, typename alloc_traits::template rebind_alloc<node_type>>;

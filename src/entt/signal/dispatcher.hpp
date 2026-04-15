@@ -31,7 +31,7 @@ struct basic_dispatcher_handler {
 
 template<cvref_unqualified Type, typename Allocator>
 class dispatcher_handler final: public basic_dispatcher_handler {
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     using signal_type = sigh<void(Type &), Allocator>;
     using container_type = stl::vector<Type, typename alloc_traits::template rebind_alloc<Type>>;
 
@@ -111,7 +111,7 @@ class basic_dispatcher {
     // stl::shared_ptr because of its type erased allocator which is useful here
     using mapped_type = stl::shared_ptr<internal::basic_dispatcher_handler>;
 
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     using container_allocator = alloc_traits::template rebind_alloc<stl::pair<const key_type, mapped_type>>;
     using container_type = dense_map<key_type, mapped_type, stl::identity, std::equal_to<>, container_allocator>;
 

@@ -393,7 +393,7 @@ class basic_reactive_mixin final: public Type {
     using underlying_type = Type;
     using owner_type = Registry;
 
-    using alloc_traits = std::allocator_traits<typename underlying_type::allocator_type>;
+    using alloc_traits = stl::allocator_traits<typename underlying_type::allocator_type>;
     using basic_registry_type = basic_registry<typename owner_type::entity_type, typename owner_type::allocator_type>;
     using container_type = stl::vector<connection, typename alloc_traits::template rebind_alloc<connection>>;
 

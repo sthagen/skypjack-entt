@@ -198,7 +198,7 @@ class dense_set {
     static constexpr stl::size_t placeholder_position = internal::dense_set_placeholder_position;
 
     using node_type = stl::pair<stl::size_t, Type>;
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, Type>, "Invalid value type");
     using sparse_container_type = stl::vector<stl::size_t, typename alloc_traits::template rebind_alloc<stl::size_t>>;
     using packed_container_type = stl::vector<node_type, typename alloc_traits::template rebind_alloc<node_type>>;

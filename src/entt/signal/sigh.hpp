@@ -54,7 +54,7 @@ template<typename Ret, typename... Args, typename Allocator>
 class sigh<Ret(Args...), Allocator> {
     friend class sink<sigh<Ret(Args...), Allocator>>;
 
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     using delegate_type = delegate<Ret(Args...)>;
     using container_type = stl::vector<delegate_type, typename alloc_traits::template rebind_alloc<delegate_type>>;
 

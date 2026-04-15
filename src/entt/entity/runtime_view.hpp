@@ -117,7 +117,7 @@ private:
  */
 template<typename Type, typename Allocator>
 class basic_runtime_view {
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, Type *>, "Invalid value type");
     using container_type = stl::vector<Type *, Allocator>;
 

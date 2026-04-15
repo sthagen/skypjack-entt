@@ -18,7 +18,7 @@ namespace entt {
  */
 template<typename Allocator>
 constexpr void propagate_on_container_copy_assignment([[maybe_unused]] Allocator &lhs, [[maybe_unused]] Allocator &rhs) noexcept {
-    if constexpr(std::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value) {
+    if constexpr(stl::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value) {
         lhs = rhs;
     }
 }
@@ -31,7 +31,7 @@ constexpr void propagate_on_container_copy_assignment([[maybe_unused]] Allocator
  */
 template<typename Allocator>
 constexpr void propagate_on_container_move_assignment([[maybe_unused]] Allocator &lhs, [[maybe_unused]] Allocator &rhs) noexcept {
-    if constexpr(std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value) {
+    if constexpr(stl::allocator_traits<Allocator>::propagate_on_container_move_assignment::value) {
         lhs = stl::move(rhs);
     }
 }
@@ -44,7 +44,7 @@ constexpr void propagate_on_container_move_assignment([[maybe_unused]] Allocator
  */
 template<typename Allocator>
 constexpr void propagate_on_container_swap([[maybe_unused]] Allocator &lhs, [[maybe_unused]] Allocator &rhs) noexcept {
-    if constexpr(std::allocator_traits<Allocator>::propagate_on_container_swap::value) {
+    if constexpr(stl::allocator_traits<Allocator>::propagate_on_container_swap::value) {
         using std::swap;
         swap(lhs, rhs);
     } else {
@@ -61,7 +61,7 @@ struct allocation_deleter: private Allocator {
     /*! @brief Allocator type. */
     using allocator_type = Allocator;
     /*! @brief Pointer type. */
-    using pointer = std::allocator_traits<Allocator>::pointer;
+    using pointer = stl::allocator_traits<Allocator>::pointer;
 
     /**
      * @brief Inherited constructors.
@@ -75,7 +75,7 @@ struct allocation_deleter: private Allocator {
      * @param ptr A valid pointer to an object of the given type.
      */
     constexpr void operator()(pointer ptr) noexcept(stl::is_nothrow_destructible_v<typename allocator_type::value_type>) {
-        using alloc_traits = std::allocator_traits<Allocator>;
+        using alloc_traits = stl::allocator_traits<Allocator>;
         alloc_traits::destroy(*this, stl::to_address(ptr));
         alloc_traits::deallocate(*this, ptr, 1u);
     }
@@ -94,7 +94,7 @@ template<typename Type, typename Allocator, typename... Args>
 constexpr auto allocate_unique(Allocator &allocator, Args &&...args) {
     static_assert(!stl::is_array_v<Type>, "Array types are not supported");
 
-    using alloc_traits = std::allocator_traits<Allocator>::template rebind_traits<Type>;
+    using alloc_traits = stl::allocator_traits<Allocator>::template rebind_traits<Type>;
     using allocator_type = alloc_traits::allocator_type;
 
     allocator_type alloc{allocator};

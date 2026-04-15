@@ -86,7 +86,7 @@ private:
  */
 template<std::derived_from<directed_tag> Category, typename Allocator>
 class adjacency_matrix {
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, stl::size_t>, "Invalid value type");
     using container_type = stl::vector<stl::size_t, typename alloc_traits::template rebind_alloc<stl::size_t>>;
 

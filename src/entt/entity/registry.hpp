@@ -131,7 +131,7 @@ private:
 
 template<typename Allocator>
 class registry_context {
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     using allocator_type = alloc_traits::template rebind_alloc<stl::pair<const id_type, basic_any<0u>>>;
 
 public:
@@ -211,7 +211,7 @@ private:
 template<typename Entity, typename Allocator>
 class basic_registry {
     using base_type = basic_sparse_set<Entity, Allocator>;
-    using alloc_traits = std::allocator_traits<Allocator>;
+    using alloc_traits = stl::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, Entity>, "Invalid value type");
     // stl::shared_ptr because of its type erased allocator which is useful here
     using pool_container_type = dense_map<id_type, stl::shared_ptr<base_type>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, stl::shared_ptr<base_type>>>>;

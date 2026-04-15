@@ -216,7 +216,7 @@ auto setup_node_for() noexcept {
         &type_id<Type>(),
         type_id<Type>().hash(),
         nullptr,
-        (std::is_arithmetic_v<Type> ? meta_traits::is_arithmetic : meta_traits::is_none)
+        (stl::is_arithmetic_v<Type> ? meta_traits::is_arithmetic : meta_traits::is_none)
             | (std::is_integral_v<Type> ? meta_traits::is_integral : meta_traits::is_none)
             | (std::is_signed_v<Type> ? meta_traits::is_signed : meta_traits::is_none)
             | (stl::is_array_v<Type> ? meta_traits::is_array : meta_traits::is_none)
@@ -235,7 +235,7 @@ auto setup_node_for() noexcept {
         };
     }
 
-    if constexpr(std::is_arithmetic_v<Type>) {
+    if constexpr(stl::is_arithmetic_v<Type>) {
         node.conversion_helper = +[](void *lhs, const void *rhs) {
             return lhs ? static_cast<double>(*static_cast<Type *>(lhs) = static_cast<Type>(*static_cast<const double *>(rhs))) : static_cast<double>(*static_cast<const Type *>(rhs));
         };

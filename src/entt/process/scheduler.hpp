@@ -36,8 +36,8 @@ template<typename Delta, typename Allocator>
 class basic_scheduler {
     using base_type = basic_process<Delta, Allocator>;
     using alloc_traits = std::allocator_traits<Allocator>;
-    using container_allocator = alloc_traits::template rebind_alloc<std::shared_ptr<base_type>>;
-    using container_type = stl::vector<std::shared_ptr<base_type>, container_allocator>;
+    using container_allocator = alloc_traits::template rebind_alloc<stl::shared_ptr<base_type>>;
+    using container_type = stl::vector<stl::shared_ptr<base_type>, container_allocator>;
 
 public:
     /*! @brief Process type. */

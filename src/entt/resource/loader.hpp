@@ -14,7 +14,7 @@ namespace entt {
 template<typename Type>
 struct resource_loader {
     /*! @brief Result type. */
-    using result_type = std::shared_ptr<Type>;
+    using result_type = stl::shared_ptr<Type>;
 
     /**
      * @brief Constructs a shared pointer to a resource from its arguments.

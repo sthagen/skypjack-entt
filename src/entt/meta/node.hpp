@@ -64,7 +64,7 @@ struct meta_type_node;
 
 struct meta_custom_node {
     id_type id{};
-    std::shared_ptr<void> value{};
+    stl::shared_ptr<void> value{};
 };
 
 struct meta_base_node {

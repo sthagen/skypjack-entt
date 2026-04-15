@@ -28,7 +28,7 @@ template<typename Service>
 class locator final {
     class service_handle {
         friend class locator<Service>;
-        std::shared_ptr<Service> value{};
+        stl::shared_ptr<Service> value{};
     };
 
 public:
@@ -147,13 +147,13 @@ public:
      */
     template<std::derived_from<Service> Type, typename Deleter = std::default_delete<Type>>
     static void reset(Type *elem, Deleter deleter = {}) {
-        service = std::shared_ptr<Service>{elem, stl::move(deleter)};
+        service = stl::shared_ptr<Service>{elem, stl::move(deleter)};
     }
 
 private:
-    // std::shared_ptr because of its type erased allocator which is useful here
+    // stl::shared_ptr because of its type erased allocator which is useful here
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-    inline static std::shared_ptr<Service> service{};
+    inline static stl::shared_ptr<Service> service{};
 };
 
 } // namespace entt

@@ -213,9 +213,9 @@ class basic_registry {
     using base_type = basic_sparse_set<Entity, Allocator>;
     using alloc_traits = std::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, Entity>, "Invalid value type");
-    // std::shared_ptr because of its type erased allocator which is useful here
-    using pool_container_type = dense_map<id_type, std::shared_ptr<base_type>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, std::shared_ptr<base_type>>>>;
-    using group_container_type = dense_map<id_type, std::shared_ptr<internal::group_descriptor>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, std::shared_ptr<internal::group_descriptor>>>>;
+    // stl::shared_ptr because of its type erased allocator which is useful here
+    using pool_container_type = dense_map<id_type, stl::shared_ptr<base_type>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, stl::shared_ptr<base_type>>>>;
+    using group_container_type = dense_map<id_type, stl::shared_ptr<internal::group_descriptor>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, stl::shared_ptr<internal::group_descriptor>>>>;
     using traits_type = entt_traits<Entity>;
 
     template<cvref_unqualified Type>
@@ -1053,7 +1053,7 @@ public:
             return {*std::static_pointer_cast<handler_type>(it->second)};
         }
 
-        std::shared_ptr<handler_type> handler{};
+        stl::shared_ptr<handler_type> handler{};
 
         if constexpr(sizeof...(Owned) == 0u) {
             handler = std::allocate_shared<handler_type>(get_allocator(), get_allocator(), stl::forward_as_tuple(assure<stl::remove_const_t<Get>>()...), stl::forward_as_tuple(assure<stl::remove_const_t<Exclude>>()...));

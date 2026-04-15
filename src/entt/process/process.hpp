@@ -95,7 +95,7 @@ public:
     /*! @brief Type used to provide elapsed time. */
     using delta_type = Delta;
     /*! @brief Handle type. */
-    using handle_type = std::shared_ptr<basic_process>;
+    using handle_type = stl::shared_ptr<basic_process>;
 
     /*! @brief Default constructor. */
     basic_process()

@@ -10,12 +10,12 @@
 namespace entt {
 
 /**
- * @brief Makes `std::shared_ptr`s of any type pointer-like types for the meta
+ * @brief Makes `stl::shared_ptr`s of any type pointer-like types for the meta
  * system.
  * @tparam Type Element type.
  */
 template<typename Type>
-struct is_meta_pointer_like<std::shared_ptr<Type>>
+struct is_meta_pointer_like<stl::shared_ptr<Type>>
     : stl::true_type {};
 
 /**

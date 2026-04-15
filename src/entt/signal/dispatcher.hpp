@@ -108,8 +108,8 @@ class basic_dispatcher {
     using handler_type = internal::dispatcher_handler<Type, Allocator>;
 
     using key_type = id_type;
-    // std::shared_ptr because of its type erased allocator which is useful here
-    using mapped_type = std::shared_ptr<internal::basic_dispatcher_handler>;
+    // stl::shared_ptr because of its type erased allocator which is useful here
+    using mapped_type = stl::shared_ptr<internal::basic_dispatcher_handler>;
 
     using alloc_traits = std::allocator_traits<Allocator>;
     using container_allocator = alloc_traits::template rebind_alloc<stl::pair<const key_type, mapped_type>>;

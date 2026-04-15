@@ -28,7 +28,7 @@ public:
     /*! @brief Resource type. */
     using element_type = Type;
     /*! @brief Handle type. */
-    using handle_type = std::shared_ptr<element_type>;
+    using handle_type = stl::shared_ptr<element_type>;
 
     /*! @brief Default constructor. */
     resource() noexcept

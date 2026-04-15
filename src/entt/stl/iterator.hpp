@@ -3,6 +3,7 @@
 
 #include <iterator>
 #include "../config/config.h"
+#include "version.hpp"
 
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
@@ -17,9 +18,7 @@ using std::random_access_iterator_tag;
 using std::reverse_iterator;
 
 #ifndef ENTT_FORCE_STL
-#    if __has_include(<version>)
-#        include <version>
-#
+#    ifdef ENTT_HAS_VERSION
 #        if defined(__cpp_lib_ranges)
 #            define ENTT_HAS_ITERATOR_CONCEPTS
 

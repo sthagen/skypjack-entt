@@ -5,6 +5,7 @@
 #    include <entt/ext/config.h>
 #endif
 
+#include "../stl/version.hpp"
 #include "version.h"
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
@@ -23,9 +24,7 @@
 #    define ENTT_CATCH if(false)
 #endif
 
-#if __has_include(<version>)
-#    include <version>
-#
+#ifdef ENTT_HAS_VERSION
 #    if defined(__cpp_consteval)
 #        define ENTT_CONSTEVAL consteval
 #    endif

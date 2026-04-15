@@ -1,9 +1,9 @@
 #ifndef ENTT_ENTITY_RANGES_HPP
 #define ENTT_ENTITY_RANGES_HPP
 
-#if __has_include(<version>)
-#    include <version>
-#
+#include "../stl/version.hpp"
+
+#ifdef ENTT_HAS_VERSION
 #    if defined(__cpp_lib_ranges)
 #        include <ranges>
 #        include "fwd.hpp"

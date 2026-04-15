@@ -212,6 +212,7 @@ if(ENTT_INCLUDE_HEADERS)
         stl/type_traits.hpp
         stl/utility.hpp
         stl/vector.hpp
+        stl/version.hpp
         tools/davey.hpp
         entt.hpp
         fwd.hpp

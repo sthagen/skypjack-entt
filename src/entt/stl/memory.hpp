@@ -2,12 +2,11 @@
 #define ENTT_STL_MEMORY_HPP
 
 #include "../config/config.h"
+#include "version.hpp"
 
 /*! @cond ENTT_INTERNAL */
 #ifndef ENTT_FORCE_STL
-#    if __has_include(<version>)
-#        include <version>
-#
+#    ifdef ENTT_HAS_VERSION
 #        if defined(__cpp_lib_to_address)
 #            define ENTT_HAS_TO_ADDRESS
 #            include <memory>

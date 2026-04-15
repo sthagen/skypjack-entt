@@ -218,7 +218,7 @@ auto setup_node_for() noexcept {
         nullptr,
         (stl::is_arithmetic_v<Type> ? meta_traits::is_arithmetic : meta_traits::is_none)
             | (stl::is_integral_v<Type> ? meta_traits::is_integral : meta_traits::is_none)
-            | (std::is_signed_v<Type> ? meta_traits::is_signed : meta_traits::is_none)
+            | (stl::is_signed_v<Type> ? meta_traits::is_signed : meta_traits::is_none)
             | (stl::is_array_v<Type> ? meta_traits::is_array : meta_traits::is_none)
             | (stl::is_enum_v<Type> ? meta_traits::is_enum : meta_traits::is_none)
             | (std::is_class_v<Type> ? meta_traits::is_class : meta_traits::is_none)

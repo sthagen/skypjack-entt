@@ -123,8 +123,8 @@ struct uses_allocator_construction {
         } else {
             static_assert(std::uses_allocator_v<Type, Allocator>, "Ill-formed request");
 
-            if constexpr(stl::is_constructible_v<Type, std::allocator_arg_t, const Allocator &, Params...>) {
-                return stl::tuple<std::allocator_arg_t, const Allocator &, Params &&...>{std::allocator_arg, allocator, stl::forward<Params>(params)...};
+            if constexpr(stl::is_constructible_v<Type, stl::allocator_arg_t, const Allocator &, Params...>) {
+                return stl::tuple<stl::allocator_arg_t, const Allocator &, Params &&...>{stl::allocator_arg, allocator, stl::forward<Params>(params)...};
             } else {
                 static_assert(stl::is_constructible_v<Type, Params..., const Allocator &>, "Ill-formed request");
                 return stl::forward_as_tuple(stl::forward<Params>(params)..., allocator);

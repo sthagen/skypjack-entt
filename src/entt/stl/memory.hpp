@@ -8,6 +8,8 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::allocator_arg;
+using std::allocator_arg_t;
 using std::allocator_traits;
 using std::make_unique;
 using std::pointer_traits;

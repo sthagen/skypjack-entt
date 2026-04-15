@@ -39,15 +39,15 @@ struct dense_map_node final {
           element{stl::forward<Args>(args)...} {}
 
     template<typename... Args>
-    dense_map_node(std::allocator_arg_t, const auto &allocator, const stl::size_t pos, Args &&...args)
+    dense_map_node(stl::allocator_arg_t, const auto &allocator, const stl::size_t pos, Args &&...args)
         : next{pos},
           element{entt::make_obj_using_allocator<value_type>(allocator, stl::forward<Args>(args)...)} {}
 
-    dense_map_node(std::allocator_arg_t, const auto &allocator, const dense_map_node &other)
+    dense_map_node(stl::allocator_arg_t, const auto &allocator, const dense_map_node &other)
         : next{other.next},
           element{entt::make_obj_using_allocator<value_type>(allocator, other.element)} {}
 
-    dense_map_node(std::allocator_arg_t, const auto &allocator, dense_map_node &&other)
+    dense_map_node(stl::allocator_arg_t, const auto &allocator, dense_map_node &&other)
         : next{other.next},
           element{entt::make_obj_using_allocator<value_type>(allocator, stl::move(other.element))} {}
 

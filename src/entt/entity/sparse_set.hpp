@@ -79,7 +79,7 @@ struct sparse_set_iterator final {
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
-        return std::addressof(operator[](0));
+        return stl::addressof(operator[](0));
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {

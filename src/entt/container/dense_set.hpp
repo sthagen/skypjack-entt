@@ -93,7 +93,7 @@ public:
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
-        return std::addressof(operator[](0));
+        return stl::addressof(operator[](0));
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
@@ -155,7 +155,7 @@ public:
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
-        return std::addressof(it[static_cast<difference_type>(offset)].second);
+        return stl::addressof(it[static_cast<difference_type>(offset)].second);
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {

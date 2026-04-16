@@ -142,7 +142,7 @@ class basic_any: private internal::basic_any_storage<Len, Align> {
             mode = stl::is_const_v<stl::remove_reference_t<Type>> ? any_policy::cref : any_policy::ref;
             static_assert((stl::is_lvalue_reference_v<Args> && ...) && (sizeof...(Args) == 1u), "Invalid arguments");
             // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
-            this->instance = (std::addressof(args), ...);
+            this->instance = (stl::addressof(args), ...);
         } else if constexpr(in_situ_v<plain_type>) {
             if constexpr(stl::is_trivially_destructible_v<plain_type>) {
                 deleter = nullptr;

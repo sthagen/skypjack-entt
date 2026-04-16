@@ -35,7 +35,7 @@ struct input_iterator_pointer final {
      * @return A pointer to the wrapped value.
      */
     [[nodiscard]] constexpr pointer operator->() noexcept {
-        return std::addressof(value);
+        return stl::addressof(value);
     }
 
     /**

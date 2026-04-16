@@ -130,7 +130,7 @@ basic_storage<Args...>::entity_type to_entity(const basic_storage<Args...> &stor
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     for(stl::size_t pos{}, count = storage.size(); pos < count; pos += traits_type::page_size, ++page) {
-        if(const auto dist = (std::addressof(instance) - *page); dist >= 0 && dist < static_cast<decltype(dist)>(traits_type::page_size)) {
+        if(const auto dist = (stl::addressof(instance) - *page); dist >= 0 && dist < static_cast<decltype(dist)>(traits_type::page_size)) {
             return *(static_cast<const basic_storage<Args...>::base_type &>(storage).rbegin() + static_cast<decltype(dist)>(pos) + dist);
         }
     }

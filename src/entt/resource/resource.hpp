@@ -55,7 +55,7 @@ public:
      */
     template<typename Other>
     resource(const resource<Other> &other, element_type &res) noexcept
-        : value{other.value, std::addressof(res)} {}
+        : value{other.value, stl::addressof(res)} {}
 
     /**
      * @brief Copy constructs a handle which shares ownership of the resource.
@@ -168,7 +168,7 @@ public:
      */
     template<typename Other>
     [[nodiscard]] bool operator==(const resource<Other> &other) const noexcept {
-        return (std::addressof(*value) == std::addressof(*other.value));
+        return (stl::addressof(*value) == stl::addressof(*other.value));
     }
 
     /**
@@ -179,7 +179,7 @@ public:
      */
     template<typename Other>
     [[nodiscard]] auto operator<=>(const resource<Other> &other) const noexcept {
-        return (std::addressof(*value) <=> std::addressof(*other.value));
+        return (stl::addressof(*value) <=> stl::addressof(*other.value));
     }
 
     /*! @brief Releases the ownership of the managed resource. */

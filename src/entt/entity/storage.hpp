@@ -98,7 +98,7 @@ public:
     }
 
     [[nodiscard]] constexpr pointer operator->() const noexcept {
-        return std::addressof(operator[](0));
+        return stl::addressof(operator[](0));
     }
 
     [[nodiscard]] constexpr reference operator*() const noexcept {
@@ -263,10 +263,10 @@ class basic_storage: public basic_sparse_set<Entity, typename stl::allocator_tra
             for(auto pos = sz, length = base_type::size(); pos < length; ++pos) {
                 if constexpr(traits_type::in_place_delete) {
                     if(base_type::data()[pos] != tombstone) {
-                        alloc_traits::destroy(allocator, std::addressof(element_at(pos)));
+                        alloc_traits::destroy(allocator, stl::addressof(element_at(pos)));
                     }
                 } else {
-                    alloc_traits::destroy(allocator, std::addressof(element_at(pos)));
+                    alloc_traits::destroy(allocator, stl::addressof(element_at(pos)));
                 }
             }
         }
@@ -288,12 +288,12 @@ class basic_storage: public basic_sparse_set<Entity, typename stl::allocator_tra
         auto &elem = element_at(lhs);
         allocator_type allocator{get_allocator()};
         entt::uninitialized_construct_using_allocator(stl::to_address(assure_at_least(rhs)), allocator, stl::move(elem));
-        alloc_traits::destroy(allocator, std::addressof(elem));
+        alloc_traits::destroy(allocator, stl::addressof(elem));
     }
 
 private:
     [[nodiscard]] const void *get_at(const stl::size_t pos) const final {
-        return std::addressof(element_at(pos));
+        return stl::addressof(element_at(pos));
     }
 
     void swap_or_move([[maybe_unused]] const stl::size_t from, [[maybe_unused]] const stl::size_t to) override {
@@ -323,7 +323,7 @@ protected:
 
             if constexpr(traits_type::in_place_delete) {
                 base_type::in_place_pop(*first);
-                alloc_traits::destroy(allocator, std::addressof(elem));
+                alloc_traits::destroy(allocator, stl::addressof(elem));
             } else if constexpr(stl::is_trivially_destructible_v<element_type>) {
                 elem = stl::move(element_at(base_type::size() - 1u));
                 base_type::swap_and_pop(*first);
@@ -331,7 +331,7 @@ protected:
                 auto &other = element_at(base_type::size() - 1u);
                 // destroying on exit allows reentrant destructors
                 [[maybe_unused]] auto unused = stl::exchange(elem, stl::move(other));
-                alloc_traits::destroy(allocator, std::addressof(other));
+                alloc_traits::destroy(allocator, stl::addressof(other));
                 base_type::swap_and_pop(*first);
             }
         }
@@ -348,11 +348,11 @@ protected:
                 if constexpr(traits_type::in_place_delete) {
                     if(*first != tombstone) {
                         base_type::in_place_pop(*first);
-                        alloc_traits::destroy(allocator, std::addressof(element_at(static_cast<size_type>(first.index()))));
+                        alloc_traits::destroy(allocator, stl::addressof(element_at(static_cast<size_type>(first.index()))));
                     }
                 } else {
                     base_type::swap_and_pop(*first);
-                    alloc_traits::destroy(allocator, std::addressof(element_at(static_cast<size_type>(first.index()))));
+                    alloc_traits::destroy(allocator, stl::addressof(element_at(static_cast<size_type>(first.index()))));
                 }
             }
         }

@@ -898,7 +898,7 @@ public:
     [[nodiscard]] auto try_get([[maybe_unused]] const entity_type entt) const {
         if constexpr(sizeof...(Type) == 1u) {
             const auto *cpool = assure<stl::remove_const_t<Type>...>();
-            return (cpool && cpool->contains(entt)) ? std::addressof(cpool->get(entt)) : nullptr;
+            return (cpool && cpool->contains(entt)) ? stl::addressof(cpool->get(entt)) : nullptr;
         } else {
             return stl::make_tuple(try_get<Type>(entt)...);
         }

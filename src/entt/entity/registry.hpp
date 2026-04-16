@@ -1049,7 +1049,7 @@ public:
         using handler_type = group_type::handler;
 
         if(auto it = groups.find(group_type::group_id()); it != groups.cend()) {
-            return {*std::static_pointer_cast<handler_type>(it->second)};
+            return {*stl::static_pointer_cast<handler_type>(it->second)};
         }
 
         stl::shared_ptr<handler_type> handler{};
@@ -1073,7 +1073,7 @@ public:
         using handler_type = group_type::handler;
 
         if(auto it = groups.find(group_type::group_id()); it != groups.cend()) {
-            return {*std::static_pointer_cast<handler_type>(it->second)};
+            return {*stl::static_pointer_cast<handler_type>(it->second)};
         }
 
         return {};

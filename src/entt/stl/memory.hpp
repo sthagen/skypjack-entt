@@ -16,6 +16,7 @@ using std::allocator_traits;
 using std::make_unique;
 using std::pointer_traits;
 using std::shared_ptr;
+using std::static_pointer_cast;
 using std::unique_ptr;
 
 } // namespace entt::stl

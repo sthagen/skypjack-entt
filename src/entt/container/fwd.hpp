@@ -13,14 +13,14 @@ template<
     typename Type,
     typename = std::hash<Key>,
     typename = stl::equal_to<>,
-    typename = std::allocator<stl::pair<const Key, Type>>>
+    typename = stl::allocator<stl::pair<const Key, Type>>>
 class dense_map;
 
 template<
     typename Type,
     typename = std::hash<Type>,
     typename = stl::equal_to<>,
-    typename = std::allocator<Type>>
+    typename = stl::allocator<Type>>
 class dense_set;
 
 template<typename...>

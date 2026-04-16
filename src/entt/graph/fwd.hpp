@@ -14,10 +14,10 @@ struct directed_tag {};
 /*! @brief Directed graph category tag. */
 struct undirected_tag: directed_tag {};
 
-template<std::derived_from<directed_tag>, typename = std::allocator<stl::size_t>>
+template<std::derived_from<directed_tag>, typename = stl::allocator<stl::size_t>>
 class adjacency_matrix;
 
-template<typename = std::allocator<id_type>>
+template<typename = stl::allocator<id_type>>
 class basic_flow;
 
 /*! @brief Alias declaration for the most common use case. */

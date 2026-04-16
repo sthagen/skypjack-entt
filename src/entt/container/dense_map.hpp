@@ -3,7 +3,6 @@
 
 #include <compare>
 #include <concepts>
-#include <functional>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/compressed_pair.hpp"
@@ -13,6 +12,7 @@
 #include "../stl/bit.hpp"
 #include "../stl/cmath.hpp"
 #include "../stl/cstddef.hpp"
+#include "../stl/functional.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/limits.hpp"
 #include "../stl/memory.hpp"

@@ -3,7 +3,6 @@
 
 #include <compare>
 #include <concepts>
-#include <functional>
 #include "../container/dense_map.hpp"
 #include "../core/compressed_pair.hpp"
 #include "../core/fwd.hpp"

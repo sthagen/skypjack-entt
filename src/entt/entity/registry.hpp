@@ -3,7 +3,6 @@
 
 #include <compare>
 #include <concepts>
-#include <functional>
 #include "../config/config.h"
 #include "../container/dense_map.hpp"
 #include "../core/algorithm.hpp"

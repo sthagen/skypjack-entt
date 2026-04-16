@@ -2,7 +2,6 @@
 #define ENTT_GRAPH_FLOW_HPP
 
 #include <concepts>
-#include <functional>
 #include "../config/config.h"
 #include "../container/dense_map.hpp"
 #include "../container/dense_set.hpp"

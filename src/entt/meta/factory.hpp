@@ -2,7 +2,6 @@
 #define ENTT_META_FACTORY_HPP
 
 #include <concepts>
-#include <functional>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/fwd.hpp"
@@ -12,6 +11,7 @@
 #include "../locator/locator.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/cstdint.hpp"
+#include "../stl/functional.hpp"
 #include "../stl/memory.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"

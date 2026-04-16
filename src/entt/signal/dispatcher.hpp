@@ -1,7 +1,6 @@
 #ifndef ENTT_SIGNAL_DISPATCHER_HPP
 #define ENTT_SIGNAL_DISPATCHER_HPP
 
-#include <functional>
 #include "../container/dense_map.hpp"
 #include "../core/compressed_pair.hpp"
 #include "../core/concepts.hpp"

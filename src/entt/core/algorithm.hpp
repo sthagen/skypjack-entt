@@ -2,7 +2,6 @@
 #define ENTT_CORE_ALGORITHM_HPP
 
 #include <concepts>
-#include <functional>
 #include "../stl/algorithm.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/functional.hpp"

@@ -2,12 +2,12 @@
 #define ENTT_POLY_POLY_HPP
 
 #include <concepts>
-#include <functional>
 #include "../core/any.hpp"
 #include "../core/concepts.hpp"
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
 #include "../stl/cstddef.hpp"
+#include "../stl/functional.hpp"
 #include "../stl/tuple.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"

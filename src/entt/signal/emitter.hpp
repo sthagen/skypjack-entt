@@ -1,7 +1,6 @@
 #ifndef ENTT_SIGNAL_EMITTER_HPP
 #define ENTT_SIGNAL_EMITTER_HPP
 
-#include <functional>
 #include "../container/dense_map.hpp"
 #include "../core/compressed_pair.hpp"
 #include "../core/fwd.hpp"
@@ -35,7 +34,7 @@ namespace entt {
 template<typename Derived, typename Allocator>
 class emitter {
     using key_type = id_type;
-    using mapped_type = std::function<void(void *)>;
+    using mapped_type = stl::function<void(void *)>;
 
     using alloc_traits = stl::allocator_traits<Allocator>;
     using container_allocator = alloc_traits::template rebind_alloc<stl::pair<const key_type, mapped_type>>;
@@ -135,7 +134,7 @@ public:
      * @param func The listener to register.
      */
     template<typename Type>
-    void on(std::function<void(Type &, Derived &)> func) {
+    void on(stl::function<void(Type &, Derived &)> func) {
         handlers.first().insert_or_assign(type_id<Type>().hash(), [func = stl::move(func), this](void *value) {
             func(*static_cast<Type *>(value), static_cast<Derived &>(*this));
         });

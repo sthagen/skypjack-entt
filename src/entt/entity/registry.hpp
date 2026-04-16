@@ -196,7 +196,7 @@ public:
     }
 
 private:
-    dense_map<id_type, basic_any<0u>, stl::identity, std::equal_to<>, allocator_type> ctx;
+    dense_map<id_type, basic_any<0u>, stl::identity, stl::equal_to<>, allocator_type> ctx;
 };
 
 } // namespace internal
@@ -213,8 +213,8 @@ class basic_registry {
     using alloc_traits = stl::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, Entity>, "Invalid value type");
     // stl::shared_ptr because of its type erased allocator which is useful here
-    using pool_container_type = dense_map<id_type, stl::shared_ptr<base_type>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, stl::shared_ptr<base_type>>>>;
-    using group_container_type = dense_map<id_type, stl::shared_ptr<internal::group_descriptor>, stl::identity, std::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, stl::shared_ptr<internal::group_descriptor>>>>;
+    using pool_container_type = dense_map<id_type, stl::shared_ptr<base_type>, stl::identity, stl::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, stl::shared_ptr<base_type>>>>;
+    using group_container_type = dense_map<id_type, stl::shared_ptr<internal::group_descriptor>, stl::identity, stl::equal_to<>, typename alloc_traits::template rebind_alloc<stl::pair<const id_type, stl::shared_ptr<internal::group_descriptor>>>>;
     using traits_type = entt_traits<Entity>;
 
     template<cvref_unqualified Type>

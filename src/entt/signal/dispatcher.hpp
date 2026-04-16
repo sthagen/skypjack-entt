@@ -112,7 +112,7 @@ class basic_dispatcher {
 
     using alloc_traits = stl::allocator_traits<Allocator>;
     using container_allocator = alloc_traits::template rebind_alloc<stl::pair<const key_type, mapped_type>>;
-    using container_type = dense_map<key_type, mapped_type, stl::identity, std::equal_to<>, container_allocator>;
+    using container_type = dense_map<key_type, mapped_type, stl::identity, stl::equal_to<>, container_allocator>;
 
     template<cvref_unqualified Type>
     [[nodiscard]] handler_type<Type> &assure(const id_type id) {

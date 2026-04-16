@@ -9,6 +9,7 @@
 namespace entt::stl {
 
 using std::function;
+using std::equal_to;
 
 } // namespace entt::stl
 

@@ -106,7 +106,7 @@ private:
  */
 template<auto Member, typename Registry = stl::decay_t<nth_argument_t<0u, decltype(Member)>>>
 void invoke(Registry &reg, const typename Registry::entity_type entt) {
-    static_assert(std::is_member_function_pointer_v<decltype(Member)>, "Invalid pointer to non-static member function");
+    static_assert(stl::is_member_function_pointer_v<decltype(Member)>, "Invalid pointer to non-static member function");
     (reg.template get<member_class_t<decltype(Member)>>(entt).*Member)(reg, entt);
 }
 

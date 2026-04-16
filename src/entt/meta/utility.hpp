@@ -275,7 +275,7 @@ template<typename Type>
  */
 template<typename Type, auto Data>
 [[nodiscard]] bool meta_setter([[maybe_unused]] meta_handle instance, [[maybe_unused]] meta_any value) {
-    if constexpr(std::is_member_function_pointer_v<decltype(Data)> || stl::is_function_v<stl::remove_reference_t<stl::remove_pointer_t<decltype(Data)>>>) {
+    if constexpr(stl::is_member_function_pointer_v<decltype(Data)> || stl::is_function_v<stl::remove_reference_t<stl::remove_pointer_t<decltype(Data)>>>) {
         using descriptor = meta_function_helper_t<Type, decltype(Data)>;
         using data_type = type_list_element_t<descriptor::is_static, typename descriptor::args_type>;
 

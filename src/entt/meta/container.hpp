@@ -3,9 +3,9 @@
 #ifndef ENTT_META_CONTAINER_HPP
 #define ENTT_META_CONTAINER_HPP
 
-#include <concepts>
 #include "../core/concepts.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/type_traits.hpp"

@@ -1,8 +1,8 @@
 #ifndef ENTT_CORE_TYPE_TRAITS_HPP
 #define ENTT_CORE_TYPE_TRAITS_HPP
 
-#include <concepts>
 #include "../config/config.h"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/tuple.hpp"

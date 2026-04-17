@@ -1,8 +1,8 @@
 #ifndef ENTT_LOCATOR_LOCATOR_HPP
 #define ENTT_LOCATOR_LOCATOR_HPP
 
-#include <concepts>
 #include "../config/config.h"
+#include "../stl/concepts.hpp"
 #include "../stl/memory.hpp"
 #include "../stl/utility.hpp"
 

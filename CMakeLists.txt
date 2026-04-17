@@ -200,6 +200,7 @@ if(ENTT_INCLUDE_HEADERS)
         stl/atomic.hpp
         stl/bit.hpp
         stl/cmath.hpp
+        stl/concepts.hpp
         stl/cstddef.hpp
         stl/cstdint.hpp
         stl/functional.hpp

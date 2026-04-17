@@ -1,7 +1,6 @@
 #ifndef ENTT_GRAPH_FLOW_HPP
 #define ENTT_GRAPH_FLOW_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../container/dense_map.hpp"
 #include "../container/dense_set.hpp"
@@ -9,6 +8,7 @@
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
 #include "../stl/algorithm.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/functional.hpp"
 #include "../stl/iterator.hpp"

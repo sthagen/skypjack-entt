@@ -1,7 +1,6 @@
 #ifndef ENTT_META_FACTORY_HPP
 #define ENTT_META_FACTORY_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/fwd.hpp"
@@ -9,6 +8,7 @@
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
 #include "../locator/locator.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/cstdint.hpp"
 #include "../stl/functional.hpp"

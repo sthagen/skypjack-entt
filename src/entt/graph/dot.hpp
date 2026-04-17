@@ -1,8 +1,8 @@
 #ifndef ENTT_GRAPH_DOT_HPP
 #define ENTT_GRAPH_DOT_HPP
 
-#include <concepts>
 #include <ostream>
+#include "../stl/concepts.hpp"
 #include "fwd.hpp"
 
 namespace entt {

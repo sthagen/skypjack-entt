@@ -2,7 +2,7 @@
 #define ENTT_RESOURCE_RESOURCE_HPP
 
 #include <compare>
-#include <concepts>
+#include "../stl/concepts.hpp"
 #include "../stl/memory.hpp"
 #include "../stl/utility.hpp"
 #include "fwd.hpp"

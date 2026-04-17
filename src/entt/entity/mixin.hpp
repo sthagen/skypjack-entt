@@ -1,11 +1,11 @@
 #ifndef ENTT_ENTITY_MIXIN_HPP
 #define ENTT_ENTITY_MIXIN_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../core/any.hpp"
 #include "../core/type_info.hpp"
 #include "../signal/sigh.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"

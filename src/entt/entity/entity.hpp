@@ -1,10 +1,10 @@
 #ifndef ENTT_ENTITY_ENTITY_HPP
 #define ENTT_ENTITY_ENTITY_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../stl/bit.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/cstdint.hpp"
 #include "../stl/type_traits.hpp"

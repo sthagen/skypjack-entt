@@ -1,10 +1,10 @@
 #ifndef ENTT_ENTITY_SNAPSHOT_HPP
 #define ENTT_ENTITY_SNAPSHOT_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../container/dense_map.hpp"
 #include "../core/type_traits.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/tuple.hpp"

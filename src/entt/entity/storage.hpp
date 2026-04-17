@@ -2,12 +2,12 @@
 #define ENTT_ENTITY_STORAGE_HPP
 
 #include <compare>
-#include <concepts>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/iterator.hpp"
 #include "../core/memory.hpp"
 #include "../core/type_info.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/memory.hpp"

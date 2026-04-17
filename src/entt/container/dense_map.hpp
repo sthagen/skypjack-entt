@@ -2,7 +2,6 @@
 #define ENTT_CONTAINER_DENSE_MAP_HPP
 
 #include <compare>
-#include <concepts>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/compressed_pair.hpp"
@@ -11,6 +10,7 @@
 #include "../core/type_traits.hpp"
 #include "../stl/bit.hpp"
 #include "../stl/cmath.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/functional.hpp"
 #include "../stl/iterator.hpp"

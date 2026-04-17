@@ -1,7 +1,6 @@
 #ifndef ENTT_META_META_HPP
 #define ENTT_META_META_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../core/any.hpp"
 #include "../core/concepts.hpp"
@@ -12,6 +11,7 @@
 #include "../core/utility.hpp"
 #include "../locator/locator.hpp"
 #include "../stl/array.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/memory.hpp"

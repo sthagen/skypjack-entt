@@ -1,9 +1,9 @@
 #ifndef ENTT_GRAPH_ADJACENCY_MATRIX_HPP
 #define ENTT_GRAPH_ADJACENCY_MATRIX_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../core/iterator.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/memory.hpp"

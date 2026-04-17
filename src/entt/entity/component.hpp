@@ -1,9 +1,9 @@
 #ifndef ENTT_ENTITY_COMPONENT_HPP
 #define ENTT_ENTITY_COMPONENT_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../core/concepts.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/type_traits.hpp"
 #include "fwd.hpp"

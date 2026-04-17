@@ -2,9 +2,9 @@
 #define ENTT_META_RANGE_HPP
 
 #include <compare>
-#include <concepts>
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/iterator.hpp"
 #include "../stl/utility.hpp"

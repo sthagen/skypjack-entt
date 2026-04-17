@@ -35,8 +35,8 @@ using std::sentinel_for;
 #endif
 
 #ifndef ENTT_HAS_ITERATOR_CONCEPTS
-#    include <concepts>
 #    include <utility>
+#    include "concepts.hpp"
 
 namespace internal {
 

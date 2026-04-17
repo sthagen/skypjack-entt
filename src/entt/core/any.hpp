@@ -1,9 +1,9 @@
 #ifndef ENTT_CORE_ANY_HPP
 #define ENTT_CORE_ANY_HPP
 
-#include <concepts>
 #include "../config/config.h"
 #include "../core/concepts.hpp"
+#include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/cstdint.hpp"
 #include "../stl/memory.hpp"

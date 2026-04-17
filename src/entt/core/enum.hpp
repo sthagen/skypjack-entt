@@ -17,7 +17,7 @@ struct enum_as_bitmask: stl::false_type {};
 template<typename Type>
 requires requires {
     requires stl::is_enum_v<Type>;
-    { Type::_entt_enum_as_bitmask } -> std::same_as<Type>;
+    { Type::_entt_enum_as_bitmask } -> stl::same_as<Type>;
 }
 struct enum_as_bitmask<Type>: stl::true_type {};
 

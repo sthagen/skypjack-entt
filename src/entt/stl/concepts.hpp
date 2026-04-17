@@ -6,6 +6,8 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::same_as;
+
 } // namespace entt::stl
 /*! @endcond */
 

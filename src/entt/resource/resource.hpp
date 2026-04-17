@@ -63,7 +63,7 @@ public:
      * @param other The handle to copy from.
      */
     template<typename Other>
-    requires (!std::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
+    requires (!stl::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
     resource(const resource<Other> &other) noexcept
         : value{other.value} {}
 
@@ -73,7 +73,7 @@ public:
      * @param other The handle to move from.
      */
     template<typename Other>
-    requires (!std::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
+    requires (!stl::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
     resource(resource<Other> &&other) noexcept
         : value{stl::move(other.value)} {}
 
@@ -99,7 +99,7 @@ public:
      * @return This resource handle.
      */
     template<typename Other>
-    requires (!std::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
+    requires (!stl::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
     resource &operator=(const resource<Other> &other) noexcept {
         value = other.value;
         return *this;
@@ -112,7 +112,7 @@ public:
      * @return This resource handle.
      */
     template<typename Other>
-    requires (!std::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
+    requires (!stl::same_as<Type, Other> && std::constructible_from<Type &, Other &>)
     resource &operator=(resource<Other> &&other) noexcept {
         value = stl::move(other.value);
         return *this;

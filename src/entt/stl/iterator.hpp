@@ -71,7 +71,7 @@ concept has_iterator_tag = std::derived_from<typename iterator_tag<It>::type, Ta
 template<typename It>
 concept input_or_output_iterator = requires(It it) {
     *it;
-    { ++it } -> std::same_as<It &>;
+    { ++it } -> stl::same_as<It &>;
     it++;
 };
 
@@ -94,7 +94,7 @@ concept random_access_iterator = bidirectional_iterator<It> && internal::has_ite
 
 template<class Sentinel, typename It>
 concept sentinel_for = input_or_output_iterator<It> && requires(Sentinel sentinel, It it) {
-    { it == sentinel } -> std::same_as<bool>;
+    { it == sentinel } -> stl::same_as<bool>;
 };
 
 #endif

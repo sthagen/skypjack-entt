@@ -292,7 +292,7 @@ public:
      * @param value An instance of an object to use to initialize the wrapper.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, meta_any>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_any>)
     meta_any(Type &&value)
         : meta_any{locator<meta_ctx>::value_or(), stl::forward<Type>(value)} {}
 
@@ -303,7 +303,7 @@ public:
      * @param value An instance of an object to use to initialize the wrapper.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, meta_any>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_any>)
     meta_any(const meta_ctx &area, Type &&value)
         : meta_any{area, stl::in_place_type<stl::decay_t<Type>>, stl::forward<Type>(value)} {}
 
@@ -389,7 +389,7 @@ public:
      * @return This meta any object.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, meta_any>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_any>)
     meta_any &operator=(Type &&value) {
         emplace<stl::decay_t<Type>>(stl::forward<Type>(value));
         return *this;
@@ -689,7 +689,7 @@ template<typename Type>
 /*! @brief Opaque pointers to instances of any type. */
 class meta_handle {
     template<typename Type, typename... Args>
-    requires std::same_as<stl::remove_cvref_t<Type>, meta_any>
+    requires stl::same_as<stl::remove_cvref_t<Type>, meta_any>
     meta_handle(int, Type &value, Args &&...args)
         : any{stl::forward<Args>(args)..., value.as_ref()} {}
 
@@ -708,7 +708,7 @@ public:
      * @param value An instance of an object to use to initialize the handle.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, meta_handle>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_handle>)
     meta_handle(const meta_ctx &ctx, Type &value)
         : meta_handle{0, value, ctx} {}
 
@@ -718,7 +718,7 @@ public:
      * @param value An instance of an object to use to initialize the handle.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, meta_handle>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_handle>)
     meta_handle(Type &value)
         : meta_handle{0, value} {}
 

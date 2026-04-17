@@ -51,7 +51,7 @@ public:
         : payload{ref},
           offset{idx} {}
 
-    template<std::same_as<stl::remove_const_t<Container>> Other>
+    template<stl::same_as<stl::remove_const_t<Container>> Other>
     requires stl::is_const_v<Container>
     constexpr storage_iterator(const storage_iterator<Other, Page> &other) noexcept
         : storage_iterator{other.payload, other.offset} {}
@@ -152,7 +152,7 @@ public:
         : it{base, other...} {}
 
     template<typename... Args>
-    requires (!std::same_as<Other, Args> && ...) && (std::constructible_from<Other, Args> && ...)
+    requires (!stl::same_as<Other, Args> && ...) && (std::constructible_from<Other, Args> && ...)
     constexpr extended_storage_iterator(const extended_storage_iterator<It, Args...> &other)
         : it{other.it} {}
 
@@ -724,7 +724,7 @@ public:
      * @return Iterator pointing to the first element inserted, if any.
      */
     template<stl::input_iterator It>
-    requires std::same_as<typename stl::iterator_traits<It>::value_type, value_type>
+    requires stl::same_as<typename stl::iterator_traits<It>::value_type, value_type>
     iterator insert(stl::input_iterator auto first, stl::input_iterator auto last, It from) {
         for(; first != last; ++first, ++from) {
             emplace_element(*first, true, *from);

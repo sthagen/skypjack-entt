@@ -42,7 +42,7 @@ public:
         : it{iter} {}
 
     template<typename Other>
-    requires (!std::same_as<It, Other> && std::constructible_from<It, Other>)
+    requires (!stl::same_as<It, Other> && std::constructible_from<It, Other>)
     constexpr resource_cache_iterator(const resource_cache_iterator<stl::remove_const_t<Type>, Other> &other) noexcept
         : it{other.it} {}
 

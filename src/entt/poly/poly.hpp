@@ -223,7 +223,7 @@ public:
      * @param value An instance of an object to use to initialize the poly.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, basic_poly>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, basic_poly>)
     basic_poly(Type &&value) noexcept
         : basic_poly{stl::in_place_type<stl::remove_cvref_t<Type>>, stl::forward<Type>(value)} {}
 

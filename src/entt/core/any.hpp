@@ -225,7 +225,7 @@ public:
      * @param value An instance of an object to use to initialize the wrapper.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, basic_any>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, basic_any>)
     basic_any(Type &&value)
         : basic_any{stl::in_place_type<stl::decay_t<Type>>, stl::forward<Type>(value)} {}
 
@@ -310,7 +310,7 @@ public:
      * @return This any object.
      */
     template<typename Type>
-    requires (!std::same_as<stl::remove_cvref_t<Type>, basic_any>)
+    requires (!stl::same_as<stl::remove_cvref_t<Type>, basic_any>)
     basic_any &operator=(Type &&value) {
         emplace<stl::decay_t<Type>>(stl::forward<Type>(value));
         return *this;

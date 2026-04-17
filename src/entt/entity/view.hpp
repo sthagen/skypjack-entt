@@ -487,7 +487,7 @@ public:
      * @param other A view to convert from.
      */
     template<typename... Args>
-    requires (!std::same_as<basic_view, basic_view<Args...>>)
+    requires (!stl::same_as<basic_view, basic_view<Args...>>)
     basic_view(const basic_view<Args...> &other) noexcept
         : basic_view{} {
         (storage_if(other.template storage<typename Get::element_type>()), ...);
@@ -945,7 +945,7 @@ public:
      * @param other A view to convert from.
      */
     template<typename... Args>
-    requires (!std::same_as<basic_view, basic_view<Args...>>)
+    requires (!stl::same_as<basic_view, basic_view<Args...>>)
     basic_view(const basic_view<Args...> &other) noexcept
         : base_type{} {
         storage_if(other.template storage<typename Get::element_type>());

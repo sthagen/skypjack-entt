@@ -35,8 +35,8 @@ concept meta_sequence_container_like = requires(Type elem) {
     typename Type::value_type;
     typename Type::iterator;
     requires entt::stl::forward_iterator<typename Type::iterator>;
-    { elem.begin() } -> std::same_as<typename Type::iterator>;
-    { elem.end() } -> std::same_as<typename Type::iterator>;
+    { elem.begin() } -> stl::same_as<typename Type::iterator>;
+    { elem.end() } -> stl::same_as<typename Type::iterator>;
     requires !requires { typename Type::key_type; };
     requires !requires { elem.substr(); };
 };
@@ -47,8 +47,8 @@ concept meta_associative_container_like = requires(Type value) {
     typename Type::value_type;
     typename Type::iterator;
     requires entt::stl::forward_iterator<typename Type::iterator>;
-    { value.begin() } -> std::same_as<typename Type::iterator>;
-    { value.end() } -> std::same_as<typename Type::iterator>;
+    { value.begin() } -> stl::same_as<typename Type::iterator>;
+    { value.end() } -> stl::same_as<typename Type::iterator>;
     value.find(stl::declval<typename Type::key_type>());
 };
 

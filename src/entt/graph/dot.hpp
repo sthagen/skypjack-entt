@@ -17,7 +17,7 @@ namespace entt {
 template<typename Graph>
 requires std::derived_from<typename Graph::graph_category, directed_tag>
 void dot(std::ostream &out, const Graph &graph, std::invocable<std::ostream &, typename Graph::vertex_type> auto writer) {
-    if constexpr(std::same_as<typename Graph::graph_category, undirected_tag>) {
+    if constexpr(stl::same_as<typename Graph::graph_category, undirected_tag>) {
         out << "graph{";
     } else {
         out << "digraph{";
@@ -30,7 +30,7 @@ void dot(std::ostream &out, const Graph &graph, std::invocable<std::ostream &, t
     }
 
     for(auto [lhs, rhs]: graph.edges()) {
-        if constexpr(std::same_as<typename Graph::graph_category, undirected_tag>) {
+        if constexpr(stl::same_as<typename Graph::graph_category, undirected_tag>) {
             out << lhs << "--" << rhs << ";";
         } else {
             out << lhs << "->" << rhs << ";";

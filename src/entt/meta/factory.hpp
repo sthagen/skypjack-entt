@@ -208,7 +208,7 @@ public:
      * @return A meta factory for the parent type.
      */
     template<typename Base>
-    requires std::derived_from<Type, Base>
+    requires stl::derived_from<Type, Base>
     meta_factory base() noexcept {
         if constexpr(!stl::same_as<Type, Base>) {
             auto *const op = +[](const void *instance) noexcept { return static_cast<const void *>(static_cast<const Base *>(static_cast<const Type *>(instance))); };

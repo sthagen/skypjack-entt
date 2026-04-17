@@ -61,7 +61,7 @@ struct iterator_tag<It> {
 };
 
 template<typename It, typename Tag>
-concept has_iterator_tag = std::derived_from<typename iterator_tag<It>::type, Tag>;
+concept has_iterator_tag = stl::derived_from<typename iterator_tag<It>::type, Tag>;
 
 } // namespace internal
 

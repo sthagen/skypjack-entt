@@ -646,7 +646,7 @@ public:
      * @param other The storage for the type to combine the view with.
      * @return A more specific view.
      */
-    template<std::derived_from<common_type> OGet>
+    template<stl::derived_from<common_type> OGet>
     [[nodiscard]] basic_view<get_t<Get..., OGet>, exclude_t<Exclude...>> operator|(OGet &other) const noexcept {
         return *this | basic_view<get_t<OGet>, exclude_t<>>{other};
     }
@@ -658,7 +658,7 @@ public:
      * @param other The view to combine with.
      * @return A more specific view.
      */
-    template<std::derived_from<common_type>... OGet, std::derived_from<common_type>... OExclude>
+    template<stl::derived_from<common_type>... OGet, stl::derived_from<common_type>... OExclude>
     [[nodiscard]] auto operator|(const basic_view<get_t<OGet...>, exclude_t<OExclude...>> &other) const noexcept {
         return internal::view_pack<basic_view<get_t<Get..., OGet...>, exclude_t<Exclude..., OExclude...>>>(
             *this, other, stl::index_sequence_for<Get...>{}, stl::index_sequence_for<Exclude...>{}, stl::index_sequence_for<OGet...>{}, stl::index_sequence_for<OExclude...>{});
@@ -1102,7 +1102,7 @@ public:
      * @param other The storage for the type to combine the view with.
      * @return A more specific view.
      */
-    template<std::derived_from<common_type> OGet>
+    template<stl::derived_from<common_type> OGet>
     [[nodiscard]] basic_view<get_t<Get, OGet>, exclude_t<>> operator|(OGet &other) const noexcept {
         return *this | basic_view<get_t<OGet>, exclude_t<>>{other};
     }
@@ -1114,7 +1114,7 @@ public:
      * @param other The view to combine with.
      * @return A more specific view.
      */
-    template<std::derived_from<common_type>... OGet, std::derived_from<common_type>... OExclude>
+    template<stl::derived_from<common_type>... OGet, stl::derived_from<common_type>... OExclude>
     [[nodiscard]] auto operator|(const basic_view<get_t<OGet...>, exclude_t<OExclude...>> &other) const noexcept {
         return internal::view_pack<basic_view<get_t<Get, OGet...>, exclude_t<OExclude...>>>(
             *this, other, stl::index_sequence_for<Get>{}, stl::index_sequence_for<>{}, stl::index_sequence_for<OGet...>{}, stl::index_sequence_for<OExclude...>{});

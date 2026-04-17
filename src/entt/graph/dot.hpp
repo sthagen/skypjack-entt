@@ -15,7 +15,7 @@ namespace entt {
  * @param writer Vertex decorator object.
  */
 template<typename Graph>
-requires std::derived_from<typename Graph::graph_category, directed_tag>
+requires stl::derived_from<typename Graph::graph_category, directed_tag>
 void dot(std::ostream &out, const Graph &graph, std::invocable<std::ostream &, typename Graph::vertex_type> auto writer) {
     if constexpr(stl::same_as<typename Graph::graph_category, undirected_tag>) {
         out << "graph{";

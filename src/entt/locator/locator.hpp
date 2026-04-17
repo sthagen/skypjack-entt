@@ -85,7 +85,7 @@ public:
      * @param args Parameters to use to construct the fallback service.
      * @return A reference to a valid service.
      */
-    template<std::derived_from<Service> Type = Service, typename... Args>
+    template<stl::derived_from<Service> Type = Service, typename... Args>
     requires stl::constructible_from<Type, Args...>
     [[nodiscard]] static Service &value_or(Args &&...args) {
         return service ? *service : emplace<Type>(stl::forward<Args>(args)...);
@@ -98,7 +98,7 @@ public:
      * @param args Parameters to use to construct the service.
      * @return A reference to a valid service.
      */
-    template<std::derived_from<Service> Type = Service, typename... Args>
+    template<stl::derived_from<Service> Type = Service, typename... Args>
     requires stl::constructible_from<Type, Args...>
     static Service &emplace(Args &&...args) {
         service = std::make_shared<Type>(stl::forward<Args>(args)...);
@@ -113,7 +113,7 @@ public:
      * @param args Parameters to use to construct the service.
      * @return A reference to a valid service.
      */
-    template<std::derived_from<Service> Type = Service, typename... Args>
+    template<stl::derived_from<Service> Type = Service, typename... Args>
     requires stl::constructible_from<Type, Args...>
     static Service &emplace(stl::allocator_arg_t, auto alloc, Args &&...args) {
         service = std::allocate_shared<Type>(alloc, stl::forward<Args>(args)...);
@@ -145,7 +145,7 @@ public:
      * @param elem A pointer to a service to manage.
      * @param deleter A deleter to use to destroy the service.
      */
-    template<std::derived_from<Service> Type, typename Deleter = std::default_delete<Type>>
+    template<stl::derived_from<Service> Type, typename Deleter = std::default_delete<Type>>
     static void reset(Type *elem, Deleter deleter = {}) {
         service = stl::shared_ptr<Service>{elem, stl::move(deleter)};
     }

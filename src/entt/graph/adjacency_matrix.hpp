@@ -84,7 +84,7 @@ private:
  * @tparam Category Either a directed or undirected category tag.
  * @tparam Allocator Type of allocator used to manage memory and elements.
  */
-template<std::derived_from<directed_tag> Category, typename Allocator>
+template<stl::derived_from<directed_tag> Category, typename Allocator>
 class adjacency_matrix {
     using alloc_traits = stl::allocator_traits<Allocator>;
     static_assert(stl::is_same_v<typename alloc_traits::value_type, stl::size_t>, "Invalid value type");

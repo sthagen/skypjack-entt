@@ -7,6 +7,7 @@
 namespace entt::stl {
 
 using std::constructible_from;
+using std::derived_from;
 using std::same_as;
 
 } // namespace entt::stl

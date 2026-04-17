@@ -101,7 +101,7 @@ public:
     template<stl::derived_from<Service> Type = Service, typename... Args>
     requires stl::constructible_from<Type, Args...>
     static Service &emplace(Args &&...args) {
-        service = std::make_shared<Type>(stl::forward<Args>(args)...);
+        service = stl::make_shared<Type>(stl::forward<Args>(args)...);
         return *service;
     }
 

@@ -12,11 +12,11 @@
 namespace entt {
 
 /**
- * @brief Function object to wrap `std::sort` in a class type.
+ * @brief Function object to wrap `stl::sort` in a class type.
  *
- * Unfortunately, `std::sort` cannot be passed as template argument to a class
+ * Unfortunately, `stl::sort` cannot be passed as template argument to a class
  * template or a function template.<br/>
- * This class fills the gap by wrapping some flavors of `std::sort` in a
+ * This class fills the gap by wrapping some flavors of `stl::sort` in a
  * function object.
  */
 struct std_sort {

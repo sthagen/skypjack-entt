@@ -7,6 +7,7 @@
 namespace entt::stl {
 
 using std::bit_ceil;
+using std::has_single_bit;
 
 } // namespace entt::stl
 /*! @endcond */

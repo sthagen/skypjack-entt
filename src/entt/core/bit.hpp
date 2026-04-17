@@ -17,7 +17,7 @@ namespace entt {
  */
 template<stl::unsigned_integral Type>
 [[nodiscard]] constexpr Type fast_mod(const Type value, const stl::size_t mod) noexcept {
-    ENTT_ASSERT_CONSTEXPR(std::has_single_bit(mod), "Value must be a power of two");
+    ENTT_ASSERT_CONSTEXPR(stl::has_single_bit(mod), "Value must be a power of two");
     return static_cast<Type>(value & (mod - 1u));
 }
 

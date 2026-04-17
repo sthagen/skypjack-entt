@@ -22,21 +22,21 @@ template<typename, typename>
 struct has_on_construct final: stl::false_type {};
 
 template<typename Type, typename Registry>
-requires std::invocable<decltype(&Type::on_construct), Registry &, typename Registry::entity_type>
+requires stl::invocable<decltype(&Type::on_construct), Registry &, typename Registry::entity_type>
 struct has_on_construct<Type, Registry>: stl::true_type {};
 
 template<typename, typename>
 struct has_on_update final: stl::false_type {};
 
 template<typename Type, typename Registry>
-requires std::invocable<decltype(&Type::on_update), Registry &, typename Registry::entity_type>
+requires stl::invocable<decltype(&Type::on_update), Registry &, typename Registry::entity_type>
 struct has_on_update<Type, Registry>: stl::true_type {};
 
 template<typename, typename>
 struct has_on_destroy final: stl::false_type {};
 
 template<typename Type, typename Registry>
-requires std::invocable<decltype(&Type::on_destroy), Registry &, typename Registry::entity_type>
+requires stl::invocable<decltype(&Type::on_destroy), Registry &, typename Registry::entity_type>
 struct has_on_destroy<Type, Registry>: stl::true_type {};
 
 } // namespace internal

@@ -21,7 +21,7 @@ struct compressed_pair_element {
 
     // NOLINTNEXTLINE(modernize-use-equals-default)
     constexpr compressed_pair_element() noexcept(stl::is_nothrow_default_constructible_v<Type>)
-    requires std::default_initializable<Type> {}
+    requires stl::default_initializable<Type> {}
 
     template<typename Arg>
     constexpr compressed_pair_element(Arg &&arg) noexcept(stl::is_nothrow_constructible_v<Type, Arg>)
@@ -52,7 +52,7 @@ struct compressed_pair_element<Type, Tag>: Type {
     using base_type = Type;
 
     constexpr compressed_pair_element() noexcept(stl::is_nothrow_default_constructible_v<base_type>)
-    requires std::default_initializable<Type>
+    requires stl::default_initializable<Type>
         : base_type{} {}
 
     template<typename Arg>
@@ -105,7 +105,7 @@ public:
      * are both at least default constructible.
      */
     constexpr compressed_pair() noexcept(stl::is_nothrow_default_constructible_v<first_base> && stl::is_nothrow_default_constructible_v<second_base>)
-    requires std::default_initializable<first_type> && std::default_initializable<second_type>
+    requires stl::default_initializable<first_type> && stl::default_initializable<second_type>
         : first_base{},
           second_base{} {}
 

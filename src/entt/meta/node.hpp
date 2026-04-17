@@ -47,14 +47,14 @@ enum class meta_traits : stl::uint32_t {
 template<typename Type>
 requires stl::is_enum_v<Type>
 [[nodiscard]] auto meta_to_user_traits(const meta_traits traits) noexcept {
-    constexpr auto shift = std::popcount(static_cast<stl::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
+    constexpr auto shift = stl::popcount(static_cast<stl::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
     return Type{static_cast<stl::underlying_type_t<Type>>(static_cast<stl::underlying_type_t<meta_traits>>(traits) >> shift)};
 }
 
 template<typename Type>
 requires stl::is_enum_v<Type>
 [[nodiscard]] auto user_to_meta_traits(const Type value) noexcept {
-    constexpr auto shift = std::popcount(static_cast<stl::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
+    constexpr auto shift = stl::popcount(static_cast<stl::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits));
     const auto traits = static_cast<stl::underlying_type_t<internal::meta_traits>>(static_cast<stl::underlying_type_t<Type>>(value));
     ENTT_ASSERT(traits < ((~static_cast<stl::underlying_type_t<meta_traits>>(meta_traits::_user_defined_traits)) >> shift), "Invalid traits");
     return meta_traits{traits << shift};

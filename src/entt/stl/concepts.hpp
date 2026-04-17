@@ -10,6 +10,7 @@ using std::constructible_from;
 using std::derived_from;
 using std::invocable;
 using std::same_as;
+using std::unsigned_integral;
 
 } // namespace entt::stl
 /*! @endcond */

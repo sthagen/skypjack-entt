@@ -152,7 +152,7 @@ public:
         : it{base, other...} {}
 
     template<typename... Args>
-    requires (!stl::same_as<Other, Args> && ...) && (std::constructible_from<Other, Args> && ...)
+    requires (!stl::same_as<Other, Args> && ...) && (stl::constructible_from<Other, Args> && ...)
     constexpr extended_storage_iterator(const extended_storage_iterator<It, Args...> &other)
         : it{other.it} {}
 

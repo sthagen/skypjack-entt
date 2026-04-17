@@ -79,7 +79,7 @@ public:
         : it{iter} {}
 
     template<typename Other>
-    requires (!stl::same_as<It, Other> && std::constructible_from<It, Other>)
+    requires (!stl::same_as<It, Other> && stl::constructible_from<It, Other>)
     constexpr dense_map_iterator(const dense_map_iterator<Other> &other) noexcept
         : it{other.it} {}
 
@@ -174,7 +174,7 @@ public:
           offset{pos} {}
 
     template<typename Other>
-    requires (!stl::same_as<It, Other> && std::constructible_from<It, Other>)
+    requires (!stl::same_as<It, Other> && stl::constructible_from<It, Other>)
     constexpr dense_map_local_iterator(const dense_map_local_iterator<Other> &other) noexcept
         : it{other.it},
           offset{other.offset} {}
@@ -534,7 +534,7 @@ public:
      * @tparam Arg Type of the key-value pair to insert into the container.
      */
     template<typename Arg>
-    requires std::constructible_from<value_type, Arg &&>
+    requires stl::constructible_from<value_type, Arg &&>
     stl::pair<iterator, bool> insert(Arg &&value) {
         return insert_or_do_nothing(stl::forward<Arg>(value).first, stl::forward<Arg>(value).second);
     }

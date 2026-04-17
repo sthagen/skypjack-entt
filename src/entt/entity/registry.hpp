@@ -57,7 +57,7 @@ public:
         : it{iter} {}
 
     template<typename Other>
-    requires (!stl::same_as<It, Other> && std::constructible_from<It, Other>)
+    requires (!stl::same_as<It, Other> && stl::constructible_from<It, Other>)
     constexpr registry_storage_iterator(const registry_storage_iterator<Other> &other) noexcept
         : registry_storage_iterator{other.it} {}
 

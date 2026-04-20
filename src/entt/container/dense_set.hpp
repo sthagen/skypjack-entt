@@ -860,7 +860,7 @@ public:
      */
     void reserve(const size_type cnt) {
         packed.first().reserve(cnt);
-        rehash(static_cast<size_type>(std::ceil(static_cast<float>(cnt) / max_load_factor())));
+        rehash(static_cast<size_type>(stl::ceil(static_cast<float>(cnt) / max_load_factor())));
     }
 
     /**

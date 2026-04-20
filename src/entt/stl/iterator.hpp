@@ -8,6 +8,7 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::advance;
 using std::bidirectional_iterator_tag;
 using std::distance;
 using std::forward_iterator_tag;

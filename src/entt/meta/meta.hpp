@@ -1620,7 +1620,7 @@ class meta_sequence_container::meta_iterator final {
     template<typename It>
     static void basic_vtable(const void *value, const stl::ptrdiff_t offset, meta_any *other) {
         const auto &it = *static_cast<const It *>(value);
-        other ? other->emplace<decltype(*it)>(*it) : std::advance(const_cast<It &>(it), offset);
+        other ? other->emplace<decltype(*it)>(*it) : stl::advance(const_cast<It &>(it), offset);
     }
 
 public:

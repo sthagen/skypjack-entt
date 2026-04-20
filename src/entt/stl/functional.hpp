@@ -8,8 +8,9 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
-using std::function;
 using std::equal_to;
+using std::function;
+using std::invoke;
 
 } // namespace entt::stl
 

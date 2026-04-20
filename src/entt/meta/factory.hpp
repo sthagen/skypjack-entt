@@ -238,7 +238,7 @@ public:
     template<auto Candidate>
     auto conv() noexcept {
         using conv_type = stl::remove_cvref_t<stl::invoke_result_t<decltype(Candidate), Type &>>;
-        auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, std::invoke(Candidate, *static_cast<const Type *>(instance))); };
+        auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, stl::invoke(Candidate, *static_cast<const Type *>(instance))); };
 
         base_type::insert_or_assign(
             internal::meta_conv_node{

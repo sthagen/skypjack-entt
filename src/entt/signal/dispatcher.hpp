@@ -120,7 +120,7 @@ class basic_dispatcher {
 
         if(!ptr) {
             const auto &allocator = get_allocator();
-            ptr = std::allocate_shared<handler_type<Type>>(allocator, allocator);
+            ptr = stl::allocate_shared<handler_type<Type>>(allocator, allocator);
         }
 
         return static_cast<handler_type<Type> &>(*ptr);

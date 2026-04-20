@@ -9,6 +9,7 @@
 namespace entt::stl {
 
 using std::addressof;
+using std::allocate_shared;
 using std::allocator;
 using std::allocator_arg;
 using std::allocator_arg_t;

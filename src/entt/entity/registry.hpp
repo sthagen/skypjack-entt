@@ -230,7 +230,7 @@ class basic_registry {
                 return static_cast<storage_type &>(*it->second);
             }
 
-            typename pool_container_type::mapped_type cpool = std::allocate_shared<storage_type>(get_allocator(), get_allocator());
+            typename pool_container_type::mapped_type cpool = stl::allocate_shared<storage_type>(get_allocator(), get_allocator());
             pools.emplace(id, cpool);
             cpool->bind(*this);
 
@@ -1055,9 +1055,9 @@ public:
         stl::shared_ptr<handler_type> handler{};
 
         if constexpr(sizeof...(Owned) == 0u) {
-            handler = std::allocate_shared<handler_type>(get_allocator(), get_allocator(), stl::forward_as_tuple(assure<stl::remove_const_t<Get>>()...), stl::forward_as_tuple(assure<stl::remove_const_t<Exclude>>()...));
+            handler = stl::allocate_shared<handler_type>(get_allocator(), get_allocator(), stl::forward_as_tuple(assure<stl::remove_const_t<Get>>()...), stl::forward_as_tuple(assure<stl::remove_const_t<Exclude>>()...));
         } else {
-            handler = std::allocate_shared<handler_type>(get_allocator(), stl::forward_as_tuple(assure<stl::remove_const_t<Owned>>()..., assure<stl::remove_const_t<Get>>()...), stl::forward_as_tuple(assure<stl::remove_const_t<Exclude>>()...));
+            handler = stl::allocate_shared<handler_type>(get_allocator(), stl::forward_as_tuple(assure<stl::remove_const_t<Owned>>()..., assure<stl::remove_const_t<Get>>()...), stl::forward_as_tuple(assure<stl::remove_const_t<Exclude>>()...));
             ENTT_ASSERT(stl::all_of(groups.cbegin(), groups.cend(), [](const auto &data) { return !(data.second->owned(type_id<Owned>().hash()) || ...); }), "Conflicting groups");
         }
 

@@ -116,7 +116,7 @@ public:
     template<stl::derived_from<Service> Type = Service, typename... Args>
     requires stl::constructible_from<Type, Args...>
     static Service &emplace(stl::allocator_arg_t, auto alloc, Args &&...args) {
-        service = std::allocate_shared<Type>(alloc, stl::forward<Args>(args)...);
+        service = stl::allocate_shared<Type>(alloc, stl::forward<Args>(args)...);
         return *service;
     }
 

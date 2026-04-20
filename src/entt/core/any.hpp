@@ -34,7 +34,7 @@ struct basic_any_storage {
     union {
         const void *instance{};
         // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
-        alignas(Align) std::byte buffer[Len];
+        alignas(Align) stl::byte buffer[Len];
     };
 };
 

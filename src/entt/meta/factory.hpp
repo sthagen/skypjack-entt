@@ -433,7 +433,7 @@ public:
         using descriptor = meta_function_helper_t<Type, decltype(Getter)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
 
-        if constexpr(stl::is_same_v<decltype(Setter), std::nullptr_t>) {
+        if constexpr(stl::is_same_v<decltype(Setter), stl::nullptr_t>) {
             base_type::data(
                 internal::meta_data_node{
                     id,

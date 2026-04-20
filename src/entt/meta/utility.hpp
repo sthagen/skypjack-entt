@@ -208,7 +208,7 @@ template<typename Type, typename Policy, typename Candidate, stl::size_t... Inde
 [[nodiscard]] meta_any meta_invoke(meta_any &instance, Candidate &&candidate, [[maybe_unused]] meta_any *const args, stl::index_sequence<Index...>) {
     using descriptor = meta_function_helper_t<Type, stl::remove_reference_t<Candidate>>;
 
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and std::span)
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
     if constexpr(stl::is_invocable_v<stl::remove_reference_t<Candidate>, const Type &, type_list_element_t<Index, typename descriptor::args_type>...>) {
         if(const auto *const clazz = instance.try_cast<const Type>(); clazz && ((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
             return meta_invoke_with_args<Policy>(instance.context(), stl::forward<Candidate>(candidate), *clazz, (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
@@ -229,7 +229,7 @@ template<typename Type, typename Policy, typename Candidate, stl::size_t... Inde
 
 template<typename Type, typename... Args, stl::size_t... Index>
 [[nodiscard]] meta_any meta_construct(const meta_ctx &ctx, meta_any *const args, stl::index_sequence<Index...>) {
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and std::span)
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
     if(((args + Index)->allow_cast<Args>() && ...)) {
         return meta_any{ctx, stl::in_place_type<Type>, (args + Index)->cast<Args>()...};
     }
@@ -423,7 +423,7 @@ template<typename Type, typename Policy = as_value_t, typename Candidate>
         meta_any placeholder{meta_ctx_arg, ctx};
         return internal::meta_invoke<Type, Policy>(placeholder, stl::forward<Candidate>(candidate), args, stl::make_index_sequence<meta_function_helper_t<Type, stl::remove_reference_t<Candidate>>::args_type::size>{});
     } else {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and std::span)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
         return internal::meta_invoke<Type, Policy>(*args, stl::forward<Candidate>(candidate), args + 1u, stl::make_index_sequence<meta_function_helper_t<Type, stl::remove_reference_t<Candidate>>::args_type::size>{});
     }
 }

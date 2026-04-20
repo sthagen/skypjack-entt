@@ -1068,7 +1068,7 @@ class meta_type {
                 size_type match{};
                 size_type pos{};
 
-                // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and std::span)
+                // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
                 for(; pos < sz && args[pos]; ++pos) {
                     const auto other = curr->arg(*ctx, pos);
                     const auto type = args[pos].type();

@@ -938,7 +938,7 @@ public:
      * @return True if the entity has no elements assigned, false otherwise.
      */
     [[nodiscard]] bool orphan(const entity_type entt) const {
-        return std::none_of(pools.cbegin(), pools.cend(), [entt](auto &&curr) { return curr.second->contains(entt); });
+        return stl::none_of(pools.cbegin(), pools.cend(), [entt](auto &&curr) { return curr.second->contains(entt); });
     }
 
     /**

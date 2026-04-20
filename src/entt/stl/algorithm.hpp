@@ -6,6 +6,7 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::all_of;
 using std::none_of;
 using std::sort;
 

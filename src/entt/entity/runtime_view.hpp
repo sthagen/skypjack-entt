@@ -21,7 +21,7 @@ class runtime_view_iterator final {
 
     [[nodiscard]] bool valid() const {
         return (!tombstone_check || *it != tombstone)
-               && std::all_of(++pools->begin(), pools->end(), [entt = *it](const auto *curr) { return curr->contains(entt); })
+               && stl::all_of(++pools->begin(), pools->end(), [entt = *it](const auto *curr) { return curr->contains(entt); })
                && stl::none_of(filter->cbegin(), filter->cend(), [entt = *it](const auto *curr) { return curr && curr->contains(entt); });
     }
 
@@ -286,7 +286,7 @@ public:
      */
     [[nodiscard]] bool contains(const entity_type entt) const {
         return !pools.empty()
-               && std::all_of(pools.cbegin(), pools.cend(), [entt](const auto *curr) { return curr->contains(entt); })
+               && stl::all_of(pools.cbegin(), pools.cend(), [entt](const auto *curr) { return curr->contains(entt); })
                && stl::none_of(filter.cbegin(), filter.cend(), [entt](const auto *curr) { return curr && curr->contains(entt); })
                && pools.front()->index(entt) < offset();
     }

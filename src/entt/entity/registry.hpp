@@ -580,7 +580,7 @@ public:
      */
     template<typename Type>
     void insert(stl::input_iterator auto first, stl::input_iterator auto last, const Type &value = {}) {
-        ENTT_ASSERT(std::all_of(first, last, [this](const auto entt) { return valid(entt); }), "Invalid entity");
+        ENTT_ASSERT(stl::all_of(first, last, [this](const auto entt) { return valid(entt); }), "Invalid entity");
         assure<Type>().insert(stl::move(first), stl::move(last), value);
     }
 
@@ -599,7 +599,7 @@ public:
     template<typename Type, typename EIt, typename CIt>
     requires stl::same_as<typename stl::iterator_traits<CIt>::value_type, Type>
     void insert(EIt first, EIt last, CIt from) {
-        ENTT_ASSERT(std::all_of(first, last, [this](const auto entt) { return valid(entt); }), "Invalid entity");
+        ENTT_ASSERT(stl::all_of(first, last, [this](const auto entt) { return valid(entt); }), "Invalid entity");
         assure<Type>().insert(first, last, from);
     }
 
@@ -1058,7 +1058,7 @@ public:
             handler = std::allocate_shared<handler_type>(get_allocator(), get_allocator(), stl::forward_as_tuple(assure<stl::remove_const_t<Get>>()...), stl::forward_as_tuple(assure<stl::remove_const_t<Exclude>>()...));
         } else {
             handler = std::allocate_shared<handler_type>(get_allocator(), stl::forward_as_tuple(assure<stl::remove_const_t<Owned>>()..., assure<stl::remove_const_t<Get>>()...), stl::forward_as_tuple(assure<stl::remove_const_t<Exclude>>()...));
-            ENTT_ASSERT(std::all_of(groups.cbegin(), groups.cend(), [](const auto &data) { return !(data.second->owned(type_id<Owned>().hash()) || ...); }), "Conflicting groups");
+            ENTT_ASSERT(stl::all_of(groups.cbegin(), groups.cend(), [](const auto &data) { return !(data.second->owned(type_id<Owned>().hash()) || ...); }), "Conflicting groups");
         }
 
         groups.emplace(group_type::group_id(), handler);

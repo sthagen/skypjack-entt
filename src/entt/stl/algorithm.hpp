@@ -8,6 +8,7 @@ namespace entt::stl {
 
 using std::all_of;
 using std::any_of;
+using std::find_if;
 using std::none_of;
 using std::sort;
 

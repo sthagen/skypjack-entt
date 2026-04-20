@@ -55,7 +55,7 @@ class basic_flow {
                     if(auto curr = it++; it != last) {
                         if(it->second) {
                             matrix.insert(curr->first, it->first);
-                        } else if(const auto next = std::find_if(it, last, [](const auto &value) { return value.second; }); next != last) {
+                        } else if(const auto next = stl::find_if(it, last, [](const auto &value) { return value.second; }); next != last) {
                             for(; it != next; ++it) {
                                 matrix.insert(curr->first, it->first);
                                 matrix.insert(it->first, next->first);
@@ -68,7 +68,7 @@ class basic_flow {
                     }
                 } else {
                     // ro item (first iteration only)
-                    if(const auto next = std::find_if(it, last, [](const auto &value) { return value.second; }); next != last) {
+                    if(const auto next = stl::find_if(it, last, [](const auto &value) { return value.second; }); next != last) {
                         for(; it != next; ++it) {
                             matrix.insert(it->first, next->first);
                         }

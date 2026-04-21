@@ -15,6 +15,7 @@ using std::allocator_arg;
 using std::allocator_arg_t;
 using std::allocator_traits;
 using std::default_delete;
+using std::destroy;
 using std::enable_shared_from_this;
 using std::make_shared;
 using std::make_unique;

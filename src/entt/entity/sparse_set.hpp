@@ -195,7 +195,7 @@ class basic_sparse_set {
     void release_sparse_pages() {
         for(auto page_allocator{packed.get_allocator()}; auto &&page: sparse) {
             if(page != nullptr) {
-                std::destroy(page, page + traits_type::page_size);
+                stl::destroy(page, page + traits_type::page_size);
                 alloc_traits::deallocate(page_allocator, page, traits_type::page_size);
                 page = nullptr;
             }

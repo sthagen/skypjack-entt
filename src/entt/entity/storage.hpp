@@ -35,8 +35,8 @@ class storage_iterator final {
 
     using iterator_traits = stl::iterator_traits<stl::conditional_t<
         stl::is_const_v<Container>,
-        typename alloc_traits::template rebind_traits<typename std::pointer_traits<typename container_type::value_type>::element_type>::const_pointer,
-        typename alloc_traits::template rebind_traits<typename std::pointer_traits<typename container_type::value_type>::element_type>::pointer>>;
+        typename alloc_traits::template rebind_traits<typename stl::pointer_traits<typename container_type::value_type>::element_type>::const_pointer,
+        typename alloc_traits::template rebind_traits<typename stl::pointer_traits<typename container_type::value_type>::element_type>::pointer>>;
 
 public:
     using value_type = iterator_traits::value_type;

@@ -207,6 +207,7 @@ if(ENTT_INCLUDE_HEADERS)
         stl/iterator.hpp
         stl/limits.hpp
         stl/memory.hpp
+        stl/ostream.hpp
         stl/string.hpp
         stl/string_view.hpp
         stl/tuple.hpp

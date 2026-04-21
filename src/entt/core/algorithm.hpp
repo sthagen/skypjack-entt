@@ -32,7 +32,7 @@ struct std_sort {
      * @param compare A valid comparison function object.
      * @param args Arguments to forward to the sort function, if any.
      */
-    template<typename Compare = std::less<>, typename... Args>
+    template<typename Compare = stl::less<>, typename... Args>
     void operator()(stl::random_access_iterator auto first, stl::random_access_iterator auto last, Compare compare = Compare{}, Args &&...args) const {
         stl::sort(stl::forward<Args>(args)..., stl::move(first), stl::move(last), stl::move(compare));
     }
@@ -50,7 +50,7 @@ struct insertion_sort {
      * @param last An iterator past the last element of the range to sort.
      * @param compare A valid comparison function object.
      */
-    template<typename Compare = std::less<>>
+    template<typename Compare = stl::less<>>
     void operator()(stl::random_access_iterator auto first, stl::random_access_iterator auto last, Compare compare = Compare{}) const {
         if(first < last) {
             for(auto it = first + 1; it < last; ++it) {

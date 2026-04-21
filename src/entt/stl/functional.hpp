@@ -11,6 +11,7 @@ namespace entt::stl {
 using std::equal_to;
 using std::function;
 using std::invoke;
+using std::less;
 
 } // namespace entt::stl
 

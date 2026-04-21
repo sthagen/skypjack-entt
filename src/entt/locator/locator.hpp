@@ -145,7 +145,7 @@ public:
      * @param elem A pointer to a service to manage.
      * @param deleter A deleter to use to destroy the service.
      */
-    template<stl::derived_from<Service> Type, typename Deleter = std::default_delete<Type>>
+    template<stl::derived_from<Service> Type, typename Deleter = stl::default_delete<Type>>
     static void reset(Type *elem, Deleter deleter = {}) {
         service = stl::shared_ptr<Service>{elem, stl::move(deleter)};
     }

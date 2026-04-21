@@ -54,7 +54,7 @@ private:
  * @brief Plain iota iterator (waiting for C++20).
  * @tparam Type Value type.
  */
-template<std::integral Type>
+template<stl::integral Type>
 struct iota_iterator final {
     /*! @brief Value type, likely an integral one. */
     using value_type = Type;

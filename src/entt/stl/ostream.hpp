@@ -6,6 +6,8 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
 
+using std::ostream;
+
 } // namespace entt::stl
 /*! @endcond */
 

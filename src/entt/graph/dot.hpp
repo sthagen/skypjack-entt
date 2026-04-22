@@ -16,7 +16,7 @@ namespace entt {
  */
 template<typename Graph>
 requires stl::derived_from<typename Graph::graph_category, directed_tag>
-void dot(std::ostream &out, const Graph &graph, stl::invocable<std::ostream &, typename Graph::vertex_type> auto writer) {
+void dot(stl::ostream &out, const Graph &graph, stl::invocable<stl::ostream &, typename Graph::vertex_type> auto writer) {
     if constexpr(stl::same_as<typename Graph::graph_category, undirected_tag>) {
         out << "graph{";
     } else {
@@ -47,7 +47,7 @@ void dot(std::ostream &out, const Graph &graph, stl::invocable<std::ostream &, t
  * @param graph The graph to output.
  */
 template<typename Graph>
-void dot(std::ostream &out, const Graph &graph) {
+void dot(stl::ostream &out, const Graph &graph) {
     return dot(out, graph, [](auto &&...) {});
 }
 

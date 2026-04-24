@@ -24,6 +24,7 @@ using std::shared_ptr;
 using std::static_pointer_cast;
 using std::uninitialized_fill;
 using std::unique_ptr;
+using std::uses_allocator_v;
 
 } // namespace entt::stl
 

@@ -186,10 +186,10 @@ public:
      */
     void swap(basic_flow &other) noexcept {
         using std::swap;
-        std::swap(index, other.index);
-        std::swap(vertices, other.vertices);
-        std::swap(deps, other.deps);
-        std::swap(sync_on, other.sync_on);
+        swap(index, other.index);
+        swap(vertices, other.vertices);
+        swap(deps, other.deps);
+        swap(sync_on, other.sync_on);
     }
 
     /**

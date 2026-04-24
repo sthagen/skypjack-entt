@@ -185,7 +185,7 @@ public:
      * @param other Flow builder to exchange the content with.
      */
     void swap(basic_flow &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(index, other.index);
         swap(vertices, other.vertices);
         swap(deps, other.deps);

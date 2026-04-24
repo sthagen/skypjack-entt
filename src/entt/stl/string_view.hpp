@@ -7,6 +7,7 @@
 namespace entt::stl {
 
 using std::string_view;
+using std::swap;
 
 } // namespace entt::stl
 /*! @endcond */

@@ -350,7 +350,7 @@ public:
      * @param other Registry to exchange the content with.
      */
     void swap(basic_registry &other) noexcept {
-        using std::swap;
+        using stl::swap;
 
         swap(vars, other.vars);
         swap(pools, other.pools);
@@ -700,7 +700,7 @@ public:
             for(auto from = cpools.begin(), to = cpools.end(); from != to; ++from) {
                 if constexpr(sizeof...(Other) != 0u) {
                     if((*from)->data() == first.data()) {
-                        std::swap((*from), cpools.back());
+                        stl::swap((*from), cpools.back());
                     }
                 }
 
@@ -751,7 +751,7 @@ public:
             for(auto from = cpools.begin(), to = cpools.end(); from != to; ++from) {
                 if constexpr(sizeof...(Other) != 0u) {
                     if((*from)->data() == first.data()) {
-                        std::swap(*from, cpools.back());
+                        stl::swap(*from, cpools.back());
                     }
                 }
 

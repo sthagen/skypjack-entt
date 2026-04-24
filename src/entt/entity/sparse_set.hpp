@@ -209,7 +209,7 @@ class basic_sparse_set {
         sparse_ref(from) = traits_type::combine(static_cast<traits_type::entity_type>(rhs), traits_type::to_integral(from));
         sparse_ref(to) = traits_type::combine(static_cast<traits_type::entity_type>(lhs), traits_type::to_integral(to));
 
-        std::swap(from, to);
+        stl::swap(from, to);
     }
 
 private:
@@ -465,7 +465,7 @@ public:
      * @param other Sparse set to exchange the content with.
      */
     void swap(basic_sparse_set &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(sparse, other.sparse);
         swap(packed, other.packed);
         swap(descriptor, other.descriptor);

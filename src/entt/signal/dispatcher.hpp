@@ -197,7 +197,7 @@ public:
      * @param other Dispatcher to exchange the content with.
      */
     void swap(basic_dispatcher &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(pools, other.pools);
     }
 

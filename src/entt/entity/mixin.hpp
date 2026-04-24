@@ -215,7 +215,7 @@ public:
      * @param other Storage to exchange the content with.
      */
     void swap(basic_sigh_mixin &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(owner, other.owner);
         swap(construction, other.construction);
         swap(destruction, other.destruction);

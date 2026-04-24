@@ -135,7 +135,7 @@ public:
      * @param other Signal handler to exchange the content with.
      */
     void swap(sigh &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(calls, other.calls);
     }
 

@@ -333,7 +333,7 @@ class basic_continuous_loader {
             }
         }
 
-        using std::swap;
+        using stl::swap;
         swap(container, other);
     }
 

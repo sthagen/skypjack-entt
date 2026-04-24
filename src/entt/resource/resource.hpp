@@ -123,7 +123,7 @@ public:
      * @param other Resource to exchange the content with.
      */
     void swap(resource &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(value, other.value);
     }
 

@@ -104,7 +104,7 @@ public:
      * @param other Emitter to exchange the content with.
      */
     void swap(emitter &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(handlers, other.handlers);
     }
 

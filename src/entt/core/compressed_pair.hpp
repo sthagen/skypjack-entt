@@ -193,7 +193,7 @@ public:
      * @param other The compressed pair to swap with.
      */
     constexpr void swap(compressed_pair &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(first(), other.first());
         swap(second(), other.second());
     }

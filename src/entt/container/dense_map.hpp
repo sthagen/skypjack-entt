@@ -428,7 +428,7 @@ public:
      * @param other Container to exchange the content with.
      */
     void swap(dense_map &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(sparse, other.sparse);
         swap(packed, other.packed);
         swap(threshold, other.threshold);
@@ -600,7 +600,7 @@ public:
                 return stl::make_pair(it, false);
             }
 
-            std::swap(node.next, sparse.first()[index]);
+            stl::swap(node.next, sparse.first()[index]);
             rehash_if_required();
 
             return stl::make_pair(--end(), true);

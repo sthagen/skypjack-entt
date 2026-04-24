@@ -280,7 +280,7 @@ class basic_storage: public basic_sparse_set<Entity, typename stl::allocator_tra
     }
 
     void swap_at(const stl::size_t lhs, const stl::size_t rhs) {
-        using std::swap;
+        using stl::swap;
         swap(element_at(lhs), element_at(rhs));
     }
 
@@ -481,7 +481,7 @@ public:
      * @param other Storage to exchange the content with.
      */
     void swap(basic_storage &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(payload, other.payload);
         base_type::swap(other);
     }
@@ -1080,7 +1080,7 @@ public:
      * @param other Storage to exchange the content with.
      */
     void swap(basic_storage &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(placeholder, other.placeholder);
         base_type::swap(other);
     }

@@ -105,7 +105,7 @@ public:
      * @param other Scheduler to exchange the content with.
      */
     void swap(basic_scheduler &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(handlers, other.handlers);
     }
 

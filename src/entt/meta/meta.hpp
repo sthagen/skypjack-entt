@@ -537,7 +537,7 @@ public:
                 return true;
             } else if(auto other = stl::as_const(*this).allow_cast<stl::remove_cvref_t<Type>>(); other) {
                 if(other.storage.owner()) {
-                    std::swap(*this, other);
+                    stl::swap(*this, other);
                 }
 
                 return true;
@@ -1571,7 +1571,7 @@ bool meta_any::set(const id_type id, Type &&value) {
         return true;
     } else if(auto other = stl::as_const(*this).allow_cast(type); other) {
         if(other.storage.owner()) {
-            std::swap(*this, other);
+            stl::swap(*this, other);
         }
 
         return true;

@@ -197,7 +197,7 @@ public:
      * @param other View to exchange the content with.
      */
     void swap(basic_runtime_view &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(pools, other.pools);
         swap(filter, other.filter);
     }

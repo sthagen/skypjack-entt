@@ -176,7 +176,7 @@ public:
      * @param other Adjacency matrix to exchange the content with.
      */
     void swap(adjacency_matrix &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(matrix, other.matrix);
         swap(vert, other.vert);
     }

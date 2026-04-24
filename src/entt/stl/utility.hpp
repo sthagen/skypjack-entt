@@ -22,6 +22,7 @@ using std::move;
 using std::pair;
 using std::piecewise_construct;
 using std::piecewise_construct_t;
+using std::swap;
 
 } // namespace entt::stl
 /*! @endcond */

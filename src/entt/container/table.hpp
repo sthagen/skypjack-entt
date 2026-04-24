@@ -233,7 +233,7 @@ public:
      * @param other Table to exchange the content with.
      */
     void swap(basic_table &other) noexcept {
-        using std::swap;
+        using stl::swap;
         swap(payload, other.payload);
     }
 

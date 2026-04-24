@@ -1,20 +1,17 @@
 #ifndef ENTT_CORE_RANGES_HPP
 #define ENTT_CORE_RANGES_HPP
 
-#include "../stl/version.hpp"
+#include "../stl/ranges.hpp"
 
-#ifdef ENTT_HAS_VERSION
-#    if defined(__cpp_lib_ranges)
-#        include <ranges>
-#        include "iterator.hpp"
+#ifdef ENTT_HAS_RANGES
+#    include "iterator.hpp"
 
 template<class... Args>
-inline constexpr bool std::ranges::enable_borrowed_range<entt::iterable_adaptor<Args...>>{true};
+inline constexpr bool entt::stl::ranges::enable_borrowed_range<entt::iterable_adaptor<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool std::ranges::enable_view<entt::iterable_adaptor<Args...>>{true};
+inline constexpr bool entt::stl::ranges::enable_view<entt::iterable_adaptor<Args...>>{true};
 
-#    endif
 #endif
 
 #endif

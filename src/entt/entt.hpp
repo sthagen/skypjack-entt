@@ -83,6 +83,7 @@ namespace entt::stl {}
 #include "stl/limits.hpp"
 #include "stl/memory.hpp"
 #include "stl/ostream.hpp"
+#include "stl/ranges.hpp"
 #include "stl/sstream.hpp"
 #include "stl/string.hpp"
 #include "stl/string_view.hpp"

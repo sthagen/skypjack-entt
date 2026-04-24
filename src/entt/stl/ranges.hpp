@@ -1,0 +1,23 @@
+#ifndef ENTT_STL_RANGES_HPP
+#define ENTT_STL_RANGES_HPP
+
+#include "../stl/version.hpp"
+
+#ifdef ENTT_HAS_VERSION
+#    if defined(__cpp_lib_ranges)
+#        include <ranges>
+#        define ENTT_HAS_RANGES
+
+/*! @cond ENTT_INTERNAL */
+namespace entt::stl::ranges {
+
+using std::ranges::enable_borrowed_range;
+using std::ranges::enable_view;
+
+} // namespace entt::stl::ranges
+/*! @endcond */
+
+#    endif
+#endif
+
+#endif

@@ -204,6 +204,7 @@ if(ENTT_INCLUDE_HEADERS)
         stl/cstddef.hpp
         stl/cstdint.hpp
         stl/functional.hpp
+        stl/ios.hpp
         stl/iterator.hpp
         stl/limits.hpp
         stl/memory.hpp

@@ -78,6 +78,7 @@ namespace entt::stl {}
 #include "stl/cstddef.hpp"
 #include "stl/cstdint.hpp"
 #include "stl/functional.hpp"
+#include "stl/ios.hpp"
 #include "stl/iterator.hpp"
 #include "stl/limits.hpp"
 #include "stl/memory.hpp"

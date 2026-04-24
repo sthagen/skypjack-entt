@@ -1,7 +1,6 @@
 #ifndef ENTT_TOOLS_DAVEY_HPP
 #define ENTT_TOOLS_DAVEY_HPP
 
-#include <ios>
 #include "../config/config.h"
 #include "../entity/mixin.hpp"
 #include "../entity/registry.hpp"
@@ -14,6 +13,7 @@
 #include "../meta/pointer.hpp"
 #include "../meta/resolve.hpp"
 #include "../stl/cstdint.hpp"
+#include "../stl/ios.hpp"
 #include "../stl/sstream.hpp"
 #include "../stl/string.hpp"
 

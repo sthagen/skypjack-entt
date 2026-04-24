@@ -60,7 +60,7 @@ static void present_element(const meta_any &obj, OnEntity on_entity) {
             }
         } else if(type.is_arithmetic()) {
             if(type.info() == type_id<bool>()) {
-                std::stringstream buffer{};
+                stl::stringstream buffer{};
                 buffer << stl::boolalpha << elem.template cast<bool>();
                 ImGui::Text("%s: %s", label, buffer.str().data());
             } else if(type.info() == type_id<char>()) {

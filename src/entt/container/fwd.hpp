@@ -11,14 +11,14 @@ namespace entt {
 template<
     typename Key,
     typename Type,
-    typename = std::hash<Key>,
+    typename = stl::hash<Key>,
     typename = stl::equal_to<>,
     typename = stl::allocator<stl::pair<const Key, Type>>>
 class dense_map;
 
 template<
     typename Type,
-    typename = std::hash<Type>,
+    typename = stl::hash<Type>,
     typename = stl::equal_to<>,
     typename = stl::allocator<Type>>
 class dense_set;

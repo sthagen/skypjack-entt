@@ -10,6 +10,7 @@ namespace entt::stl {
 
 using std::equal_to;
 using std::function;
+using std::hash;
 using std::invoke;
 using std::less;
 

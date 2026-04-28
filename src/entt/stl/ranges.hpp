@@ -5,7 +5,6 @@
 
 #if defined(__cpp_lib_ranges)
 #    include <ranges>
-#    define ENTT_HAS_RANGES
 
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl::ranges {

@@ -1,9 +1,10 @@
 #ifndef ENTT_ENTITY_RANGES_HPP
 #define ENTT_ENTITY_RANGES_HPP
 
-#include "../stl/ranges.hpp"
+#include "../stl/version.hpp"
 
-#ifdef ENTT_HAS_RANGES
+#if defined(__cpp_lib_ranges)
+#    include "../stl/ranges.hpp"
 #    include "fwd.hpp"
 
 template<class... Args>

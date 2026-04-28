@@ -1,9 +1,10 @@
 #ifndef ENTT_CORE_RANGES_HPP
 #define ENTT_CORE_RANGES_HPP
 
-#include "../stl/ranges.hpp"
+#include "../stl/version.hpp"
 
-#ifdef ENTT_HAS_RANGES
+#if defined(__cpp_lib_ranges)
+#    include "../stl/ranges.hpp"
 #    include "iterator.hpp"
 
 template<class... Args>

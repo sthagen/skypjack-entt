@@ -9,10 +9,12 @@
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl::ranges {
 
-using std::ranges::enable_borrowed_range;
-using std::ranges::enable_view;
+// nothing to import (yet)
 
 } // namespace entt::stl::ranges
+
+#    define ENTT_STL_RANGES std::ranges
+
 /*! @endcond */
 
 #endif

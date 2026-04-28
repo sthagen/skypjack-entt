@@ -8,16 +8,16 @@
 #    include "fwd.hpp"
 
 template<class... Args>
-inline constexpr bool entt::stl::ranges::enable_borrowed_range<entt::basic_view<Args...>>{true};
+inline constexpr bool ENTT_STL_RANGES::enable_borrowed_range<entt::basic_view<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool entt::stl::ranges::enable_borrowed_range<entt::basic_group<Args...>>{true};
+inline constexpr bool ENTT_STL_RANGES::enable_borrowed_range<entt::basic_group<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool entt::stl::ranges::enable_view<entt::basic_view<Args...>>{true};
+inline constexpr bool ENTT_STL_RANGES::enable_view<entt::basic_view<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool entt::stl::ranges::enable_view<entt::basic_group<Args...>>{true};
+inline constexpr bool ENTT_STL_RANGES::enable_view<entt::basic_group<Args...>>{true};
 
 #endif
 

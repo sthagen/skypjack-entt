@@ -48,4 +48,6 @@ struct identity {
 #endif
 /*! @endcond */
 
+#undef ENTT_HAS_IDENTITY
+
 #endif

@@ -66,4 +66,6 @@ constexpr auto to_address(const Type &ptr) noexcept {
 #endif
 /*! @endcond */
 
+#undef ENTT_HAS_TO_ADDRESS
+
 #endif

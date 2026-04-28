@@ -101,4 +101,6 @@ concept sentinel_for = input_or_output_iterator<It> && requires(Sentinel sentine
 } // namespace entt::stl
 /*! @endcond */
 
+#undef ENTT_HAS_ITERATOR_CONCEPTS
+
 #endif

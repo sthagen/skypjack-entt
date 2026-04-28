@@ -17,9 +17,8 @@ using std::less;
 } // namespace entt::stl
 
 #ifndef ENTT_FORCE_STL
-#    ifdef ENTT_HAS_VERSION
-#        if defined(__cpp_lib_ranges)
-#            define ENTT_HAS_IDENTITY
+#    if defined(__cpp_lib_ranges)
+#        define ENTT_HAS_IDENTITY
 
 namespace entt::stl {
 
@@ -27,7 +26,6 @@ using std::identity;
 
 } // namespace entt::stl
 
-#        endif
 #    endif
 #endif
 

@@ -24,13 +24,9 @@
 #    define ENTT_CATCH if(false)
 #endif
 
-#ifdef ENTT_HAS_VERSION
-#    if defined(__cpp_consteval)
-#        define ENTT_CONSTEVAL consteval
-#    endif
-#endif
-
-#ifndef ENTT_CONSTEVAL
+#if defined(__cpp_consteval)
+#    define ENTT_CONSTEVAL consteval
+#else
 #    define ENTT_CONSTEVAL constexpr
 #endif
 

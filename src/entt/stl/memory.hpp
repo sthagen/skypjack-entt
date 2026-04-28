@@ -29,9 +29,8 @@ using std::uses_allocator_v;
 } // namespace entt::stl
 
 #ifndef ENTT_FORCE_STL
-#    ifdef ENTT_HAS_VERSION
-#        if defined(__cpp_lib_to_address)
-#            define ENTT_HAS_TO_ADDRESS
+#    if defined(__cpp_lib_to_address)
+#        define ENTT_HAS_TO_ADDRESS
 
 namespace entt::stl {
 
@@ -39,7 +38,6 @@ using std::to_address;
 
 } // namespace entt::stl
 
-#        endif
 #    endif
 #endif
 

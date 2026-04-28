@@ -19,9 +19,8 @@ using std::random_access_iterator_tag;
 using std::reverse_iterator;
 
 #ifndef ENTT_FORCE_STL
-#    ifdef ENTT_HAS_VERSION
-#        if defined(__cpp_lib_ranges)
-#            define ENTT_HAS_ITERATOR_CONCEPTS
+#    if defined(__cpp_lib_ranges)
+#        define ENTT_HAS_ITERATOR_CONCEPTS
 
 using std::bidirectional_iterator;
 using std::forward_iterator;
@@ -31,7 +30,6 @@ using std::output_iterator;
 using std::random_access_iterator;
 using std::sentinel_for;
 
-#        endif
 #    endif
 #endif
 

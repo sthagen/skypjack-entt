@@ -5,7 +5,7 @@
 #    include <entt/ext/config.h>
 #endif
 
-#include "../stl/version.hpp"
+#include <version>
 #include "version.h"
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)

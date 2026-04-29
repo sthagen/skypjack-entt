@@ -90,5 +90,4 @@ namespace entt::stl {}
 #include "stl/type_traits.hpp"
 #include "stl/utility.hpp"
 #include "stl/vector.hpp"
-#include "stl/version.hpp"
 // IWYU pragma: end_exports

@@ -2,8 +2,8 @@
 #define ENTT_STL_MEMORY_HPP
 
 #include <memory>
+#include <version>
 #include "../config/config.h"
-#include "version.hpp"
 
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {

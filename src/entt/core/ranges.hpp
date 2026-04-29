@@ -1,7 +1,7 @@
 #ifndef ENTT_CORE_RANGES_HPP
 #define ENTT_CORE_RANGES_HPP
 
-#include "../stl/version.hpp"
+#include <version>
 
 #if defined(__cpp_lib_ranges)
 #    include <ranges>

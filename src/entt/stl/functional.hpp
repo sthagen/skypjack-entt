@@ -2,8 +2,8 @@
 #define ENTT_STL_FUNCTIONAL_HPP
 
 #include <functional>
+#include <version>
 #include "../config/config.h"
-#include "version.hpp"
 
 /*! @cond ENTT_INTERNAL */
 namespace entt::stl {
@@ -30,7 +30,7 @@ using std::identity;
 #endif
 
 #ifndef ENTT_HAS_IDENTITY
-#    include "utility.hpp"
+#    include <utility>
 
 namespace entt::stl {
 

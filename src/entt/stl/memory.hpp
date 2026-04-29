@@ -42,22 +42,22 @@ using std::to_address;
 #endif
 
 #ifndef ENTT_HAS_TO_ADDRESS
-#    include "type_traits.hpp"
+#    include <type_traits>
 
 namespace entt::stl {
 
 template<typename Type>
 constexpr Type *to_address(Type *ptr) noexcept {
-    static_assert(!is_function_v<Type>, "Invalid type");
+    static_assert(!std::is_function_v<Type>, "Invalid type");
     return ptr;
 }
 
 template<typename Type>
 constexpr auto to_address(const Type &ptr) noexcept {
-    if constexpr(requires { pointer_traits<Type>::to_address(ptr); }) {
-        return pointer_traits<Type>::to_address(ptr);
+    if constexpr(requires { std::pointer_traits<Type>::to_address(ptr); }) {
+        return std::pointer_traits<Type>::to_address(ptr);
     } else {
-        return to_address(ptr.operator->());
+        return std::to_address(ptr.operator->());
     }
 }
 

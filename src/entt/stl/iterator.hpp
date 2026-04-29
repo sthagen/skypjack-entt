@@ -34,8 +34,8 @@ using std::sentinel_for;
 #endif
 
 #ifndef ENTT_HAS_ITERATOR_CONCEPTS
+#    include <concepts>
 #    include <utility>
-#    include "concepts.hpp"
 
 namespace internal {
 
@@ -60,7 +60,7 @@ struct iterator_tag<It> {
 };
 
 template<typename It, typename Tag>
-concept has_iterator_tag = stl::derived_from<typename iterator_tag<It>::type, Tag>;
+concept has_iterator_tag = std::derived_from<typename iterator_tag<It>::type, Tag>;
 
 } // namespace internal
 
@@ -70,7 +70,7 @@ concept has_iterator_tag = stl::derived_from<typename iterator_tag<It>::type, Ta
 template<typename It>
 concept input_or_output_iterator = requires(It it) {
     *it;
-    { ++it } -> stl::same_as<It &>;
+    { ++it } -> std::same_as<It &>;
     it++;
 };
 
@@ -93,7 +93,7 @@ concept random_access_iterator = bidirectional_iterator<It> && internal::has_ite
 
 template<class Sentinel, typename It>
 concept sentinel_for = input_or_output_iterator<It> && requires(Sentinel sentinel, It it) {
-    { it == sentinel } -> stl::same_as<bool>;
+    { it == sentinel } -> std::same_as<bool>;
 };
 
 #endif

@@ -209,7 +209,6 @@ if(ENTT_INCLUDE_HEADERS)
         stl/limits.hpp
         stl/memory.hpp
         stl/ostream.hpp
-        stl/ranges.hpp
         stl/sstream.hpp
         stl/string.hpp
         stl/string_view.hpp

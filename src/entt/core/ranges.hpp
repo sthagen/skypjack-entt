@@ -4,14 +4,14 @@
 #include "../stl/version.hpp"
 
 #if defined(__cpp_lib_ranges)
-#    include "../stl/ranges.hpp"
+#    include <ranges>
 #    include "iterator.hpp"
 
 template<class... Args>
-inline constexpr bool ENTT_STL_RANGES::enable_borrowed_range<entt::iterable_adaptor<Args...>>{true};
+inline constexpr bool std::ranges::enable_borrowed_range<entt::iterable_adaptor<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool ENTT_STL_RANGES::enable_view<entt::iterable_adaptor<Args...>>{true};
+inline constexpr bool std::ranges::enable_view<entt::iterable_adaptor<Args...>>{true};
 
 #endif
 

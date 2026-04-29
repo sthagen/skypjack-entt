@@ -4,20 +4,20 @@
 #include "../stl/version.hpp"
 
 #if defined(__cpp_lib_ranges)
-#    include "../stl/ranges.hpp"
+#    include <ranges>
 #    include "fwd.hpp"
 
 template<class... Args>
-inline constexpr bool ENTT_STL_RANGES::enable_borrowed_range<entt::basic_view<Args...>>{true};
+inline constexpr bool std::ranges::enable_borrowed_range<entt::basic_view<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool ENTT_STL_RANGES::enable_borrowed_range<entt::basic_group<Args...>>{true};
+inline constexpr bool std::ranges::enable_borrowed_range<entt::basic_group<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool ENTT_STL_RANGES::enable_view<entt::basic_view<Args...>>{true};
+inline constexpr bool std::ranges::enable_view<entt::basic_view<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool ENTT_STL_RANGES::enable_view<entt::basic_group<Args...>>{true};
+inline constexpr bool std::ranges::enable_view<entt::basic_group<Args...>>{true};
 
 #endif
 

@@ -7,11 +7,15 @@
 #    include <ranges>
 #    include "iterator.hpp"
 
-template<class... Args>
-inline constexpr bool std::ranges::enable_borrowed_range<entt::iterable_adaptor<Args...>>{true};
+namespace std::ranges {
 
 template<class... Args>
-inline constexpr bool std::ranges::enable_view<entt::iterable_adaptor<Args...>>{true};
+inline constexpr bool enable_borrowed_range<entt::iterable_adaptor<Args...>>{true};
+
+template<class... Args>
+inline constexpr bool enable_view<entt::iterable_adaptor<Args...>>{true};
+
+} // namespace std::ranges
 
 #endif
 

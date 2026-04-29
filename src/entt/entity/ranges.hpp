@@ -7,17 +7,21 @@
 #    include <ranges>
 #    include "fwd.hpp"
 
-template<class... Args>
-inline constexpr bool std::ranges::enable_borrowed_range<entt::basic_view<Args...>>{true};
+namespace std::ranges {
 
 template<class... Args>
-inline constexpr bool std::ranges::enable_borrowed_range<entt::basic_group<Args...>>{true};
+inline constexpr bool enable_borrowed_range<entt::basic_view<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool std::ranges::enable_view<entt::basic_view<Args...>>{true};
+inline constexpr bool enable_borrowed_range<entt::basic_group<Args...>>{true};
 
 template<class... Args>
-inline constexpr bool std::ranges::enable_view<entt::basic_group<Args...>>{true};
+inline constexpr bool enable_view<entt::basic_view<Args...>>{true};
+
+template<class... Args>
+inline constexpr bool enable_view<entt::basic_group<Args...>>{true};
+
+} // namespace std::ranges
 
 #endif
 

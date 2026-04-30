@@ -254,9 +254,9 @@ constexpr void swap(compressed_pair<First, Second> &lhs, compressed_pair<First, 
 namespace std {
 
 template<typename First, typename Second>
-struct tuple_size<entt::compressed_pair<First, Second>>: integral_constant<size_t, 2u> {};
+struct tuple_size<entt::compressed_pair<First, Second>>: integral_constant<entt::stl::size_t, 2u> {};
 
-template<size_t Index, typename First, typename Second>
+template<entt::stl::size_t Index, typename First, typename Second>
 requires (Index <= 1u)
 struct tuple_element<Index, entt::compressed_pair<First, Second>>: conditional<Index == 0u, First, Second> {};
 

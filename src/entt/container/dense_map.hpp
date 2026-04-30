@@ -1012,6 +1012,8 @@ private:
 } // namespace entt
 
 /*! @cond ENTT_INTERNAL */
+#include <utility>
+
 namespace std {
 
 template<typename Key, typename Value, typename Allocator>

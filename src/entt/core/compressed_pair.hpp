@@ -248,26 +248,19 @@ constexpr void swap(compressed_pair<First, Second> &lhs, compressed_pair<First, 
 
 } // namespace entt
 
+/*! @cond ENTT_INTERNAL */
+#include <utility>
+
 namespace std {
 
-/**
- * @brief `stl::tuple_size` specialization for `compressed_pair`s.
- * @tparam First The type of the first element that the pair stores.
- * @tparam Second The type of the second element that the pair stores.
- */
 template<typename First, typename Second>
 struct tuple_size<entt::compressed_pair<First, Second>>: integral_constant<size_t, 2u> {};
 
-/**
- * @brief `stl::tuple_element` specialization for `compressed_pair`s.
- * @tparam Index The index of the type to return.
- * @tparam First The type of the first element that the pair stores.
- * @tparam Second The type of the second element that the pair stores.
- */
 template<size_t Index, typename First, typename Second>
 requires (Index <= 1u)
 struct tuple_element<Index, entt::compressed_pair<First, Second>>: conditional<Index == 0u, First, Second> {};
 
 } // namespace std
+/*! @endcond */
 
 #endif

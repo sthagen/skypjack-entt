@@ -420,6 +420,8 @@ private:
 } // namespace entt
 
 /*! @cond ENTT_INTERNAL */
+#include <utility>
+
 namespace std {
 
 template<typename... Container, typename Allocator>

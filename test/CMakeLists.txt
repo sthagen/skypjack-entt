@@ -381,26 +381,37 @@ SETUP_BASIC_TEST(
 SETUP_BASIC_TEST(
     NAME stl
     SOURCES
-        entt/stl/algorithm.cpp
-        entt/stl/array.cpp
-        entt/stl/atomic.cpp
-        entt/stl/bit.cpp
-        entt/stl/cmath.cpp
-        entt/stl/concepts.cpp
-        entt/stl/cstddef.cpp
-        entt/stl/cstdint.cpp
         entt/stl/functional.cpp
-        entt/stl/ios.cpp
         entt/stl/iterator.cpp
-        entt/stl/limits.cpp
         entt/stl/memory.cpp
-        entt/stl/ostream.cpp
-        entt/stl/sstream.cpp
-        entt/stl/string.cpp
-        entt/stl/string_view.cpp
-        entt/stl/tuple.cpp
-        entt/stl/type_traits.cpp
-        entt/stl/utility.cpp
-        entt/stl/vector.cpp
     DEFS ENTT_USE_STL
+)
+
+# Test stl_ext
+
+SETUP_BASIC_TEST(
+    NAME stl_ext
+    SOURCES
+        entt/stl_ext/algorithm.cpp
+        entt/stl_ext/array.cpp
+        entt/stl_ext/atomic.cpp
+        entt/stl_ext/bit.cpp
+        entt/stl_ext/cmath.cpp
+        entt/stl_ext/concepts.cpp
+        entt/stl_ext/cstddef.cpp
+        entt/stl_ext/cstdint.cpp
+        entt/stl_ext/functional.cpp
+        entt/stl_ext/ios.cpp
+        entt/stl_ext/iterator.cpp
+        entt/stl_ext/limits.cpp
+        entt/stl_ext/memory.cpp
+        entt/stl_ext/ostream.cpp
+        entt/stl_ext/sstream.cpp
+        entt/stl_ext/string.cpp
+        entt/stl_ext/string_view.cpp
+        entt/stl_ext/tuple.cpp
+        entt/stl_ext/type_traits.cpp
+        entt/stl_ext/utility.cpp
+        entt/stl_ext/vector.cpp
+    INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

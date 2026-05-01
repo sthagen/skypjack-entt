@@ -290,10 +290,12 @@ SETUP_BASIC_TEST(
         entt/entity/view.cpp
 )
 
+# Test entity_no_mixin
+
 SETUP_BASIC_TEST(
     NAME entity_no_mixin
     SOURCES
-        entt/entity/storage_utility.cpp
+        entt/entity_no_mixin/storage_utility.cpp
     DEFS ENTT_NO_MIXIN
 )
 

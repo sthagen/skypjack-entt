@@ -34,4 +34,4 @@ TODO:
 * storage: shrink_to_fit does not work with reentrant destructor?
 * make meta_any buffer size configurable (propagate to any)
 * test trivially_destructible optimization
-* introduce a way to inject stl from outside too
+* document stl and injections support

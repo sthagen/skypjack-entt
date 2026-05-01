@@ -377,8 +377,26 @@ SETUP_BASIC_TEST(
 SETUP_BASIC_TEST(
     NAME stl
     SOURCES
+        entt/stl/algorithm.cpp
+        entt/stl/array.cpp
+        entt/stl/atomic.cpp
+        entt/stl/bit.cpp
+        entt/stl/cmath.cpp
+        entt/stl/concepts.cpp
+        entt/stl/cstddef.cpp
+        entt/stl/cstdint.cpp
         entt/stl/functional.cpp
+        entt/stl/ios.cpp
         entt/stl/iterator.cpp
+        entt/stl/limits.cpp
         entt/stl/memory.cpp
+        entt/stl/ostream.cpp
+        entt/stl/sstream.cpp
+        entt/stl/string.cpp
+        entt/stl/string_view.cpp
+        entt/stl/tuple.cpp
+        entt/stl/type_traits.cpp
+        entt/stl/utility.cpp
+        entt/stl/vector.cpp
     DEFS ENTT_USE_STL
 )

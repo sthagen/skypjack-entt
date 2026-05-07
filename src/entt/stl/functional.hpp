@@ -1,11 +1,14 @@
 #ifndef ENTT_STL_FUNCTIONAL_HPP
 #define ENTT_STL_FUNCTIONAL_HPP
 
-#include <functional>
-#include <version>
-#include "../config/config.h"
-
 /*! @cond ENTT_INTERNAL */
+#if __has_include(<entt/ext/stl/functional.hpp>)
+#    include <entt/ext/stl/functional.hpp>
+#else
+#    include <functional>
+#    include <version>
+#    include "../config/config.h"
+
 namespace entt::stl {
 
 using std::equal_to;
@@ -16,21 +19,19 @@ using std::less;
 
 } // namespace entt::stl
 
-#ifndef ENTT_FORCE_STL
-#    if defined(__cpp_lib_ranges)
-#        define ENTT_HAS_IDENTITY
-
+#    ifndef ENTT_FORCE_STL
+#        if defined(__cpp_lib_ranges)
+#            define ENTT_HAS_IDENTITY
 namespace entt::stl {
 
 using std::identity;
 
 } // namespace entt::stl
-
+#        endif
 #    endif
-#endif
 
-#ifndef ENTT_HAS_IDENTITY
-#    include <utility>
+#    ifndef ENTT_HAS_IDENTITY
+#        include <utility>
 
 namespace entt::stl {
 
@@ -44,6 +45,7 @@ struct identity {
 };
 
 } // namespace entt::stl
+#    endif
 
 #endif
 /*! @endcond */

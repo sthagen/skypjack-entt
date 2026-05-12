@@ -1,11 +1,14 @@
 #ifndef ENTT_STL_MEMORY_HPP
 #define ENTT_STL_MEMORY_HPP
 
-#include <memory>
-#include <version>
-#include "../config/config.h"
-
 /*! @cond ENTT_INTERNAL */
+#if __has_include(<entt/ext/stl/memory.hpp>)
+#    include <entt/ext/stl/memory.hpp>
+#else
+#    include <memory>
+#    include <version>
+#    include "../config/config.h"
+
 namespace entt::stl {
 
 using std::addressof;
@@ -28,9 +31,9 @@ using std::uses_allocator_v;
 
 } // namespace entt::stl
 
-#ifndef ENTT_FORCE_STL
-#    if defined(__cpp_lib_to_address)
-#        define ENTT_HAS_TO_ADDRESS
+#    ifndef ENTT_FORCE_STL
+#        if defined(__cpp_lib_to_address)
+#            define ENTT_HAS_TO_ADDRESS
 
 namespace entt::stl {
 
@@ -38,11 +41,11 @@ using std::to_address;
 
 } // namespace entt::stl
 
+#        endif
 #    endif
-#endif
 
-#ifndef ENTT_HAS_TO_ADDRESS
-#    include <type_traits>
+#    ifndef ENTT_HAS_TO_ADDRESS
+#        include <type_traits>
 
 namespace entt::stl {
 
@@ -62,7 +65,7 @@ constexpr auto to_address(const Type &ptr) noexcept {
 }
 
 } // namespace entt::stl
-
+#    endif
 #endif
 /*! @endcond */
 

@@ -177,7 +177,7 @@ public:
      * @param area The context into which to construct meta types.
      */
     meta_factory(meta_ctx &area) noexcept
-        : internal::basic_meta_factory{area, internal::setup_node_for<Type>()} {}
+        : internal::basic_meta_factory{area, internal::setup_node_for<element_type>()} {}
 
     /**
      * @brief Assigns a custom unique identifier to a meta type.
@@ -208,10 +208,10 @@ public:
      * @return A meta factory for the parent type.
      */
     template<typename Base>
-    requires stl::derived_from<Type, Base>
+    requires stl::derived_from<element_type, Base>
     meta_factory base() noexcept {
-        if constexpr(!stl::same_as<Type, Base>) {
-            auto *const op = +[](const void *instance) noexcept { return static_cast<const void *>(static_cast<const Base *>(static_cast<const Type *>(instance))); };
+        if constexpr(!stl::same_as<element_type, Base>) {
+            auto *const op = +[](const void *instance) noexcept { return static_cast<const void *>(static_cast<const Base *>(static_cast<const element_type *>(instance))); };
 
             base_type::insert_or_assign(
                 internal::meta_base_node{
@@ -237,8 +237,8 @@ public:
      */
     template<auto Candidate>
     auto conv() noexcept {
-        using conv_type = stl::remove_cvref_t<stl::invoke_result_t<decltype(Candidate), Type &>>;
-        auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, stl::invoke(Candidate, *static_cast<const Type *>(instance))); };
+        using conv_type = stl::remove_cvref_t<stl::invoke_result_t<decltype(Candidate), element_type &>>;
+        auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, stl::invoke(Candidate, *static_cast<const element_type *>(instance))); };
 
         base_type::insert_or_assign(
             internal::meta_conv_node{
@@ -260,7 +260,7 @@ public:
     template<typename To>
     meta_factory conv() noexcept {
         using conv_type = stl::remove_cvref_t<To>;
-        auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, static_cast<To>(*static_cast<const Type *>(instance))); };
+        auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, static_cast<To>(*static_cast<const element_type *>(instance))); };
 
         base_type::insert_or_assign(
             internal::meta_conv_node{
@@ -285,16 +285,16 @@ public:
      */
     template<auto Candidate, typename Policy = as_value_t>
     meta_factory ctor() noexcept {
-        using descriptor = meta_function_helper_t<Type, decltype(Candidate)>;
+        using descriptor = meta_function_helper_t<element_type, decltype(Candidate)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
-        static_assert(stl::is_same_v<stl::remove_cvref_t<typename descriptor::return_type>, Type>, "The function doesn't return an object of the required type");
+        static_assert(stl::is_same_v<stl::remove_cvref_t<typename descriptor::return_type>, element_type>, "The function doesn't return an object of the required type");
 
         base_type::insert_or_assign(
             internal::meta_ctor_node{
                 type_id<typename descriptor::args_type>().hash(),
                 descriptor::args_type::size,
                 &meta_arg<typename descriptor::args_type>,
-                &meta_construct<Type, Candidate, Policy>});
+                &meta_construct<element_type, Candidate, Policy>});
 
         return *this;
     }
@@ -313,14 +313,14 @@ public:
     meta_factory ctor() noexcept {
         // default constructor is already implicitly generated, no need for redundancy
         if constexpr(sizeof...(Args) != 0u) {
-            using descriptor = meta_function_helper_t<Type, Type (*)(Args...)>;
+            using descriptor = meta_function_helper_t<element_type, element_type (*)(Args...)>;
 
             base_type::insert_or_assign(
                 internal::meta_ctor_node{
                     type_id<typename descriptor::args_type>().hash(),
                     descriptor::args_type::size,
                     &meta_arg<typename descriptor::args_type>,
-                    &meta_construct<Type, Args...>});
+                    &meta_construct<element_type, Args...>});
         }
 
         return *this;
@@ -355,7 +355,7 @@ public:
     template<auto Data, typename Policy = as_value_t>
     meta_factory data(const id_type id, const char *name = nullptr) noexcept {
         if constexpr(stl::is_member_object_pointer_v<decltype(Data)>) {
-            using data_type = stl::invoke_result_t<decltype(Data), Type &>;
+            using data_type = stl::invoke_result_t<decltype(Data), element_type &>;
             static_assert(Policy::template value<data_type>, "Invalid return type for the given policy");
 
             base_type::data(
@@ -367,8 +367,8 @@ public:
                     1u,
                     &internal::resolve<stl::remove_cvref_t<data_type>>,
                     &meta_arg<type_list<stl::remove_cvref_t<data_type>>>,
-                    &meta_setter<Type, Data>,
-                    &meta_getter<Type, Data, Policy>});
+                    &meta_setter<element_type, Data>,
+                    &meta_getter<element_type, Data, Policy>});
         } else {
             using data_type = stl::remove_pointer_t<decltype(Data)>;
 
@@ -386,8 +386,8 @@ public:
                     1u,
                     &internal::resolve<stl::remove_cvref_t<data_type>>,
                     &meta_arg<type_list<stl::remove_cvref_t<data_type>>>,
-                    &meta_setter<Type, Data>,
-                    &meta_getter<Type, Data, Policy>});
+                    &meta_setter<element_type, Data>,
+                    &meta_getter<element_type, Data, Policy>});
         }
 
         return *this;
@@ -430,7 +430,7 @@ public:
      */
     template<auto Setter, auto Getter, typename Policy = as_value_t>
     meta_factory data(const id_type id, const char *name = nullptr) noexcept {
-        using descriptor = meta_function_helper_t<Type, decltype(Getter)>;
+        using descriptor = meta_function_helper_t<element_type, decltype(Getter)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
 
         if constexpr(stl::is_same_v<decltype(Setter), stl::nullptr_t>) {
@@ -443,10 +443,10 @@ public:
                     0u,
                     &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
                     &meta_arg<type_list<>>,
-                    &meta_setter<Type, Setter>,
-                    &meta_getter<Type, Getter, Policy>});
+                    &meta_setter<element_type, Setter>,
+                    &meta_getter<element_type, Getter, Policy>});
         } else {
-            using args_type = meta_function_helper_t<Type, decltype(Setter)>::args_type;
+            using args_type = meta_function_helper_t<element_type, decltype(Setter)>::args_type;
 
             base_type::data(
                 internal::meta_data_node{
@@ -457,8 +457,8 @@ public:
                     1u,
                     &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
                     &meta_arg<type_list<type_list_element_t<static_cast<stl::size_t>(args_type::size != 1u), args_type>>>,
-                    &meta_setter<Type, Setter>,
-                    &meta_getter<Type, Getter, Policy>});
+                    &meta_setter<element_type, Setter>,
+                    &meta_getter<element_type, Getter, Policy>});
         }
 
         return *this;
@@ -492,7 +492,7 @@ public:
      */
     template<auto Candidate, typename Policy = as_value_t>
     meta_factory func(const id_type id, const char *name = nullptr) noexcept {
-        using descriptor = meta_function_helper_t<Type, decltype(Candidate)>;
+        using descriptor = meta_function_helper_t<element_type, decltype(Candidate)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
 
         base_type::func(
@@ -503,7 +503,7 @@ public:
                 descriptor::args_type::size,
                 &internal::resolve<stl::conditional_t<stl::is_same_v<Policy, as_void_t>, void, stl::remove_cvref_t<typename descriptor::return_type>>>,
                 &meta_arg<typename descriptor::args_type>,
-                &meta_invoke<Type, Candidate, Policy>});
+                &meta_invoke<element_type, Candidate, Policy>});
 
         return *this;
     }

@@ -861,8 +861,8 @@ struct meta_data: meta_object<internal::meta_data_node> {
     }
 
     /**
-     * @brief Returns the number of setters available.
-     * @return The number of setters available.
+     * @brief Returns the number of arguments accepted by a data member.
+     * @return The number of arguments accepted by the data member.
      */
     [[nodiscard]] size_type arity() const noexcept {
         return node_or_assert().arity;
@@ -913,9 +913,9 @@ struct meta_data: meta_object<internal::meta_data_node> {
     }
 
     /**
-     * @brief Returns the type accepted by the i-th setter.
-     * @param index Index of the setter of which to return the accepted type.
-     * @return The type accepted by the i-th setter.
+     * @brief Returns the type of the i-th argument of a data member.
+     * @param index Index of the argument of which to return the type.
+     * @return The type of the i-th argument of a data member.
      */
     [[nodiscard]] inline meta_type arg(size_type index) const noexcept;
 

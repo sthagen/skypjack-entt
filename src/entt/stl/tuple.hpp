@@ -1,9 +1,12 @@
 #ifndef ENTT_STL_TUPLE_HPP
 #define ENTT_STL_TUPLE_HPP
 
-#include <tuple>
-
 /*! @cond ENTT_INTERNAL */
+#if __has_include(<entt/ext/stl/tuple.hpp>)
+#    include <entt/ext/stl/tuple.hpp>
+#else
+#    include <tuple>
+
 namespace entt::stl {
 
 using std::apply;
@@ -19,6 +22,7 @@ using std::tuple_size;
 using std::tuple_size_v;
 
 } // namespace entt::stl
+#endif
 /*! @endcond */
 
 #endif

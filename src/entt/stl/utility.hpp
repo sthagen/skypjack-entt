@@ -1,9 +1,12 @@
 #ifndef ENTT_STL_UTILITY_HPP
 #define ENTT_STL_UTILITY_HPP
 
-#include <utility>
-
 /*! @cond ENTT_INTERNAL */
+#if __has_include(<entt/ext/stl/utility.hpp>)
+#    include <entt/ext/stl/utility.hpp>
+#else
+#    include <utility>
+
 namespace entt::stl {
 
 using std::as_const;
@@ -25,6 +28,7 @@ using std::piecewise_construct_t;
 using std::swap;
 
 } // namespace entt::stl
+#endif
 /*! @endcond */
 
 #endif

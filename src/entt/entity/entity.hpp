@@ -73,11 +73,9 @@ concept entity_like = requires {
  * @tparam Traits Actual entity traits to use.
  */
 template<typename Traits>
+requires ((Traits::entity_mask & (Traits::entity_mask + 1)) == 0) && ((Traits::version_mask & (Traits::version_mask + 1)) == 0)
 class basic_entt_traits {
     static constexpr auto length = stl::popcount(Traits::entity_mask);
-
-    static_assert(Traits::entity_mask && ((Traits::entity_mask & (Traits::entity_mask + 1)) == 0), "Invalid entity mask");
-    static_assert((Traits::version_mask & (Traits::version_mask + 1)) == 0, "Invalid version mask");
 
 public:
     /*! @brief Value type. */

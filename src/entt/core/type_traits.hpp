@@ -825,13 +825,17 @@ struct constness_as<To, const From> {
 template<typename To, typename From>
 using constness_as_t = constness_as<To, From>::type;
 
+/*! @brief Primary template isn't defined on purpose. */
+template<typename>
+class member_class;
+
 /**
  * @brief Extracts the class of a non-static member object or function.
  * @tparam Member A pointer to a non-static member object or function.
  */
 template<typename Member>
 requires stl::is_member_pointer_v<Member>
-class member_class {
+class member_class<Member> {
     template<typename Class, typename Ret, typename... Args>
     static Class *clazz(Ret (Class::*)(Args...));
 

@@ -73,7 +73,6 @@ concept entity_like = requires {
  * @tparam Traits Actual entity traits to use.
  */
 template<typename Traits>
-requires ((Traits::entity_mask & (Traits::entity_mask + 1)) == 0) && ((Traits::version_mask & (Traits::version_mask + 1)) == 0)
 class basic_entt_traits {
     static constexpr auto length = stl::popcount(Traits::entity_mask);
 
@@ -105,6 +104,7 @@ public:
      * @return The integral representation of the entity part.
      */
     [[nodiscard]] static constexpr entity_type to_entity(const value_type value) noexcept {
+        static_assert(Traits::entity_mask && ((Traits::entity_mask & (Traits::entity_mask + 1)) == 0), "Invalid entity mask");
         return (to_integral(value) & entity_mask);
     }
 
@@ -117,6 +117,7 @@ public:
         if constexpr(Traits::version_mask == 0u) {
             return version_type{};
         } else {
+            static_assert((Traits::version_mask & (Traits::version_mask + 1)) == 0, "Invalid version mask");
             return (static_cast<version_type>(to_integral(value) >> length) & version_mask);
         }
     }

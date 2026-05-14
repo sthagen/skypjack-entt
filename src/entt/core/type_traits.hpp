@@ -153,8 +153,8 @@ struct type_list_index<Type, type_list<First, Other...>> {
  * @tparam Other Other types provided by the type list.
  */
 template<typename Type, typename... Other>
+requires (type_list_index<Type, type_list<Other...>>::value == sizeof...(Other))
 struct type_list_index<Type, type_list<Type, Other...>> {
-    static_assert(type_list_index<Type, type_list<Other...>>::value == sizeof...(Other), "Non-unique type");
     /*! @brief Unsigned integer type. */
     using value_type = stl::size_t;
     /*! @brief Compile-time position of the given type in the sublist. */
@@ -418,8 +418,8 @@ struct value_list_index<Value, value_list<First, Other...>> {
  * @tparam Other Other values provided by the value list.
  */
 template<auto Value, auto... Other>
+requires (value_list_index<Value, value_list<Other...>>::value == sizeof...(Other))
 struct value_list_index<Value, value_list<Value, Other...>> {
-    static_assert(value_list_index<Value, value_list<Other...>>::value == sizeof...(Other), "Non-unique type");
     /*! @brief Unsigned integer type. */
     using value_type = stl::size_t;
     /*! @brief Compile-time position of the given value in the sublist. */
@@ -830,9 +830,8 @@ using constness_as_t = constness_as<To, From>::type;
  * @tparam Member A pointer to a non-static member object or function.
  */
 template<typename Member>
+requires stl::is_member_pointer_v<Member>
 class member_class {
-    static_assert(stl::is_member_pointer_v<Member>, "Invalid pointer type to non-static member object or function");
-
     template<typename Class, typename Ret, typename... Args>
     static Class *clazz(Ret (Class::*)(Args...));
 

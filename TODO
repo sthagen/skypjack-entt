@@ -10,14 +10,12 @@ DOC:
 * bump entities, reserved bits on identifiers
 
 TODO:
-* bring nested groups back in place (see bd34e7f)
 * work stealing job system (see #100) + mt scheduler based on const awareness for types
 * combine version-mask-vs-version-bits tricks with reserved bits to allow things like enabling/disabling
 * self contained entity traits to avoid explicit specializations (ie enum constants)
 * auto type info data from types if present
 * storage entity: fast range-push from above
 * suppress -Wself-move on CI with g++13
-* runtime types support for meta for types that aren't backed by C++ types
 * built-in no-pagination storage - no_pagination page size as limits::max
 * any cdynamic to support const ownership construction
 * allow passing arguments to meta setter/getter (we can fallback on meta invoke probably)
@@ -35,3 +33,4 @@ TODO:
 * make meta_any buffer size configurable (propagate to any)
 * test trivially_destructible optimization
 * document stl and injections support
+* add instance-type to meta data and func (useful for typeless types)

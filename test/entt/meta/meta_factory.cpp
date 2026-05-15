@@ -492,3 +492,9 @@ TEST_F(MetaFactory, MetaReset) {
     ASSERT_FALSE(entt::resolve(entt::type_id<int>()));
     ASSERT_FALSE(entt::resolve(ctx, entt::type_id<int>()));
 }
+
+TEST_F(MetaFactory, Void) {
+    entt::meta_factory<void> factory{};
+
+    // work in progress ...
+}

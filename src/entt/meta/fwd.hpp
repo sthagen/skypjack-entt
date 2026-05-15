@@ -32,6 +32,12 @@ class meta_factory;
 /*! @brief Used to identicate that a sequence container has not a fixed size. */
 inline constexpr stl::size_t meta_dynamic_extent = (stl::numeric_limits<stl::size_t>::max)();
 
+/*! @brief Disambiguation tag for constructors and the like. */
+class meta_ctx_arg_t final {};
+
+/*! @brief Constant of type meta_context_arg_t used to disambiguate calls. */
+inline constexpr meta_ctx_arg_t meta_ctx_arg{};
+
 } // namespace entt
 
 #endif

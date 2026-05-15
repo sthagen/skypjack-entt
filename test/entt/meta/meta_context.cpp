@@ -484,3 +484,7 @@ TEST_F(MetaContext, ForwardAsMeta) {
     ASSERT_EQ(global.type().data("marker"_hs).get({}).cast<int>(), global_marker);
     ASSERT_EQ(local.type().data("marker"_hs).get({}).cast<int>(), local_marker);
 }
+
+TEST_F(MetaContext, Typeless) {
+    // work in progress ...
+}

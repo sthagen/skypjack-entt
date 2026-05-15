@@ -34,3 +34,4 @@ TODO:
 * test trivially_destructible optimization
 * document stl and injections support
 * add instance-type to meta data and func (useful for typeless types)
+* use a dense_set for the meta context bucket to speed up lookups

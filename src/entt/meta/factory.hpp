@@ -240,6 +240,7 @@ public:
     template<auto Candidate>
     auto conv() noexcept {
         static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+
         using conv_type = stl::remove_cvref_t<stl::invoke_result_t<decltype(Candidate), element_type &>>;
         auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, stl::invoke(Candidate, *static_cast<const element_type *>(instance))); };
 
@@ -263,6 +264,7 @@ public:
     template<typename To>
     meta_factory conv() noexcept {
         static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+
         using conv_type = stl::remove_cvref_t<To>;
         auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, static_cast<To>(*static_cast<const element_type *>(instance))); };
 
@@ -290,6 +292,7 @@ public:
     template<auto Candidate, typename Policy = as_value_t>
     meta_factory ctor() noexcept {
         static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+
         using descriptor = meta_function_helper_t<element_type, decltype(Candidate)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
         static_assert(stl::is_same_v<stl::remove_cvref_t<typename descriptor::return_type>, element_type>, "The function doesn't return an object of the required type");

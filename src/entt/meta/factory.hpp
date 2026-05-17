@@ -135,9 +135,9 @@ protected:
 public:
     basic_meta_factory(meta_ctx &area, meta_type_node node)
         : ctx{&area},
-          bucket{node.info->hash()},
+          bucket{},
           state{mode::type} {
-        if(const auto it = meta_context::from(*ctx).bucket.find(bucket); it == meta_context::from(*ctx).bucket.cend()) {
+        if(const auto it = meta_context::from(*ctx).bucket.find(node.id); it == meta_context::from(*ctx).bucket.cend()) {
             parent = meta_context::from(*ctx).bucket.emplace(node.info->hash(), stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
             parent->details = stl::make_unique<meta_type_descriptor>();
         } else {

@@ -8,6 +8,7 @@
 #include "../core/type_info.hpp"
 #include "../core/type_traits.hpp"
 #include "../locator/locator.hpp"
+#include "../stl/algorithm.hpp"
 #include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/cstdint.hpp"
@@ -21,7 +22,6 @@
 #include "node.hpp"
 #include "policy.hpp"
 #include "range.hpp"
-#include "resolve.hpp"
 #include "utility.hpp"
 
 namespace entt {
@@ -54,7 +54,7 @@ class basic_meta_factory {
 protected:
     void type(const id_type id, const char *name) noexcept {
         state = mode::type;
-        ENTT_ASSERT(parent->id == id || !resolve(*ctx, id), "Duplicate identifier");
+        ENTT_ASSERT(parent->id == id || (stl::find_if(ctx->bucket.cbegin(), ctx->bucket.cend(), [id](const auto &value) { return value.second->id == id; }) == ctx->bucket.cend()), "Duplicate identifier");
         parent->name = name;
         parent->id = id;
     }
@@ -134,11 +134,11 @@ protected:
 
 public:
     basic_meta_factory(meta_ctx &area, meta_type_node node)
-        : ctx{&area},
+        : ctx{&meta_context::from(area)},
           bucket{},
           state{mode::type} {
-        if(const auto it = meta_context::from(*ctx).bucket.find(node.id); it == meta_context::from(*ctx).bucket.cend()) {
-            parent = meta_context::from(*ctx).bucket.emplace(node.info->hash(), stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
+        if(const auto it = ctx->bucket.find(node.id); it == ctx->bucket.cend()) {
+            parent = ctx->bucket.emplace(node.info->hash(), stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
             parent->details = stl::make_unique<meta_type_descriptor>();
         } else {
             parent = it->second.get();
@@ -146,7 +146,7 @@ public:
     }
 
 private:
-    meta_ctx *ctx{};
+    meta_context *ctx{};
     id_type bucket{};
     invoke_type *invoke{};
     meta_type_node *parent{};

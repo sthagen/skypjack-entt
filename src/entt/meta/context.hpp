@@ -27,7 +27,7 @@ struct meta_context {
 /*! @endcond */
 
 /*! @brief Opaque meta context type. */
-class meta_ctx: private internal::meta_context {
+struct meta_ctx: private internal::meta_context {
     // attorney idiom like model to access the base class
     friend struct internal::meta_context;
 };

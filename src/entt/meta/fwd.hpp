@@ -6,7 +6,7 @@
 
 namespace entt {
 
-class meta_ctx;
+struct meta_ctx;
 
 class meta_sequence_container;
 
@@ -33,7 +33,7 @@ class meta_factory;
 inline constexpr stl::size_t meta_dynamic_extent = (stl::numeric_limits<stl::size_t>::max)();
 
 /*! @brief Disambiguation tag for constructors and the like. */
-class meta_ctx_arg_t final {};
+struct meta_ctx_arg_t final {};
 
 /*! @brief Constant of type meta_context_arg_t used to disambiguate calls. */
 inline constexpr meta_ctx_arg_t meta_ctx_arg{};

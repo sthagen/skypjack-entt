@@ -135,10 +135,10 @@ protected:
 public:
     basic_meta_factory(meta_ctx &area, meta_type_node node)
         : ctx{&meta_context::from(area)},
-          bucket{},
+          bucket{node.info->hash()},
           state{mode::type} {
-        if(const auto it = ctx->bucket.find(node.id); it == ctx->bucket.cend()) {
-            parent = ctx->bucket.emplace(node.info->hash(), stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
+        if(const auto it = ctx->bucket.find(bucket); it == ctx->bucket.cend()) {
+            parent = ctx->bucket.emplace(bucket, stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
             parent->details = stl::make_unique<meta_type_descriptor>();
         } else {
             parent = it->second.get();

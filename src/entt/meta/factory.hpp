@@ -54,7 +54,7 @@ class basic_meta_factory {
 protected:
     void type(const id_type id, const char *name) noexcept {
         state = mode::type;
-        ENTT_ASSERT(parent->id == id || (stl::find_if(ctx->bucket.cbegin(), ctx->bucket.cend(), [id](const auto &value) { return value.second->id == id; }) == ctx->bucket.cend()), "Duplicate identifier");
+        ENTT_ASSERT((parent->id == id) || stl::find_if(ctx->bucket.cbegin(), ctx->bucket.cend(), [id](const auto &value) { return value.second->id == id; }) == ctx->bucket.cend(), "Duplicate identifier");
         parent->name = name;
         parent->id = id;
     }
@@ -133,12 +133,12 @@ protected:
     }
 
 public:
-    basic_meta_factory(meta_ctx &area, meta_type_node node)
+    basic_meta_factory(meta_ctx &area, meta_type_node node, const id_type id)
         : ctx{&meta_context::from(area)},
-          bucket{node.info->hash()},
+          bucket{},
           state{mode::type} {
-        if(const auto it = ctx->bucket.find(bucket); it == ctx->bucket.cend()) {
-            parent = ctx->bucket.emplace(bucket, stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
+        if(const auto it = ctx->bucket.find(id); it == ctx->bucket.cend()) {
+            parent = ctx->bucket.emplace(id, stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
             parent->details = stl::make_unique<meta_type_descriptor>();
         } else {
             parent = it->second.get();
@@ -147,9 +147,9 @@ public:
 
 private:
     meta_context *ctx{};
-    id_type bucket{};
     invoke_type *invoke{};
     meta_type_node *parent{};
+    id_type bucket{};
     mode state{};
 };
 
@@ -177,7 +177,7 @@ public:
      * @param area The context into which to construct meta types.
      */
     meta_factory(meta_ctx &area) noexcept
-        : internal::basic_meta_factory{area, internal::setup_node_for<element_type>()} {}
+        : internal::basic_meta_factory{area, internal::setup_node_for<element_type>(), type_hash<Type>::value()} {}
 
     /**
      * @brief Assigns a custom unique identifier to a meta type.
@@ -510,6 +510,259 @@ public:
                 &internal::resolve<stl::conditional_t<stl::is_same_v<Policy, as_void_t>, void, stl::remove_cvref_t<typename descriptor::return_type>>>,
                 &meta_arg<typename descriptor::args_type>,
                 &meta_invoke<element_type, Candidate, Policy>});
+
+        return *this;
+    }
+
+    /**
+     * @brief Sets traits on the last created meta object.
+     *
+     * The assigned value must be an enum and intended as a bitmask.
+     *
+     * @tparam Value Type of the traits value.
+     * @param value Traits value.
+     * @param unset True to unset the given traits, false otherwise.
+     * @return A meta factory for the parent type.
+     */
+    template<typename Value>
+    meta_factory traits(const Value value, const bool unset = false) {
+        static_assert(stl::is_enum_v<Value>, "Invalid enum type");
+        base_type::traits(internal::user_to_meta_traits(value), unset);
+        return *this;
+    }
+
+    /**
+     * @brief Sets user defined data that will never be used by the library.
+     * @tparam Value Type of user defined data to store.
+     * @tparam Args Types of arguments to use to construct the user data.
+     * @param args Parameters to use to initialize the user data.
+     * @return A meta factory for the parent type.
+     */
+    template<typename Value, typename... Args>
+    meta_factory custom(Args &&...args) {
+        base_type::custom(internal::meta_custom_node{type_id<Value>().hash(), stl::make_shared<Value>(stl::forward<Args>(args)...)});
+        return *this;
+    }
+};
+
+/*! @brief Meta factory specialization for typeless meta types. */
+template<>
+class meta_factory<void>: private internal::basic_meta_factory {
+    using base_type = internal::basic_meta_factory;
+
+public:
+    /*! @brief Type of object for which this factory builds a meta type. */
+    using element_type = void;
+
+    /**
+     * @brief Constructs a factory for a uniquely identified typeless type.
+     * @param name A custom unique identifier as a **string literal**.
+     */
+    meta_factory(const char *name) noexcept
+        : meta_factory{locator<meta_ctx>::value_or(), name} {}
+
+    /**
+     * @brief Constructs a factory for a uniquely identified typeless type.
+     * @param id A custom unique identifier.
+     * @param name An optional name for the type as a **string literal**.
+     */
+    meta_factory(const id_type id, const char *name = nullptr) noexcept
+        : meta_factory{locator<meta_ctx>::value_or(), id, name} {}
+
+    /**
+     * @brief Context aware constructor for uniquely identified typeless types.
+     * @param name A custom unique identifier as a **string literal**.
+     */
+    meta_factory(meta_ctx &area, const char *name) noexcept
+        : meta_factory{area, hashed_string::value(name), name} {}
+
+    /**
+     * @brief Context aware constructor for uniquely identified typeless types.
+     * @param id A custom unique identifier.
+     * @param name An optional name for the type as a **string literal**.
+     */
+    meta_factory(meta_ctx &area, const id_type id, const char *name = nullptr) noexcept
+        : internal::basic_meta_factory{area, internal::setup_node_for<element_type>(), id} {
+        type(id, name);
+    }
+
+    /**
+     * @brief Assigns a meta data to a meta type.
+     * @tparam Data The actual variable to attach to the meta type.
+     * @tparam Policy Optional policy (no policy set by default).
+     * @param name A custom unique identifier as a **string literal**.
+     * @return A meta factory for the given type.
+     */
+    template<auto Data, typename Policy = as_value_t>
+    meta_factory data(const char *name) noexcept {
+        return data<Data, Policy>(hashed_string::value(name), name);
+    }
+
+    /**
+     * @brief Assigns a meta data to a meta type.
+     *
+     * Both data members and static and global variables, as well as constants
+     * of any kind, can be assigned to a meta type.<br/>
+     * From a client's point of view, all the variables associated with the
+     * reflected object will appear as if they were part of the type itself.
+     *
+     * @tparam Data The actual variable to attach to the meta type.
+     * @tparam Policy Optional policy (no policy set by default).
+     * @param id Unique identifier.
+     * @param name An optional name for the meta data as a **string literal**.
+     * @return A meta factory for the parent type.
+     */
+    template<auto Data, typename Policy = as_value_t>
+    meta_factory data(const id_type id, const char *name = nullptr) noexcept {
+        if constexpr(stl::is_member_object_pointer_v<decltype(Data)>) {
+            using class_type = member_class_t<decltype(Data)>;
+            using data_type = stl::invoke_result_t<decltype(Data), class_type &>;
+            static_assert(Policy::template value<data_type>, "Invalid return type for the given policy");
+
+            base_type::data(
+                internal::meta_data_node{
+                    id,
+                    name,
+                    /* this is never static */
+                    stl::is_const_v<stl::remove_reference_t<data_type>> ? internal::meta_traits::is_const : internal::meta_traits::is_none,
+                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    &meta_setter<class_type, Data>,
+                    &meta_getter<class_type, Data, Policy>});
+        } else {
+            using data_type = stl::remove_pointer_t<decltype(Data)>;
+
+            if constexpr(stl::is_pointer_v<decltype(Data)>) {
+                static_assert(Policy::template value<decltype(*Data)>, "Invalid return type for the given policy");
+            } else {
+                static_assert(Policy::template value<data_type>, "Invalid return type for the given policy");
+            }
+
+            base_type::data(
+                internal::meta_data_node{
+                    id,
+                    name,
+                    ((!stl::is_pointer_v<decltype(Data)> || stl::is_const_v<data_type>) ? internal::meta_traits::is_const : internal::meta_traits::is_none) | internal::meta_traits::is_static,
+                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    &meta_setter<void, Data>,
+                    &meta_getter<void, Data, Policy>});
+        }
+
+        return *this;
+    }
+
+    /**
+     * @brief Assigns a meta data to a meta type by means of its setter and
+     * getter.
+     * @tparam Setter The actual function to use as a setter.
+     * @tparam Getter The actual function to use as a getter.
+     * @tparam Policy Optional policy (no policy set by default).
+     * @param name A custom unique identifier as a **string literal**.
+     * @return A meta factory for the given type.
+     */
+    template<auto Setter, auto Getter, typename Policy = as_value_t>
+    meta_factory data(const char *name) noexcept {
+        return data<Setter, Getter, Policy>(hashed_string::value(name), name);
+    }
+
+    /**
+     * @brief Assigns a meta data to a meta type by means of its setter and
+     * getter.
+     *
+     * Setters and getters can be either free functions, member functions or a
+     * mix of them.<br/>
+     * In case of free functions, setters and getters must accept a reference to
+     * an instance of the parent type as their first argument. A setter has then
+     * an extra argument of a type convertible to that of the parameter to
+     * set.<br/>
+     * In case of member functions, getters have no arguments at all, while
+     * setters has an argument of a type convertible to that of the parameter to
+     * set.
+     *
+     * @tparam Setter The actual function to use as a setter.
+     * @tparam Getter The actual function to use as a getter.
+     * @tparam Policy Optional policy (no policy set by default).
+     * @param id Unique identifier.
+     * @param name An optional name for the meta data as a **string literal**.
+     * @return A meta factory for the parent type.
+     */
+    template<auto Setter, auto Getter, typename Policy = as_value_t>
+    meta_factory data(const id_type id, const char *name = nullptr) noexcept {
+        using class_type = typename stl::conditional_t<stl::is_member_pointer_v<decltype(Getter)>, member_class<decltype(Getter)>, stl::type_identity<void>>::type;
+        using descriptor = meta_function_helper_t<class_type, decltype(Getter)>;
+        static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
+
+        if constexpr(stl::is_same_v<decltype(Setter), stl::nullptr_t>) {
+            base_type::data(
+                internal::meta_data_node{
+                    id,
+                    name,
+                    /* this is never static */
+                    internal::meta_traits::is_const,
+                    &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
+                    nullptr,
+                    &meta_setter<class_type, Setter>,
+                    &meta_getter<class_type, Getter, Policy>});
+        } else {
+            using args_type = meta_function_helper_t<class_type, decltype(Setter)>::args_type;
+
+            base_type::data(
+                internal::meta_data_node{
+                    id,
+                    name,
+                    /* this is never static nor const */
+                    internal::meta_traits::is_none,
+                    &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
+                    &internal::resolve<stl::remove_cvref_t<type_list_element_t<static_cast<stl::size_t>(args_type::size != 1u), args_type>>>,
+                    &meta_setter<class_type, Setter>,
+                    &meta_getter<class_type, Getter, Policy>});
+        }
+
+        return *this;
+    }
+
+    /**
+     * @brief Assigns a meta function to a meta type.
+     * @tparam Candidate The actual function to attach to the meta function.
+     * @tparam Policy Optional policy (no policy set by default).
+     * @param name A custom unique identifier as a **string literal**.
+     * @return A meta factory for the given type.
+     */
+    template<auto Candidate, typename Policy = as_value_t>
+    meta_factory func(const char *name) noexcept {
+        return func<Candidate, Policy>(hashed_string::value(name), name);
+    }
+
+    /**
+     * @brief Assigns a meta function to a meta type.
+     *
+     * Both member functions and free functions can be assigned to a meta
+     * type.<br/>
+     * From a client's point of view, all the functions associated with the
+     * reflected object will appear as if they were part of the type itself.
+     *
+     * @tparam Candidate The actual function to attach to the meta type.
+     * @tparam Policy Optional policy (no policy set by default).
+     * @param id Unique identifier.
+     * @param name An optional name for the function as a **string literal**.
+     * @return A meta factory for the parent type.
+     */
+    template<auto Candidate, typename Policy = as_value_t>
+    meta_factory func(const id_type id, const char *name = nullptr) noexcept {
+        using class_type = typename stl::conditional_t<stl::is_member_pointer_v<decltype(Candidate)>, member_class<decltype(Candidate)>, stl::type_identity<void>>::type;
+        using descriptor = meta_function_helper_t<class_type, decltype(Candidate)>;
+        static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
+
+        base_type::func(
+            internal::meta_func_node{
+                id,
+                name,
+                (descriptor::is_const ? internal::meta_traits::is_const : internal::meta_traits::is_none) | (descriptor::is_static ? internal::meta_traits::is_static : internal::meta_traits::is_none),
+                descriptor::args_type::size,
+                &internal::resolve<stl::conditional_t<stl::is_same_v<Policy, as_void_t>, void, stl::remove_cvref_t<typename descriptor::return_type>>>,
+                &meta_arg<typename descriptor::args_type>,
+                &meta_invoke<class_type, Candidate, Policy>});
 
         return *this;
     }

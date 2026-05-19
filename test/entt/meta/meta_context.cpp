@@ -34,6 +34,9 @@ class MetaContext: public ::testing::Test {
 
         entt::meta_factory<template_clazz<int>>{}
             .type("template"_hs);
+
+        entt::meta_factory<void>("global")
+            .data<1>("value"_hs);
     }
 
     void init_local_context() {
@@ -63,6 +66,9 @@ class MetaContext: public ::testing::Test {
 
         entt::meta_factory<template_clazz<int, char>>{context}
             .type("template"_hs);
+
+        entt::meta_factory<void>(context, "local")
+            .data<2>("value"_hs);
     }
 
 public:
@@ -175,8 +181,14 @@ TEST_F(MetaContext, Resolve) {
     ASSERT_FALSE(entt::resolve("quux"_hs));
     ASSERT_TRUE(entt::resolve(ctx(), "quux"_hs));
 
-    ASSERT_EQ((std::distance(entt::resolve().cbegin(), entt::resolve().cend())), 4);
-    ASSERT_EQ((std::distance(entt::resolve(ctx()).cbegin(), entt::resolve(ctx()).cend())), 6);
+    ASSERT_TRUE(entt::resolve("global"_hs));
+    ASSERT_FALSE(entt::resolve(ctx(), "global"_hs));
+
+    ASSERT_FALSE(entt::resolve("local"_hs));
+    ASSERT_TRUE(entt::resolve(ctx(), "local"_hs));
+
+    ASSERT_EQ((std::distance(entt::resolve().cbegin(), entt::resolve().cend())), 5);
+    ASSERT_EQ((std::distance(entt::resolve(ctx()).cbegin(), entt::resolve(ctx()).cend())), 7);
 }
 
 TEST_F(MetaContext, MetaType) {
@@ -209,6 +221,27 @@ TEST_F(MetaContext, MetaType) {
 
     ASSERT_FALSE(global.invoke("get"_hs, instance));
     ASSERT_EQ(local.invoke("get"_hs, instance).cast<char>(), 'c');
+}
+
+TEST_F(MetaContext, MetaTypelessType) {
+    using namespace entt::literals;
+
+    const auto global = entt::resolve("global"_hs);
+    const auto local = entt::resolve(ctx(), "local"_hs);
+
+    ASSERT_TRUE(global);
+    ASSERT_TRUE(local);
+
+    ASSERT_NE(global, local);
+
+    ASSERT_EQ(global.id(), "global"_hs);
+    ASSERT_EQ(local.id(), "local"_hs);
+
+    clazz instance{'c', 8};
+    const argument value{2};
+
+    ASSERT_EQ(global.get("value"_hs, {}).cast<int>(), 1);
+    ASSERT_EQ(local.get("value"_hs, {}).cast<int>(), 2);
 }
 
 TEST_F(MetaContext, MetaBase) {
@@ -483,8 +516,4 @@ TEST_F(MetaContext, ForwardAsMeta) {
 
     ASSERT_EQ(global.type().data("marker"_hs).get({}).cast<int>(), global_marker);
     ASSERT_EQ(local.type().data("marker"_hs).get({}).cast<int>(), local_marker);
-}
-
-TEST_F(MetaContext, Typeless) {
-    // work in progress ...
 }

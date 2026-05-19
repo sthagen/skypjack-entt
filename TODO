@@ -35,3 +35,9 @@ TODO:
 * document stl and injections support
 * add instance-type to meta data and func (useful for typeless types)
 * use a dense_set for the meta context bucket to speed up lookups
+* new meta multi support: md and natvis
+* improve meta_reset and similar on multi contexts
+* improve resolve to support multi contexts (ie key == elem.id quick check)
+* use dense_set for meta context bucket to speed up lookups and reduce memory usage
+* review/refine/improve meta factory base for typed vs typeless types (ctor and type)
+* check coverage on new meta context features

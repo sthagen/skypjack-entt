@@ -37,6 +37,7 @@ TODO:
 * use a dense_set for the meta context bucket to speed up lookups
 * new meta multi support: md and natvis
 * improve meta_reset and similar on multi contexts
-* use dense_set for meta context bucket to speed up lookups and reduce memory usage
 * review/refine/improve meta factory base for typed vs typeless types (ctor and type)
 * check coverage on new meta context features
+* fast lookup on meta reset
+* check for duplicates in basic_meta_factory constructor (with tests)

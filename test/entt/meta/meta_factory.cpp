@@ -39,6 +39,14 @@ struct MetaFactory: ::testing::Test {
             return value;
         }
 
+        static void set_double(clazz &instance, double val) noexcept {
+            instance.value = static_cast<int>(val);
+        }
+
+        [[nodiscard]] static double get_double(const clazz &instance) noexcept {
+            return instance.value;
+        }
+
         [[nodiscard]] static std::string to_string(const clazz &instance) {
             return std::to_string(instance.get_int());
         }
@@ -180,6 +188,25 @@ TEST_F(MetaFactory, DataMemberObject) {
     ASSERT_TRUE(type.data("member"_hs));
     ASSERT_EQ(type.get("member"_hs, std::as_const(instance)), instance.member);
     ASSERT_EQ(type.get("member"_hs, instance), instance.member);
+    ASSERT_FALSE(type.set("member"_hs, std::as_const(instance), instance.member));
+    ASSERT_TRUE(type.set("member"_hs, instance, instance.member));
+}
+
+TEST_F(MetaFactory, DataFreeFunction) {
+    using namespace entt::literals;
+
+    clazz instance{1};
+    entt::meta_factory<clazz> factory{};
+    entt::meta_type type = entt::resolve<clazz>();
+
+    ASSERT_FALSE(type.data("member"_hs));
+
+    factory.data<&clazz::set_double, &clazz::get_double>("member"_hs);
+    type = entt::resolve<clazz>();
+
+    ASSERT_TRUE(type.data("member"_hs));
+    ASSERT_EQ(type.get("member"_hs, std::as_const(instance)).cast<double>(), instance.get_int());
+    ASSERT_EQ(type.get("member"_hs, instance).cast<double>(), instance.get_int());
     ASSERT_FALSE(type.set("member"_hs, std::as_const(instance), instance.member));
     ASSERT_TRUE(type.set("member"_hs, instance, instance.member));
 }
@@ -531,6 +558,25 @@ TEST_F(MetaVoidFactory, DataMemberObject) {
     ASSERT_TRUE(type.data("member"_hs));
     ASSERT_EQ(type.get("member"_hs, std::as_const(instance)), instance.member);
     ASSERT_EQ(type.get("member"_hs, instance), instance.member);
+    ASSERT_FALSE(type.set("member"_hs, std::as_const(instance), instance.member));
+    ASSERT_TRUE(type.set("member"_hs, instance, instance.member));
+}
+
+TEST_F(MetaVoidFactory, DataFreeFunction) {
+    using namespace entt::literals;
+
+    clazz instance{1};
+    entt::meta_factory<void> factory{"type"};
+    entt::meta_type type = entt::resolve("type"_hs);
+
+    ASSERT_FALSE(type.data("member"_hs));
+
+    factory.data<&clazz::set_double, &clazz::get_double>("member"_hs);
+    type = entt::resolve("type"_hs);
+
+    ASSERT_TRUE(type.data("member"_hs));
+    ASSERT_EQ(type.get("member"_hs, std::as_const(instance)).cast<double>(), instance.get_int());
+    ASSERT_EQ(type.get("member"_hs, instance).cast<double>(), instance.get_int());
     ASSERT_FALSE(type.set("member"_hs, std::as_const(instance), instance.member));
     ASSERT_TRUE(type.set("member"_hs, instance, instance.member));
 }

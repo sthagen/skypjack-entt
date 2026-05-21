@@ -689,7 +689,7 @@ public:
      */
     template<auto Setter, auto Getter, typename Policy = as_value_t>
     meta_factory data(const id_type id, const char *name = nullptr) noexcept {
-        using class_type = typename stl::conditional_t<stl::is_member_pointer_v<decltype(Getter)>, member_class<decltype(Getter)>, stl::type_identity<void>>::type;
+        using class_type = stl::remove_cvref_t<typename stl::conditional_t<stl::is_member_pointer_v<decltype(Getter)>, member_class<decltype(Getter)>, nth_argument<0u, decltype(Getter)>>::type>;
         using descriptor = meta_function_helper_t<class_type, decltype(Getter)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
 
@@ -750,7 +750,7 @@ public:
      */
     template<auto Candidate, typename Policy = as_value_t>
     meta_factory func(const id_type id, const char *name = nullptr) noexcept {
-        using class_type = typename stl::conditional_t<stl::is_member_pointer_v<decltype(Candidate)>, member_class<decltype(Candidate)>, stl::type_identity<void>>::type;
+        using class_type = stl::remove_cvref_t<typename stl::conditional_t<stl::is_member_pointer_v<decltype(Candidate)>, member_class<decltype(Candidate)>, nth_argument<0u, decltype(Candidate)>>::type>;
         using descriptor = meta_function_helper_t<class_type, decltype(Candidate)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
 

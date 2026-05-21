@@ -58,9 +58,16 @@ template<typename Type>
  * @return The meta type associated with the given identifier, if any.
  */
 [[nodiscard]] inline meta_type resolve(const meta_ctx &ctx, const id_type id) noexcept {
-    for(auto &&curr: resolve(ctx)) {
-        if(curr.second.id() == id) {
-            return curr.second;
+    const auto &context = internal::meta_context::from(ctx);
+
+    // fast lookup for unsearchable and typeless types
+    if(const auto it = context.bucket.find(id); (it != context.bucket.end()) && (it->second->id == id)) {
+        return meta_type{ctx, *it->second};
+    }
+
+    for(auto &&curr: context.bucket) {
+        if(curr.second->id == id) {
+            return meta_type{ctx, *curr.second};
         }
     }
 

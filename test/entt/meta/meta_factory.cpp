@@ -340,6 +340,24 @@ TEST_F(MetaFactory, Func) {
     ASSERT_FALSE(type.invoke("func"_hs, {}));
 }
 
+TEST_F(MetaFactory, FuncFreeFunction) {
+    using namespace entt::literals;
+
+    const clazz instance{1};
+    entt::meta_factory<clazz> factory{};
+    entt::meta_type type = entt::resolve<clazz>();
+
+    ASSERT_FALSE(type.func("func"_hs));
+
+    factory.func<&clazz::get_double>("func"_hs);
+    type = entt::resolve<clazz>();
+
+    ASSERT_TRUE(type.func("func"_hs));
+    ASSERT_TRUE(type.invoke("func"_hs, instance));
+    ASSERT_EQ(type.invoke("func"_hs, instance).cast<double>(), clazz::get_double(instance));
+    ASSERT_FALSE(type.invoke("func"_hs, {}));
+}
+
 TEST_F(MetaFactory, FuncOverload) {
     using namespace entt::literals;
 
@@ -707,6 +725,24 @@ TEST_F(MetaVoidFactory, Func) {
     ASSERT_TRUE(type.func("func"_hs));
     ASSERT_TRUE(type.invoke("func"_hs, instance));
     ASSERT_EQ(type.invoke("func"_hs, instance).cast<int>(), instance.get_int());
+    ASSERT_FALSE(type.invoke("func"_hs, {}));
+}
+
+TEST_F(MetaVoidFactory, FuncFreeFunction) {
+    using namespace entt::literals;
+
+    const clazz instance{1};
+    entt::meta_factory<void> factory{"type"};
+    entt::meta_type type = entt::resolve("type"_hs);
+
+    ASSERT_FALSE(type.func("func"_hs));
+
+    factory.func<&clazz::get_double>("func"_hs);
+    type = entt::resolve("type"_hs);
+
+    ASSERT_TRUE(type.func("func"_hs));
+    ASSERT_TRUE(type.invoke("func"_hs, instance));
+    ASSERT_EQ(type.invoke("func"_hs, instance).cast<double>(), clazz::get_double(instance));
     ASSERT_FALSE(type.invoke("func"_hs, {}));
 }
 

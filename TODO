@@ -41,4 +41,3 @@ TODO:
 * check coverage on new meta context features
 * fast lookup on meta reset
 * check for duplicates in basic_meta_factory constructor (with tests)
-* meta <void> support free functions on data and func (with tests - meta_factory.cpp)

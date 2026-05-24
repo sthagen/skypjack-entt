@@ -91,8 +91,8 @@ template<typename Type>
  */
 [[nodiscard]] inline meta_type resolve(const meta_ctx &ctx, const type_info &info) noexcept {
     const auto &context = internal::meta_context::from(ctx);
-    const auto *elem = internal::try_resolve(context, info);
-    return (elem != nullptr) ? meta_type{ctx, *elem} : meta_type{};
+    const auto it = context.bucket.find(info.hash());
+    return (it == context.bucket.cend()) ? meta_type{} : meta_type{ctx, *it->second};
 }
 
 /**

@@ -269,16 +269,11 @@ auto setup_node_for() noexcept {
     return node;
 }
 
-[[nodiscard]] inline const meta_type_node *try_resolve(const meta_context &context, const type_info &info) noexcept {
-    const auto it = context.bucket.find(info.hash());
-    return (it != context.bucket.end()) ? it->second.get() : nullptr;
-}
-
 template<cvref_unqualified Type>
 [[nodiscard]] const meta_type_node &resolve(const meta_context &context) noexcept {
     static const meta_type_node node = setup_node_for<Type>();
-    const auto *elem = try_resolve(context, *node.info);
-    return (elem == nullptr) ? node : *elem;
+    const auto it = context.bucket.find(node.info->hash());
+    return (it == context.bucket.cend()) ? node : *it->second;
 }
 
 } // namespace internal

@@ -210,7 +210,7 @@ public:
     template<typename Base>
     requires stl::derived_from<element_type, Base>
     meta_factory base() noexcept {
-        static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+        static_assert(!stl::is_void_v<element_type>, "Feature not supported by void type");
 
         if constexpr(!stl::same_as<element_type, Base>) {
             auto *const op = +[](const void *instance) noexcept { return static_cast<const void *>(static_cast<const Base *>(static_cast<const element_type *>(instance))); };
@@ -239,7 +239,7 @@ public:
      */
     template<auto Candidate>
     auto conv() noexcept {
-        static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+        static_assert(!stl::is_void_v<element_type>, "Feature not supported by void type");
 
         using conv_type = stl::remove_cvref_t<stl::invoke_result_t<decltype(Candidate), element_type &>>;
         auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, stl::invoke(Candidate, *static_cast<const element_type *>(instance))); };
@@ -263,7 +263,7 @@ public:
      */
     template<typename To>
     meta_factory conv() noexcept {
-        static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+        static_assert(!stl::is_void_v<element_type>, "Feature not supported by void type");
 
         using conv_type = stl::remove_cvref_t<To>;
         auto *const op = +[](const meta_ctx &area, const void *instance) { return forward_as_meta(area, static_cast<To>(*static_cast<const element_type *>(instance))); };
@@ -291,7 +291,7 @@ public:
      */
     template<auto Candidate, typename Policy = as_value_t>
     meta_factory ctor() noexcept {
-        static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+        static_assert(!stl::is_void_v<element_type>, "Feature not supported by void type");
 
         using descriptor = meta_function_helper_t<element_type, decltype(Candidate)>;
         static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
@@ -319,7 +319,7 @@ public:
      */
     template<typename... Args>
     meta_factory ctor() noexcept {
-        static_assert(!std::is_void_v<element_type>, "Feature not supported by void type");
+        static_assert(!stl::is_void_v<element_type>, "Feature not supported by void type");
 
         // default constructor is already implicitly generated, no need for redundancy
         if constexpr(sizeof...(Args) != 0u) {

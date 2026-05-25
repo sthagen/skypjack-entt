@@ -41,3 +41,4 @@ TODO:
 * check coverage on new meta context features
 * fast lookup on meta reset
 * check for duplicates in basic_meta_factory constructor (with tests)
+* test (and fix) resolve where the type id conflicts with the type hash

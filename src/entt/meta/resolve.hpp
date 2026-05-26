@@ -60,8 +60,8 @@ template<typename Type>
 [[nodiscard]] inline meta_type resolve(const meta_ctx &ctx, const id_type id) noexcept {
     const auto &context = internal::meta_context::from(ctx);
 
-    // fast lookup for unsearchable and typeless types
-    if(const auto it = context.bucket.find(id); (it != context.bucket.end()) && (it->second->id == id)) {
+    // fast lookup for unsearchable and overloaded types
+    if(const auto it = context.bucket.find(id); it != context.bucket.end()) {
         return meta_type{ctx, *it->second};
     }
 

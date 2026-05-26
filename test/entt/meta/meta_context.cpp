@@ -35,7 +35,7 @@ class MetaContext: public ::testing::Test {
         entt::meta_factory<template_clazz<int>>{}
             .type("template"_hs);
 
-        entt::meta_factory<void>("global")
+        entt::meta_factory<void>("global"_hs)
             .data<1>("value"_hs);
     }
 
@@ -67,7 +67,7 @@ class MetaContext: public ::testing::Test {
         entt::meta_factory<template_clazz<int, char>>{context}
             .type("template"_hs);
 
-        entt::meta_factory<void>(context, "local")
+        entt::meta_factory<void>(context, "local"_hs)
             .data<2>("value"_hs);
     }
 
@@ -223,7 +223,7 @@ TEST_F(MetaContext, MetaType) {
     ASSERT_EQ(local.invoke("get"_hs, instance).cast<char>(), 'c');
 }
 
-TEST_F(MetaContext, MetaTypelessType) {
+TEST_F(MetaContext, MetaOverloadedType) {
     using namespace entt::literals;
 
     const auto global = entt::resolve("global"_hs);
@@ -234,8 +234,8 @@ TEST_F(MetaContext, MetaTypelessType) {
 
     ASSERT_NE(global, local);
 
-    ASSERT_EQ(global.id(), "global"_hs);
-    ASSERT_EQ(local.id(), "local"_hs);
+    ASSERT_EQ(global.id(), entt::type_hash<void>::value());
+    ASSERT_EQ(local.id(), entt::type_hash<void>::value());
 
     clazz instance{'c', 8};
     const argument value{2};

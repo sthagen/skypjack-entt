@@ -980,7 +980,7 @@ TEST_F(MetaType, ReRegistration) {
     // this should not overwrite traits and custom data
     entt::meta_factory<double>{}.type("real"_hs);
 
-    ASSERT_FALSE(entt::resolve("double"_hs));
+    ASSERT_TRUE(entt::resolve("double"_hs));
     ASSERT_TRUE(entt::resolve("real"_hs));
     ASSERT_TRUE(entt::resolve("real"_hs).data("var"_hs));
 

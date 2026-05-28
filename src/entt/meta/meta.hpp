@@ -390,6 +390,12 @@ public:
     [[nodiscard]] inline meta_type type() const noexcept;
 
     /**
+     * @brief Sets a meta type for the contained instance.
+     * @param alias The meta to use with the contained instance.
+     */
+    inline void type(const meta_type &alias) noexcept;
+
+    /**
      * @brief Invokes the underlying function, if possible.
      * @param id Unique identifier.
      * @param args Parameters to use to invoke the function.
@@ -1009,6 +1015,8 @@ struct meta_base: meta_object<internal::meta_base_node> {
 
 /*! @brief Opaque wrapper for types. */
 class meta_type {
+    friend class meta_any;
+
     [[nodiscard]] const auto &fetch_node() const {
         return (node == nullptr) ? internal::resolve<void>(internal::meta_context::from(*ctx)) : *node;
     }
@@ -1468,6 +1476,12 @@ private:
 
 [[nodiscard]] inline meta_type meta_any::type() const noexcept {
     return *this ? meta_type{*ctx, fetch_node()} : meta_type{};
+}
+
+inline void meta_any::type(const meta_type &alias) noexcept {
+    ENTT_ASSERT(type().info() == alias.info(), "Unexpected type");
+    node = alias.node;
+    ctx = alias.ctx;
 }
 
 // NOLINTNEXTLINE(modernize-use-nodiscard)

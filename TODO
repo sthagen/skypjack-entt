@@ -43,3 +43,4 @@ TODO:
 * test (and fix) resolve where the type id conflicts with the type hash
 * rename meta-type::id -> ::alias
 * assert and test type mismatch on meta factory construction and type(...) - ie id vs alias on overloaded and standard
+* test meta_any::type(value) and use it with from_void and the like to avoid lookups in some cases

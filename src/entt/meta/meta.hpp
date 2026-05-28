@@ -244,68 +244,58 @@ public:
     /**
      * @brief Constructs a wrapper by directly initializing the new object.
      * @tparam Type Type of object to use to initialize the wrapper.
-     * @tparam Args Types of arguments to use to construct the new instance.
      * @param args Parameters to use to construct the instance.
      */
-    template<typename Type, typename... Args>
-    explicit meta_any(stl::in_place_type_t<Type>, Args &&...args)
-        : meta_any{locator<meta_ctx>::value_or(), stl::in_place_type<Type>, stl::forward<Args>(args)...} {}
+    template<typename Type>
+    explicit meta_any(stl::in_place_type_t<Type>, auto &&...args)
+        : meta_any{locator<meta_ctx>::value_or(), stl::in_place_type<Type>, stl::forward<decltype(args)>(args)...} {}
 
     /**
      * @brief Constructs a wrapper by directly initializing the new object.
      * @tparam Type Type of object to use to initialize the wrapper.
-     * @tparam Args Types of arguments to use to construct the new instance.
      * @param area The context from which to search for meta types.
      * @param args Parameters to use to construct the instance.
      */
-    template<typename Type, typename... Args>
-    explicit meta_any(const meta_ctx &area, stl::in_place_type_t<Type>, Args &&...args)
-        : storage{stl::in_place_type<Type>, stl::forward<Args>(args)...},
+    template<typename Type>
+    explicit meta_any(const meta_ctx &area, stl::in_place_type_t<Type>, auto &&...args)
+        : storage{stl::in_place_type<Type>, stl::forward<decltype(args)>(args)...},
           ctx{&area},
           vtable{&basic_vtable<stl::remove_cvref_t<Type>>} {}
 
     /**
      * @brief Constructs a wrapper taking ownership of the passed object.
-     * @tparam Type Type of object to use to initialize the wrapper.
      * @param value A pointer to an object to take ownership of.
      */
-    template<typename Type>
-    explicit meta_any(stl::in_place_t, Type *value)
+    explicit meta_any(stl::in_place_t, auto *value)
         : meta_any{locator<meta_ctx>::value_or(), stl::in_place, value} {}
 
     /**
      * @brief Constructs a wrapper taking ownership of the passed object.
-     * @tparam Type Type of object to use to initialize the wrapper.
      * @param area The context from which to search for meta types.
      * @param value A pointer to an object to take ownership of.
      */
-    template<typename Type>
-    explicit meta_any(const meta_ctx &area, stl::in_place_t, Type *value)
+    explicit meta_any(const meta_ctx &area, stl::in_place_t, auto *value)
         : storage{stl::in_place, value},
           ctx{&area},
-          vtable{storage ? &basic_vtable<Type> : nullptr} {
+          vtable{storage ? &basic_vtable<std::remove_const_t<std::remove_pointer_t<decltype(value)>>> : nullptr} {
     }
 
     /**
      * @brief Constructs a wrapper from a given value.
-     * @tparam Type Type of object to use to initialize the wrapper.
      * @param value An instance of an object to use to initialize the wrapper.
      */
-    template<typename Type>
-    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_any>)
-    meta_any(Type &&value)
-        : meta_any{locator<meta_ctx>::value_or(), stl::forward<Type>(value)} {}
+    meta_any(auto &&value)
+    requires (!stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_any>)
+        : meta_any{locator<meta_ctx>::value_or(), stl::forward<decltype(value)>(value)} {}
 
     /**
      * @brief Constructs a wrapper from a given value.
-     * @tparam Type Type of object to use to initialize the wrapper.
      * @param area The context from which to search for meta types.
      * @param value An instance of an object to use to initialize the wrapper.
      */
-    template<typename Type>
-    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_any>)
-    meta_any(const meta_ctx &area, Type &&value)
-        : meta_any{area, stl::in_place_type<stl::decay_t<Type>>, stl::forward<Type>(value)} {}
+    meta_any(const meta_ctx &area, auto &&value)
+    requires (!stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_any>)
+        : meta_any{area, stl::in_place_type<stl::remove_cvref_t<decltype(value)>>, stl::forward<decltype(value)>(value)} {}
 
     /**
      * @brief Context aware copy constructor.
@@ -384,14 +374,12 @@ public:
 
     /**
      * @brief Value assignment operator.
-     * @tparam Type Type of object to use to initialize the wrapper.
      * @param value An instance of an object to use to initialize the wrapper.
      * @return This meta any object.
      */
-    template<typename Type>
-    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_any>)
-    meta_any &operator=(Type &&value) {
-        emplace<stl::decay_t<Type>>(stl::forward<Type>(value));
+    meta_any &operator=(auto &&value)
+    requires (!stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_any>) {
+        emplace<stl::remove_cvref_t<decltype(value)>>(stl::forward<decltype(value)>(value));
         return *this;
     }
 
@@ -403,27 +391,22 @@ public:
 
     /**
      * @brief Invokes the underlying function, if possible.
-     * @tparam Args Types of arguments to use to invoke the function.
      * @param id Unique identifier.
      * @param args Parameters to use to invoke the function.
      * @return A wrapper containing the returned value, if any.
      */
-    template<typename... Args>
-    meta_any invoke(id_type id, Args &&...args) const;
+    meta_any invoke(id_type id, auto &&...args) const;
 
     /*! @copydoc invoke */
-    template<typename... Args>
-    meta_any invoke(id_type id, Args &&...args);
+    meta_any invoke(id_type id, auto &&...args);
 
     /**
      * @brief Sets the value of a given variable.
-     * @tparam Type Type of value to assign.
      * @param id Unique identifier.
      * @param value Parameter to use to set the underlying variable.
      * @return True in case of success, false otherwise.
      */
-    template<typename Type>
-    bool set(id_type id, Type &&value);
+    bool set(id_type id, auto &&value);
 
     /**
      * @brief Gets the value of a given variable.
@@ -548,9 +531,9 @@ public:
     }
 
     /*! @copydoc any::emplace */
-    template<typename Type, typename... Args>
-    void emplace(Args &&...args) {
-        storage.emplace<Type>(stl::forward<Args>(args)...);
+    template<typename Type>
+    void emplace(auto &&...args) {
+        storage.emplace<Type>(stl::forward<decltype(args)>(args)...);
         auto *prev = stl::exchange(vtable, &basic_vtable<stl::remove_cvref_t<Type>>);
         node = (prev == vtable) ? node : nullptr;
     }
@@ -665,37 +648,31 @@ private:
 
 /**
  * @brief Forwards its argument and avoids copies for lvalue references.
- * @tparam Type Type of argument to use to construct the new instance.
  * @param value Parameter to use to construct the instance.
  * @param ctx The context from which to search for meta types.
  * @return A properly initialized and not necessarily owning wrapper.
  */
-template<typename Type>
-[[nodiscard]] meta_any forward_as_meta(const meta_ctx &ctx, Type &&value) {
-    return meta_any{ctx, stl::in_place_type<Type &&>, stl::forward<Type>(value)};
+[[nodiscard]] meta_any forward_as_meta(const meta_ctx &ctx, auto &&value) {
+    return meta_any{ctx, stl::in_place_type<decltype(value)>, stl::forward<decltype(value)>(value)};
 }
 
 /**
  * @brief Forwards its argument and avoids copies for lvalue references.
- * @tparam Type Type of argument to use to construct the new instance.
  * @param value Parameter to use to construct the instance.
  * @return A properly initialized and not necessarily owning wrapper.
  */
-template<typename Type>
-[[nodiscard]] meta_any forward_as_meta(Type &&value) {
-    return forward_as_meta(locator<meta_ctx>::value_or(), stl::forward<Type>(value));
+[[nodiscard]] meta_any forward_as_meta(auto &&value) {
+    return forward_as_meta(locator<meta_ctx>::value_or(), stl::forward<decltype(value)>(value));
 }
 
 /*! @brief Opaque pointers to instances of any type. */
 class meta_handle {
-    template<typename Type, typename... Args>
-    requires stl::same_as<stl::remove_cvref_t<Type>, meta_any>
-    meta_handle(int, Type &value, Args &&...args)
-        : any{stl::forward<Args>(args)..., value.as_ref()} {}
+    meta_handle(int, auto &value, auto &&...args)
+    requires stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_any>
+        : any{stl::forward<decltype(args)>(args)..., value.as_ref()} {}
 
-    template<typename Type, typename... Args>
-    meta_handle(char, Type &value, Args &&...args)
-        : any{stl::forward<Args>(args)..., stl::in_place_type<Type &>, value} {}
+    meta_handle(char, auto &value, auto &&...args)
+        : any{stl::forward<decltype(args)>(args)..., stl::in_place_type<decltype(value)>, value} {}
 
 public:
     /*! Default constructor. */
@@ -703,23 +680,19 @@ public:
 
     /**
      * @brief Creates a handle that points to an unmanaged object.
-     * @tparam Type Type of object to use to initialize the handle.
      * @param ctx The context from which to search for meta types.
      * @param value An instance of an object to use to initialize the handle.
      */
-    template<typename Type>
-    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_handle>)
-    meta_handle(const meta_ctx &ctx, Type &value)
+    meta_handle(const meta_ctx &ctx, auto &value)
+    requires (!stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_handle>)
         : meta_handle{0, value, ctx} {}
 
     /**
      * @brief Creates a handle that points to an unmanaged object.
-     * @tparam Type Type of object to use to initialize the handle.
      * @param value An instance of an object to use to initialize the handle.
      */
-    template<typename Type>
-    requires (!stl::same_as<stl::remove_cvref_t<Type>, meta_handle>)
-    meta_handle(Type &value)
+    meta_handle(auto &value)
+    requires (!stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_handle>)
         : meta_handle{0, value} {}
 
     /**
@@ -882,15 +855,14 @@ struct meta_data: meta_object<internal::meta_data_node> {
     /**
      * @brief Sets the value of a given variable.
      * @tparam Instance Type of instance to operate on.
-     * @tparam Type Type of value to assign.
      * @param instance An instance that fits the underlying type.
      * @param value Parameter to use to set the underlying variable.
      * @return True in case of success, false otherwise.
      */
-    template<typename Instance = meta_handle, typename Type>
+    template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
-    bool set(Instance &&instance, Type &&value) const {
-        return node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, meta_any{*ctx, stl::forward<Type>(value)});
+    bool set(Instance &&instance, auto &&value) const {
+        return node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, meta_any{*ctx, stl::forward<decltype(value)>(value)});
     }
 
     /**
@@ -997,15 +969,14 @@ struct meta_func: meta_object<internal::meta_func_node> {
     /**
      * @copybrief invoke
      * @tparam Instance Type of instance to operate on.
-     * @tparam Args Types of arguments to use to invoke the function.
      * @param instance An instance that fits the underlying type.
      * @param args Parameters to use to invoke the function.
      * @return A wrapper containing the returned value, if any.
      */
-    template<typename Instance = meta_handle, typename... Args>
+    template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
-    meta_any invoke(Instance &&instance, Args &&...args) const {
-        return invoke(stl::forward<Instance>(instance), stl::array<meta_any, sizeof...(Args)>{meta_any{*ctx, stl::forward<Args>(args)}...}.data(), sizeof...(Args));
+    meta_any invoke(Instance &&instance, auto &&...args) const {
+        return invoke(stl::forward<Instance>(instance), stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data(), sizeof...(args));
     }
 
     /*! @copydoc meta_data::traits */
@@ -1042,8 +1013,7 @@ class meta_type {
         return (node == nullptr) ? internal::resolve<void>(internal::meta_context::from(*ctx)) : *node;
     }
 
-    template<typename Func>
-    [[nodiscard]] auto lookup(meta_any *const args, const internal::meta_type_node::size_type sz, [[maybe_unused]] bool constness, Func next) const {
+    [[nodiscard]] auto lookup(meta_any *const args, const internal::meta_type_node::size_type sz, [[maybe_unused]] bool constness, auto next) const {
         decltype(next()) candidate = nullptr;
         size_type same{};
         bool ambiguous{};
@@ -1370,13 +1340,11 @@ public:
 
     /**
      * @copybrief construct
-     * @tparam Args Types of arguments to use to construct the instance.
      * @param args Parameters to use to construct the instance.
      * @return A wrapper containing the new instance, if any.
      */
-    template<typename... Args>
-    [[nodiscard]] meta_any construct(Args &&...args) const {
-        return construct(stl::array<meta_any, sizeof...(Args)>{meta_any{*ctx, stl::forward<Args>(args)}...}.data(), sizeof...(Args));
+    [[nodiscard]] meta_any construct(auto &&...args) const {
+        return construct(stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data(), sizeof...(args));
         // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
     }
 
@@ -1434,31 +1402,29 @@ public:
      * @copybrief invoke
      * @param id Unique identifier.
      * @tparam Instance Type of instance to operate on.
-     * @tparam Args Types of arguments to use to invoke the function.
      * @param instance An instance that fits the underlying type.
      * @param args Parameters to use to invoke the function.
      * @return A wrapper containing the returned value, if any.
      */
-    template<typename Instance = meta_handle, typename... Args>
+    template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
-    meta_any invoke(const id_type id, Instance &&instance, Args &&...args) const {
-        return invoke(id, stl::forward<Instance>(instance), stl::array<meta_any, sizeof...(Args)>{meta_any{*ctx, stl::forward<Args>(args)}...}.data(), sizeof...(Args));
+    meta_any invoke(const id_type id, Instance &&instance, auto &&...args) const {
+        return invoke(id, stl::forward<Instance>(instance), stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data(), sizeof...(args));
     }
 
     /**
      * @brief Sets the value of a given variable.
      * @tparam Instance Type of instance to operate on.
-     * @tparam Type Type of value to assign.
      * @param id Unique identifier.
      * @param instance An instance that fits the underlying type.
      * @param value Parameter to use to set the underlying variable.
      * @return True in case of success, false otherwise.
      */
-    template<typename Instance = meta_handle, typename Type>
+    template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
-    bool set(const id_type id, Instance &&instance, Type &&value) const {
+    bool set(const id_type id, Instance &&instance, auto &&value) const {
         const auto candidate = data(id);
-        return candidate && candidate.set(stl::forward<Instance>(instance), stl::forward<Type>(value));
+        return candidate && candidate.set(stl::forward<Instance>(instance), stl::forward<decltype(value)>(value));
     }
 
     /**
@@ -1504,20 +1470,17 @@ private:
     return *this ? meta_type{*ctx, fetch_node()} : meta_type{};
 }
 
-template<typename... Args>
 // NOLINTNEXTLINE(modernize-use-nodiscard)
-meta_any meta_any::invoke(const id_type id, Args &&...args) const {
-    return type().invoke(id, *this, stl::forward<Args>(args)...);
+meta_any meta_any::invoke(const id_type id, auto &&...args) const {
+    return type().invoke(id, *this, stl::forward<decltype(args)>(args)...);
 }
 
-template<typename... Args>
-meta_any meta_any::invoke(const id_type id, Args &&...args) {
-    return type().invoke(id, *this, stl::forward<Args>(args)...);
+meta_any meta_any::invoke(const id_type id, auto &&...args) {
+    return type().invoke(id, *this, stl::forward<decltype(args)>(args)...);
 }
 
-template<typename Type>
-bool meta_any::set(const id_type id, Type &&value) {
-    return type().set(id, *this, stl::forward<Type>(value));
+bool meta_any::set(const id_type id, auto &&value) {
+    return type().set(id, *this, stl::forward<decltype(value)>(value));
 }
 
 [[nodiscard]] inline meta_any meta_any::get(const id_type id) const {
@@ -1624,10 +1587,9 @@ public:
 
     meta_iterator() = default;
 
-    template<stl::bidirectional_iterator It>
-    meta_iterator(const meta_ctx &area, It iter) noexcept
+    meta_iterator(const meta_ctx &area, stl::bidirectional_iterator auto iter) noexcept
         : ctx{&area},
-          vtable{&basic_vtable<It>},
+          vtable{&basic_vtable<decltype(iter)>},
           handle{iter} {}
 
     meta_iterator &operator++() noexcept {
@@ -1705,10 +1667,10 @@ public:
 
     meta_iterator() = default;
 
-    template<bool KeyOnly, stl::forward_iterator It>
-    meta_iterator(const meta_ctx &area, stl::bool_constant<KeyOnly>, It iter) noexcept
+    template<bool KeyOnly>
+    meta_iterator(const meta_ctx &area, stl::bool_constant<KeyOnly>, stl::forward_iterator auto iter) noexcept
         : ctx{&area},
-          vtable{&basic_vtable<KeyOnly, It>},
+          vtable{&basic_vtable<KeyOnly, decltype(iter)>},
           handle{iter} {}
 
     meta_iterator &operator++() noexcept {

@@ -44,3 +44,4 @@ TODO:
 * rename meta-type::id -> ::alias
 * assert and test type mismatch on meta factory construction and type(...) - ie id vs alias on overloaded and standard
 * use meta_any::type(value) with from_void and the like to avoid lookups in some cases
+* try to fully support uint16_t for entity types

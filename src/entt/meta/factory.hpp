@@ -184,7 +184,7 @@ public:
      * @param area The context into which to construct meta types.
      */
     meta_factory(meta_ctx &area) noexcept
-        : internal::basic_meta_factory{area, internal::setup_node_for<element_type>(), type_hash<Type>::value()} {}
+        : base_type{area, internal::setup_node_for<element_type>(), type_hash<Type>::value()} {}
 
     /**
      * @brief Context aware constructor.
@@ -192,7 +192,9 @@ public:
      * @param area The context into which to construct meta types.
      */
     meta_factory(meta_ctx &area, const id_type id) noexcept
-        : internal::basic_meta_factory{area, internal::setup_node_for<element_type>(), id} {}
+        : base_type{area, internal::setup_node_for<element_type>(), id} {
+        base_type::type(id, nullptr);
+    }
 
     /**
      * @brief Assigns a custom unique identifier to a meta type.

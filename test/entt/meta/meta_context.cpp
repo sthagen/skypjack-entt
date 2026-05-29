@@ -234,8 +234,8 @@ TEST_F(MetaContext, MetaOverloadedType) {
 
     ASSERT_NE(global, local);
 
-    ASSERT_EQ(global.id(), entt::type_hash<void>::value());
-    ASSERT_EQ(local.id(), entt::type_hash<void>::value());
+    ASSERT_EQ(global.id(), "global"_hs);
+    ASSERT_EQ(local.id(), "local"_hs);
 
     clazz instance{'c', 8};
     const argument value{2};

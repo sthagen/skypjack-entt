@@ -33,11 +33,9 @@ TODO:
 * make meta_any buffer size configurable (propagate to any)
 * test trivially_destructible optimization
 * document stl and injections support
-* use a dense_set for the meta context bucket to speed up lookups
 * new meta multi support: md and natvis
 * improve meta_reset and similar on multi contexts
 * review/refine/improve meta factory base for typed vs overloaded types (ctor and type)
-* check coverage on new meta context features
 * fast lookup on meta reset
 * check for duplicates in basic_meta_factory constructor (with tests)
 * test (and fix) resolve where the type id conflicts with the type hash

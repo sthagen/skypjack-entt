@@ -134,7 +134,7 @@ struct meta_type_node {
     using size_type = stl::size_t;
 
     const type_info *info{};
-    id_type id{};
+    id_type alias{};
     const char *name{};
     meta_traits traits{meta_traits::is_none};
     size_type size_of{0u};

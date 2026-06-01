@@ -114,13 +114,13 @@ TEST_F(MetaFactory, Type) {
     factory.type("foo"_hs);
 
     ASSERT_NE(entt::resolve("foo"_hs), entt::meta_type{});
-    ASSERT_EQ(entt::resolve<int>().id(), "foo"_hs);
+    ASSERT_EQ(entt::resolve<int>().alias(), "foo"_hs);
 
     factory.type("bar"_hs);
 
     ASSERT_EQ(entt::resolve("foo"_hs), entt::meta_type{});
     ASSERT_NE(entt::resolve("bar"_hs), entt::meta_type{});
-    ASSERT_EQ(entt::resolve<int>().id(), "bar"_hs);
+    ASSERT_EQ(entt::resolve<int>().alias(), "bar"_hs);
 }
 
 TEST_F(MetaFactory, OverloadedType) {

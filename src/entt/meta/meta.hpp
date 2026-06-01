@@ -1098,11 +1098,11 @@ public:
     }
 
     /**
-     * @brief Returns the identifier assigned to a type.
-     * @return The identifier assigned to the type.
+     * @brief Returns the alias assigned to a type.
+     * @return The alias assigned to the type.
      */
-    [[nodiscard]] id_type id() const noexcept {
-        return fetch_node().id;
+    [[nodiscard]] id_type alias() const noexcept {
+        return fetch_node().alias;
     }
 
     /**
@@ -1466,7 +1466,7 @@ public:
 
     /*! @copydoc meta_data::operator== */
     [[nodiscard]] bool operator==(const meta_type &other) const noexcept {
-        return (ctx == other.ctx) && (fetch_node().id == other.fetch_node().id);
+        return (ctx == other.ctx) && (fetch_node().alias == other.fetch_node().alias);
     }
 
 private:

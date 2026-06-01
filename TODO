@@ -41,7 +41,6 @@ TODO:
 * fast lookup on meta reset
 * check for duplicates in basic_meta_factory constructor (with tests)
 * test (and fix) resolve where the type id conflicts with the type hash
-* rename meta-type::id -> ::alias
 * assert and test type mismatch on meta factory construction and type(...) - ie id vs alias on overloaded and standard
 * use meta_any::type(value) with from_void and the like to avoid lookups in some cases
 * try to fully support uint16_t for entity types

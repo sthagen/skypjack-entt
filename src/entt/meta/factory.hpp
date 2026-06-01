@@ -54,9 +54,9 @@ class basic_meta_factory {
 protected:
     void type(const id_type alias, const char *name) noexcept {
         state = mode::type;
-        ENTT_ASSERT((parent->id == alias) || stl::find_if(ctx->bucket.cbegin(), ctx->bucket.cend(), [alias](const auto &value) { return value.second->id == alias; }) == ctx->bucket.cend(), "Duplicate identifier");
+        ENTT_ASSERT((parent->alias == alias) || stl::find_if(ctx->bucket.cbegin(), ctx->bucket.cend(), [alias](const auto &value) { return value.second->alias == alias; }) == ctx->bucket.cend(), "Duplicate identifier");
+        parent->alias = alias;
         parent->name = name;
-        parent->id = alias;
     }
 
     template<typename Type>
@@ -561,14 +561,14 @@ public:
  *
  * The type is also removed from the set of searchable types.
  *
- * @param id Unique identifier.
+ * @param alias Unique identifier.
  * @param ctx The context from which to reset meta types.
  */
-inline void meta_reset(meta_ctx &ctx, const id_type id) noexcept {
+inline void meta_reset(meta_ctx &ctx, const id_type alias) noexcept {
     auto &context = internal::meta_context::from(ctx);
 
     for(auto it = context.bucket.begin(); it != context.bucket.end();) {
-        if(it->second->id == id) {
+        if(it->second->alias == alias) {
             it = context.bucket.erase(it);
         } else {
             ++it;
@@ -585,10 +585,10 @@ inline void meta_reset(meta_ctx &ctx, const id_type id) noexcept {
  *
  * The type is also removed from the set of searchable types.
  *
- * @param id Unique identifier.
+ * @param alias Unique identifier.
  */
-inline void meta_reset(const id_type id) noexcept {
-    meta_reset(locator<meta_ctx>::value_or(), id);
+inline void meta_reset(const id_type alias) noexcept {
+    meta_reset(locator<meta_ctx>::value_or(), alias);
 }
 
 /**

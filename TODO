@@ -34,11 +34,8 @@ TODO:
 * test trivially_destructible optimization
 * document stl and injections support (md)
 * document new meta multi support (md)
-* improve meta_reset and similar on multi contexts
-* review/refine/improve meta factory base for typed vs overloaded types (ctor and type)
 * fast lookup on meta reset
 * check for duplicates in basic_meta_factory constructor (with tests)
-* test (and fix) resolve where the type id conflicts with the type hash
-* assert and test type mismatch on meta factory construction and type(...) - ie id vs alias on overloaded and standard
+* check for alias validity (not a key, non an alias) in meta_factory::type - with tests (also for resolve and meta_reset)
 * use meta_any::type(value) with from_void and the like to avoid lookups in some cases
 * try to fully support uint16_t for entity types

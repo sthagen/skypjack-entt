@@ -51,10 +51,14 @@ class basic_meta_factory {
         return overload;
     }
 
+    bool unique_alias(const id_type alias) const noexcept {
+        return (stl::find_if(ctx->bucket.cbegin(), ctx->bucket.cend(), [alias](const auto &value) { return value.second->alias == alias; }) == ctx->bucket.cend());
+    }
+
 protected:
     void type(const id_type alias, const char *name) noexcept {
         state = mode::type;
-        ENTT_ASSERT((parent->alias == alias) || stl::find_if(ctx->bucket.cbegin(), ctx->bucket.cend(), [alias](const auto &value) { return value.second->alias == alias; }) == ctx->bucket.cend(), "Duplicate identifier");
+        ENTT_ASSERT((parent->alias == alias) || unique_alias(alias), "Duplicate identifier");
         parent->alias = alias;
         parent->name = name;
     }
@@ -138,8 +142,10 @@ public:
           bucket{},
           state{mode::type} {
         if(const auto it = ctx->bucket.find(id); it == ctx->bucket.cend()) {
+            ENTT_ASSERT(unique_alias(id), "Duplicate identifier");
             parent = ctx->bucket.emplace(id, stl::make_unique<meta_type_node>(stl::move(node))).first->second.get();
             parent->details = stl::make_unique<meta_type_descriptor>();
+            parent->alias = id;
         } else {
             parent = it->second.get();
         }
@@ -173,6 +179,13 @@ public:
         : meta_factory{locator<meta_ctx>::value_or()} {}
 
     /**
+     * @brief Context aware constructor.
+     * @param area The context into which to construct meta types.
+     */
+    meta_factory(meta_ctx &area) noexcept
+        : base_type{area, internal::setup_node_for<element_type>(), type_hash<Type>::value()} {}
+
+    /**
      * @brief Constructs an unconstrained type assigned to a given identifier.
      * @param id A custom unique identifier.
      */
@@ -181,20 +194,11 @@ public:
 
     /**
      * @brief Context aware constructor.
-     * @param area The context into which to construct meta types.
-     */
-    meta_factory(meta_ctx &area) noexcept
-        : base_type{area, internal::setup_node_for<element_type>(), type_hash<Type>::value()} {}
-
-    /**
-     * @brief Context aware constructor.
      * @param id A custom unique identifier.
      * @param area The context into which to construct meta types.
      */
     meta_factory(meta_ctx &area, const id_type id) noexcept
-        : base_type{area, internal::setup_node_for<element_type>(), id} {
-        base_type::type(id, nullptr);
-    }
+        : base_type{area, internal::setup_node_for<element_type>(), id} {}
 
     /**
      * @brief Assigns a custom unique identifier to a meta type.

@@ -35,7 +35,5 @@ TODO:
 * document stl and injections support (md)
 * document new meta multi support (md)
 * fast lookup on meta reset
-* check for duplicates in basic_meta_factory constructor (with tests)
-* check for alias validity (not a key, non an alias) in meta_factory::type - with tests (also for resolve and meta_reset)
 * use meta_any::type(value) with from_void and the like to avoid lookups in some cases
 * try to fully support uint16_t for entity types

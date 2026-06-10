@@ -152,11 +152,14 @@ ENTT_DEBUG_TEST_F(MetaFactoryDeathTest, Type) {
     using namespace entt::literals;
 
     entt::meta_factory<int> factory{};
+    entt::meta_factory<int> overloaded{"overloaded"_hs};
     entt::meta_factory<double> other{};
 
     factory.type("foo"_hs);
+    overloaded.type("bar"_hs);
 
     ASSERT_DEATH(other.type("foo"_hs), "");
+    ASSERT_DEATH(other.type("overloaded"_hs), "");
 }
 
 TEST_F(MetaFactory, Base) {

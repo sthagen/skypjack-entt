@@ -569,16 +569,12 @@ public:
  * @param ctx The context from which to reset meta types.
  */
 inline void meta_reset(meta_ctx &ctx, const id_type alias) noexcept {
-    auto &context = internal::meta_context::from(ctx);
+    auto &bucket = internal::meta_context::from(ctx).bucket;
 
     // fast path for unsearchable and overloaded types
-    if(context.bucket.erase(alias) == 0u) {
-        for(auto it = context.bucket.begin(); it != context.bucket.end();) {
-            if(it->second->alias == alias) {
-                it = context.bucket.erase(it);
-            } else {
-                ++it;
-            }
+    if(bucket.erase(alias) == 0u) {
+        if(const auto it = stl::find_if(bucket.cbegin(), bucket.cend(), [alias](const auto &value) { return value.second->alias == alias; }); it != bucket.cend()) {
+            bucket.erase(it);
         }
     }
 }

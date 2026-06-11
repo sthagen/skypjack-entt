@@ -571,11 +571,14 @@ public:
 inline void meta_reset(meta_ctx &ctx, const id_type alias) noexcept {
     auto &context = internal::meta_context::from(ctx);
 
-    for(auto it = context.bucket.begin(); it != context.bucket.end();) {
-        if(it->second->alias == alias) {
-            it = context.bucket.erase(it);
-        } else {
-            ++it;
+    // fast path for unsearchable and overloaded types
+    if(context.bucket.erase(alias) == 0u) {
+        for(auto it = context.bucket.begin(); it != context.bucket.end();) {
+            if(it->second->alias == alias) {
+                it = context.bucket.erase(it);
+            } else {
+                ++it;
+            }
         }
     }
 }

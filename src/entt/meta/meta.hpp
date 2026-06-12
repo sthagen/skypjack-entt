@@ -277,7 +277,7 @@ public:
     explicit meta_any(const meta_ctx &area, stl::in_place_t, auto *value)
         : storage{stl::in_place, value},
           ctx{&area},
-          vtable{storage ? &basic_vtable<std::remove_const_t<std::remove_pointer_t<decltype(value)>>> : nullptr} {
+          vtable{storage ? &basic_vtable<stl::remove_const_t<stl::remove_pointer_t<decltype(value)>>> : nullptr} {
     }
 
     /**

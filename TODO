@@ -32,7 +32,6 @@ TODO:
 * make meta_any buffer size configurable (propagate to any)
 * test trivially_destructible optimization
 * try to fully support uint16_t for entity types
-* document stl and injections support (md)
 * document new meta multi support (md)
 * use meta_any::type(value) with from_void and the like to avoid lookups in some cases
 * more tests for fast lookups on resolve and meta reset

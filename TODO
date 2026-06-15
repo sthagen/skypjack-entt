@@ -33,5 +33,4 @@ TODO:
 * test trivially_destructible optimization
 * try to fully support uint16_t for entity types
 * document new meta multi support (md)
-* use meta_any::type(value) with from_void and the like to avoid lookups in some cases
 * finish the imgui viewer/editor!

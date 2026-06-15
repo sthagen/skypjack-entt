@@ -1479,7 +1479,7 @@ private:
 }
 
 inline void meta_any::type(const meta_type &alias) noexcept {
-    ENTT_ASSERT(type().info() == alias.info(), "Unexpected type");
+    ENTT_ASSERT(storage.info() == alias.info(), "Unexpected type");
     node = alias.node;
     ctx = alias.ctx;
 }

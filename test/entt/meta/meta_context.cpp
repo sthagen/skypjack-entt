@@ -187,6 +187,12 @@ TEST_F(MetaContext, Resolve) {
     ASSERT_FALSE(entt::resolve("local"_hs));
     ASSERT_TRUE(entt::resolve(ctx(), "local"_hs));
 
+    ASSERT_FALSE(entt::resolve(entt::type_hash<void>::value()));
+    ASSERT_FALSE(entt::resolve(ctx(), entt::type_hash<void>::value()));
+
+    ASSERT_TRUE(entt::resolve(entt::type_hash<int>::value()));
+    ASSERT_TRUE(entt::resolve(ctx(), entt::type_hash<int>::value()));
+
     ASSERT_EQ((std::distance(entt::resolve().cbegin(), entt::resolve().cend())), 5);
     ASSERT_EQ((std::distance(entt::resolve(ctx()).cbegin(), entt::resolve(ctx()).cend())), 7);
 }

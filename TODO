@@ -32,5 +32,4 @@ TODO:
 * make meta_any buffer size configurable (propagate to any)
 * test trivially_destructible optimization
 * try to fully support uint16_t for entity types
-* document new meta multi support (md)
 * finish the imgui viewer/editor!

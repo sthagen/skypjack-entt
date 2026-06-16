@@ -77,18 +77,31 @@ type.
 
 By default, a meta type is associated with the identifier returned by the
 runtime type identification system built-in in `EnTT`.<br/>
-However, it is also possible to assign custom identifiers to meta types:
+However, it is also possible to assign custom identifiers upon registration to
+meta types:
+
+```cpp
+entt::meta_factory<my_type>{"reflected_type"_hs};
+```
+
+By doing this, the type based lookup no longer finds the specified meta type.
+Instead, only the identifier based lookup returns with success.<br/>
+For the same reason, it is also possible to create multiple meta types for the
+same C++ type.
+
+In addition to identifiers, users can assign _aliases_ to meta types. An alias
+must be unique and not conflict with existing identifiers.<br/>
+Meta type lookup attempts to resolve identifiers via _aliases_ if there is no
+matching key:
 
 ```cpp
 entt::meta_factory<my_type>{}.type("reflected_type"_hs);
 ```
 
-Identifiers are used instead of the type to _retrieve_ meta types at runtime, if
-necessary.<br/>
 However, users can be interested in adding features to a reflected type so that
 the reflection system can use it correctly under the hood, while they do not
-want to also make the type _searchable_. In this case, it is sufficient not to
-invoke `type`.
+want to also make the type _searchable_.<br/>
+In this case, it is sufficient not to invoke `type`.
 
 A factory is such that all its member functions return the factory itself. It is
 generally used to create the following:

@@ -793,6 +793,8 @@ template<typename Type>
 struct meta_object: protected internal::basic_meta_object<Type> {
     /*! @brief Underlying meta node type. */
     using node_type = Type;
+    /*! @brief Unsigned integer type. */
+    using size_type = std::size_t;
 
     /*! @brief Default constructor. */
     meta_object() noexcept = default;
@@ -826,9 +828,6 @@ struct meta_object: protected internal::basic_meta_object<Type> {
 
 /*! @brief Opaque wrapper for data members. */
 struct meta_data: meta_object<internal::meta_data_node> {
-    /*! @brief Unsigned integer type. */
-    using size_type = internal::meta_data_node::size_type;
-
     using meta_object::meta_object;
 
     /**
@@ -909,9 +908,6 @@ struct meta_data: meta_object<internal::meta_data_node> {
 
 /*! @brief Opaque wrapper for member functions. */
 struct meta_func: meta_object<internal::meta_func_node> {
-    /*! @brief Unsigned integer type. */
-    using size_type = internal::meta_func_node::size_type;
-
     using meta_object::meta_object;
 
     /**

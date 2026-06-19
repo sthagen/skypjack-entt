@@ -839,6 +839,14 @@ struct meta_data: meta_object<internal::meta_data_node> {
     }
 
     /**
+     * @brief Returns the number of arguments accepted by a data member.
+     * @return The number of arguments accepted by the data member.
+     */
+    [[nodiscard]] size_type arity() const noexcept {
+        return node_or_assert().arity;
+    }
+
+    /**
      * @brief Indicates whether a data member is constant or not.
      * @return True if the data member is constant, false otherwise.
      */
@@ -882,10 +890,11 @@ struct meta_data: meta_object<internal::meta_data_node> {
     }
 
     /**
-     * @brief Returns the type of the argument of a data member.
-     * @return The type of the argument of a data member.
+     * @brief Returns the type of the i-th argument of a data member.
+     * @param index Index of the argument of which to return the type.
+     * @return The type of the i-th argument of a data member.
      */
-    [[nodiscard]] inline meta_type arg() const noexcept;
+    [[nodiscard]] inline meta_type arg(size_type index) const noexcept;
 
     /**
      * @brief Returns all meta traits for a given meta object.
@@ -1561,8 +1570,8 @@ inline bool meta_any::assign(meta_any &&other) {
     return meta_type{*ctx, node_or_assert().type(internal::meta_context::from(*ctx))};
 }
 
-[[nodiscard]] inline meta_type meta_data::arg() const noexcept {
-    return (node_or_assert().arg == nullptr) ? meta_type{} : meta_type{*ctx, node_or_assert().arg(internal::meta_context::from(*ctx))};
+[[nodiscard]] inline meta_type meta_data::arg(const size_type index) const noexcept {
+    return index < arity() ? node_or_assert().arg(*ctx, index) : meta_type{};
 }
 
 [[nodiscard]] inline meta_type meta_func::ret() const noexcept {

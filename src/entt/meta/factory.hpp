@@ -385,8 +385,9 @@ public:
                     name,
                     /* this is never static */
                     stl::is_const_v<stl::remove_reference_t<data_type>> ? internal::meta_traits::is_const : internal::meta_traits::is_none,
+                    1u,
                     &internal::resolve<stl::remove_cvref_t<data_type>>,
-                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    &meta_arg<type_list<stl::remove_cvref_t<data_type>>>,
                     &meta_setter<element_type, Data>,
                     &meta_getter<element_type, Data, Policy>});
         } else {
@@ -403,8 +404,9 @@ public:
                     id,
                     name,
                     ((!stl::is_pointer_v<decltype(Data)> || stl::is_const_v<data_type>) ? internal::meta_traits::is_const : internal::meta_traits::is_none) | internal::meta_traits::is_static,
+                    1u,
                     &internal::resolve<stl::remove_cvref_t<data_type>>,
-                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    &meta_arg<type_list<stl::remove_cvref_t<data_type>>>,
                     &meta_setter<element_type, Data>,
                     &meta_getter<element_type, Data, Policy>});
         }
@@ -459,8 +461,9 @@ public:
                     name,
                     /* this is never static */
                     internal::meta_traits::is_const,
+                    0u,
                     &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
-                    nullptr,
+                    &meta_arg<type_list<>>,
                     &meta_setter<element_type, Setter>,
                     &meta_getter<element_type, Getter, Policy>});
         } else {
@@ -472,8 +475,9 @@ public:
                     name,
                     /* this is never static nor const */
                     internal::meta_traits::is_none,
+                    1u,
                     &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
-                    &internal::resolve<stl::remove_cvref_t<type_list_element_t<static_cast<stl::size_t>(args_type::size != 1u), args_type>>>,
+                    &meta_arg<type_list<type_list_element_t<static_cast<stl::size_t>(args_type::size != 1u), args_type>>>,
                     &meta_setter<element_type, Setter>,
                     &meta_getter<element_type, Getter, Policy>});
         }

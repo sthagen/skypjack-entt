@@ -276,16 +276,7 @@ template<typename Type>
 template<typename Type, auto Data>
 [[nodiscard]] bool meta_setter([[maybe_unused]] meta_handle instance, [[maybe_unused]] meta_any *const args) {
     if constexpr(stl::is_member_function_pointer_v<decltype(Data)> || stl::is_function_v<stl::remove_reference_t<stl::remove_pointer_t<decltype(Data)>>>) {
-        using descriptor = meta_function_helper_t<Type, decltype(Data)>;
-
-        return [&]<auto... Index>(stl::index_sequence<Index...>) {
-            if(auto *const clazz = instance->try_cast<Type>(); clazz && ((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
-                stl::invoke(Data, *clazz, (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
-                return true;
-            }
-
-            return false;
-        }(stl::make_index_sequence<descriptor::args_type::size>{});
+        return static_cast<bool>(internal::meta_invoke<Type, as_void_t>(*instance.operator->(), Data, args, stl::make_index_sequence<meta_function_helper_t<Type, decltype(Data)>::args_type::size>{}));
     } else {
         if constexpr(stl::is_member_object_pointer_v<decltype(Data)>) {
             using data_type = stl::remove_reference_t<typename meta_function_helper_t<Type, decltype(Data)>::return_type>;

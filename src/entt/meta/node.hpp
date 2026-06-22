@@ -96,7 +96,7 @@ struct meta_data_node {
     size_type arity{0u};
     const meta_type_node &(*type)(const meta_context &) noexcept {};
     meta_type (*arg)(const meta_ctx &, const size_type) noexcept {};
-    bool (*set)(meta_handle, meta_any){};
+    bool (*set)(meta_handle, meta_any *const){};
     meta_any (*get)(meta_handle){};
     meta_custom_node custom{};
 };

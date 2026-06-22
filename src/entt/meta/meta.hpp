@@ -409,10 +409,10 @@ public:
     /**
      * @brief Sets the value of a given variable.
      * @param id Unique identifier.
-     * @param value Parameter to use to set the underlying variable.
+     * @param args Parameters to use to set the underlying variable.
      * @return True in case of success, false otherwise.
      */
-    bool set(id_type id, auto &&value);
+    bool set(id_type id, auto &&...args);
 
     /**
      * @brief Gets the value of a given variable.
@@ -869,13 +869,13 @@ struct meta_data: meta_object<internal::meta_data_node> {
      * @brief Sets the value of a given variable.
      * @tparam Instance Type of instance to operate on.
      * @param instance An instance that fits the underlying type.
-     * @param value Parameter to use to set the underlying variable.
+     * @param args Parameters to use to set the underlying variable.
      * @return True in case of success, false otherwise.
      */
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
-    bool set(Instance &&instance, auto &&value) const {
-        return node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, meta_any{*ctx, stl::forward<decltype(value)>(value)});
+    bool set(Instance &&instance, auto &&...args) const {
+        return (sizeof...(args) == arity()) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
     }
 
     /**
@@ -1430,14 +1430,14 @@ public:
      * @tparam Instance Type of instance to operate on.
      * @param id Unique identifier.
      * @param instance An instance that fits the underlying type.
-     * @param value Parameter to use to set the underlying variable.
+     * @param args Parameters to use to set the underlying variable.
      * @return True in case of success, false otherwise.
      */
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
-    bool set(const id_type id, Instance &&instance, auto &&value) const {
+    bool set(const id_type id, Instance &&instance, auto &&...args) const {
         const auto candidate = data(id);
-        return candidate && candidate.set(stl::forward<Instance>(instance), stl::forward<decltype(value)>(value));
+        return candidate && candidate.set(stl::forward<Instance>(instance), stl::forward<decltype(args)>(args)...);
     }
 
     /**
@@ -1498,8 +1498,8 @@ meta_any meta_any::invoke(const id_type id, auto &&...args) {
     return type().invoke(id, *this, stl::forward<decltype(args)>(args)...);
 }
 
-bool meta_any::set(const id_type id, auto &&value) {
-    return type().set(id, *this, stl::forward<decltype(value)>(value));
+bool meta_any::set(const id_type id, auto &&...args) {
+    return type().set(id, *this, stl::forward<decltype(args)>(args)...);
 }
 
 [[nodiscard]] inline meta_any meta_any::get(const id_type id) const {

@@ -32,3 +32,10 @@ TODO:
 * make meta_any buffer size configurable (propagate to any)
 * test trivially_destructible optimization
 * finish the imgui viewer/editor!
+* test meta_setter/meta_getter with meta_any*
+* test set/get with multiple values
+* document additional arguments to meta setters/getters
+* meta_data should check arity on set/get
+* refine arg and arity on meta_data
+* remove meta invoke/set/get that take meta_any *const args
+

@@ -270,40 +270,58 @@ template<typename Type>
  * @tparam Type Reflected type to which the variable is associated.
  * @tparam Data The actual variable to set.
  * @param instance An opaque instance of the underlying type, if required.
+ * @param args Parameters to use to set the variable.
+ * @return True in case of success, false otherwise.
+ */
+template<typename Type, auto Data>
+[[nodiscard]] bool meta_setter([[maybe_unused]] meta_handle instance, [[maybe_unused]] meta_any *const args) {
+    if constexpr(stl::is_member_function_pointer_v<decltype(Data)> || stl::is_function_v<stl::remove_reference_t<stl::remove_pointer_t<decltype(Data)>>>) {
+        using descriptor = meta_function_helper_t<Type, decltype(Data)>;
+
+        return [&]<auto... Index>(stl::index_sequence<Index...>) {
+            if(auto *const clazz = instance->try_cast<Type>(); clazz && ((args + Index)->allow_cast<type_list_element_t<Index, typename descriptor::args_type>>() && ...)) {
+                stl::invoke(Data, *clazz, (args + Index)->cast<type_list_element_t<Index, typename descriptor::args_type>>()...);
+                return true;
+            }
+
+            return false;
+        }(stl::make_index_sequence<descriptor::args_type::size>{});
+    } else {
+        if constexpr(stl::is_member_object_pointer_v<decltype(Data)>) {
+            using data_type = stl::remove_reference_t<typename meta_function_helper_t<Type, decltype(Data)>::return_type>;
+
+            if constexpr(!stl::is_array_v<data_type> && !stl::is_const_v<data_type>) {
+                if(auto *const clazz = instance->try_cast<Type>(); clazz && args->allow_cast<data_type>()) {
+                    stl::invoke(Data, *clazz) = args->cast<data_type>();
+                    return true;
+                }
+            }
+        } else if constexpr(stl::is_pointer_v<decltype(Data)>) {
+            using data_type = stl::remove_reference_t<decltype(*Data)>;
+
+            if constexpr(!stl::is_array_v<data_type> && !stl::is_const_v<data_type>) {
+                if(args->allow_cast<data_type>()) {
+                    *Data = args->cast<data_type>();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+}
+
+/**
+ * @brief Sets the value of a given variable.
+ * @tparam Type Reflected type to which the variable is associated.
+ * @tparam Data The actual variable to set.
+ * @param instance An opaque instance of the underlying type, if required.
  * @param value Parameter to use to set the variable.
  * @return True in case of success, false otherwise.
  */
 template<typename Type, auto Data>
-[[nodiscard]] bool meta_setter([[maybe_unused]] meta_handle instance, [[maybe_unused]] meta_any value) {
-    if constexpr(stl::is_member_function_pointer_v<decltype(Data)> || stl::is_function_v<stl::remove_reference_t<stl::remove_pointer_t<decltype(Data)>>>) {
-        using descriptor = meta_function_helper_t<Type, decltype(Data)>;
-        using data_type = type_list_element_t<descriptor::is_static, typename descriptor::args_type>;
-
-        if(auto *const clazz = instance->try_cast<Type>(); clazz && value.allow_cast<data_type>()) {
-            stl::invoke(Data, *clazz, value.cast<data_type>());
-            return true;
-        }
-    } else if constexpr(stl::is_member_object_pointer_v<decltype(Data)>) {
-        using data_type = stl::remove_reference_t<typename meta_function_helper_t<Type, decltype(Data)>::return_type>;
-
-        if constexpr(!stl::is_array_v<data_type> && !stl::is_const_v<data_type>) {
-            if(auto *const clazz = instance->try_cast<Type>(); clazz && value.allow_cast<data_type>()) {
-                stl::invoke(Data, *clazz) = value.cast<data_type>();
-                return true;
-            }
-        }
-    } else if constexpr(stl::is_pointer_v<decltype(Data)>) {
-        using data_type = stl::remove_reference_t<decltype(*Data)>;
-
-        if constexpr(!stl::is_array_v<data_type> && !stl::is_const_v<data_type>) {
-            if(value.allow_cast<data_type>()) {
-                *Data = value.cast<data_type>();
-                return true;
-            }
-        }
-    }
-
-    return false;
+[[nodiscard]] bool meta_setter(meta_handle instance, meta_any value) {
+    return meta_setter<Type, Data>(*instance.operator->(), &value);
 }
 
 /**

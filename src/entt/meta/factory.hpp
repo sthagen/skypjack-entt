@@ -386,8 +386,10 @@ public:
                     /* this is never static */
                     stl::is_const_v<stl::remove_reference_t<data_type>> ? internal::meta_traits::is_const : internal::meta_traits::is_none,
                     1u,
-                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    0u,
                     &meta_arg<type_list<stl::remove_cvref_t<data_type>>>,
+                    &meta_arg<type_list<>>,
+                    &internal::resolve<stl::remove_cvref_t<data_type>>,
                     &meta_setter<element_type, Data>,
                     &meta_getter<element_type, Data, Policy>});
         } else {
@@ -405,8 +407,10 @@ public:
                     name,
                     ((!stl::is_pointer_v<decltype(Data)> || stl::is_const_v<data_type>) ? internal::meta_traits::is_const : internal::meta_traits::is_none) | internal::meta_traits::is_static,
                     1u,
-                    &internal::resolve<stl::remove_cvref_t<data_type>>,
+                    0u,
                     &meta_arg<type_list<stl::remove_cvref_t<data_type>>>,
+                    &meta_arg<type_list<>>,
+                    &internal::resolve<stl::remove_cvref_t<data_type>>,
                     &meta_setter<element_type, Data>,
                     &meta_getter<element_type, Data, Policy>});
         }
@@ -451,8 +455,8 @@ public:
      */
     template<auto Setter, auto Getter, typename Policy = as_value_t>
     meta_factory data(const id_type id, const char *name = nullptr) noexcept {
-        using descriptor = meta_function_helper_t<element_type, decltype(Getter)>;
-        static_assert(Policy::template value<typename descriptor::return_type>, "Invalid return type for the given policy");
+        using getter = meta_function_helper_t<element_type, decltype(Getter)>;
+        static_assert(Policy::template value<typename getter::return_type>, "Invalid return type for the given policy");
 
         if constexpr(stl::is_same_v<decltype(Setter), stl::nullptr_t>) {
             base_type::data(
@@ -462,12 +466,14 @@ public:
                     /* this is never static */
                     internal::meta_traits::is_const,
                     0u,
-                    &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
+                    getter::args_type::size,
                     &meta_arg<type_list<>>,
+                    &meta_arg<typename getter::args_type>,
+                    &internal::resolve<stl::remove_cvref_t<typename getter::return_type>>,
                     &meta_setter<element_type, Setter>,
                     &meta_getter<element_type, Getter, Policy>});
         } else {
-            using args_type = meta_function_helper_t<element_type, decltype(Setter)>::args_type;
+            using setter = meta_function_helper_t<element_type, decltype(Setter)>;
 
             base_type::data(
                 internal::meta_data_node{
@@ -475,9 +481,11 @@ public:
                     name,
                     /* this is never static nor const */
                     internal::meta_traits::is_none,
-                    1u,
-                    &internal::resolve<stl::remove_cvref_t<typename descriptor::return_type>>,
-                    &meta_arg<type_list<type_list_element_t<static_cast<stl::size_t>(args_type::size != 1u), args_type>>>,
+                    setter::args_type::size,
+                    getter::args_type::size,
+                    &meta_arg<typename setter::args_type>,
+                    &meta_arg<typename getter::args_type>,
+                    &internal::resolve<stl::remove_cvref_t<typename getter::return_type>>,
                     &meta_setter<element_type, Setter>,
                     &meta_getter<element_type, Getter, Policy>});
         }

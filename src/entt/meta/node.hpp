@@ -93,9 +93,11 @@ struct meta_data_node {
     id_type id{};
     const char *name{};
     meta_traits traits{meta_traits::is_none};
-    size_type arity{0u};
+    size_type set_arity{0u};
+    size_type get_arity{0u};
+    meta_type (*set_arg)(const meta_ctx &, const size_type) noexcept {};
+    meta_type (*get_arg)(const meta_ctx &, const size_type) noexcept {};
     const meta_type_node &(*type)(const meta_context &) noexcept {};
-    meta_type (*arg)(const meta_ctx &, const size_type) noexcept {};
     bool (*set)(meta_handle, meta_any *const){};
     meta_any (*get)(meta_handle, meta_any *const){};
     meta_custom_node custom{};

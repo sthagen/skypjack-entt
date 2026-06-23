@@ -844,7 +844,7 @@ struct meta_data: meta_object<internal::meta_data_node> {
      * @return The number of arguments accepted by the data member.
      */
     [[nodiscard]] size_type arity() const noexcept {
-        return node_or_assert().arity;
+        return node_or_assert().set_arity;
     }
 
     /**
@@ -1574,7 +1574,7 @@ inline bool meta_any::assign(meta_any &&other) {
 }
 
 [[nodiscard]] inline meta_type meta_data::arg(const size_type index) const noexcept {
-    return index < arity() ? node_or_assert().arg(*ctx, index) : meta_type{};
+    return index < arity() ? node_or_assert().set_arg(*ctx, index) : meta_type{};
 }
 
 [[nodiscard]] inline meta_type meta_func::ret() const noexcept {

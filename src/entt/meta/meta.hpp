@@ -417,12 +417,13 @@ public:
     /**
      * @brief Gets the value of a given variable.
      * @param id Unique identifier.
+     * @param args Parameters to use to set the underlying variable, if any.
      * @return A wrapper containing the value of the underlying variable.
      */
-    [[nodiscard]] meta_any get(id_type id) const;
+    [[nodiscard]] meta_any get(id_type id, auto &&...args) const;
 
     /*! @copydoc get */
-    [[nodiscard]] meta_any get(id_type id);
+    [[nodiscard]] meta_any get(id_type id, auto &&...args);
 
     /**
      * @brief Tries to cast an instance to a given type.
@@ -882,11 +883,12 @@ struct meta_data: meta_object<internal::meta_data_node> {
      * @brief Gets the value of a given variable.
      * @tparam Instance Type of instance to operate on.
      * @param instance An instance that fits the underlying type.
+     * @param args Parameters to use to get the underlying variable, if any.
      * @return A wrapper containing the value of the underlying variable.
      */
     template<typename Instance = meta_handle>
-    [[nodiscard]] meta_any get(Instance &&instance) const {
-        return node_or_assert().get(meta_handle{*ctx, stl::forward<Instance>(instance)});
+    [[nodiscard]] meta_any get(Instance &&instance, auto &&...args) const {
+        return node_or_assert().get(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
     }
 
     /**
@@ -1445,12 +1447,13 @@ public:
      * @tparam Instance Type of instance to operate on.
      * @param id Unique identifier.
      * @param instance An instance that fits the underlying type.
+     * @param args Parameters to use to set the underlying variable, if any.
      * @return A wrapper containing the value of the underlying variable.
      */
     template<typename Instance = meta_handle>
-    [[nodiscard]] meta_any get(const id_type id, Instance &&instance) const {
+    [[nodiscard]] meta_any get(const id_type id, Instance &&instance, auto &&...args) const {
         const auto candidate = data(id);
-        return candidate ? candidate.get(stl::forward<Instance>(instance)) : meta_any{meta_ctx_arg, *ctx};
+        return candidate ? candidate.get(stl::forward<Instance>(instance), stl::forward<decltype(args)>(args)...) : meta_any{meta_ctx_arg, *ctx};
     }
 
     /*! @copydoc meta_data::traits */
@@ -1502,12 +1505,12 @@ bool meta_any::set(const id_type id, auto &&...args) {
     return type().set(id, *this, stl::forward<decltype(args)>(args)...);
 }
 
-[[nodiscard]] inline meta_any meta_any::get(const id_type id) const {
-    return type().get(id, *this);
+[[nodiscard]] inline meta_any meta_any::get(const id_type id, auto &&...args) const {
+    return type().get(id, *this, stl::forward<decltype(args)>(args)...);
 }
 
-[[nodiscard]] inline meta_any meta_any::get(const id_type id) {
-    return type().get(id, *this);
+[[nodiscard]] inline meta_any meta_any::get(const id_type id, auto &&...args) {
+    return type().get(id, *this, stl::forward<decltype(args)>(args)...);
 }
 
 [[nodiscard]] inline meta_any meta_any::allow_cast(const meta_type &type) const {

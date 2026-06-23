@@ -876,7 +876,7 @@ struct meta_data: meta_object<internal::meta_data_node> {
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     bool set(Instance &&instance, auto &&...args) const {
-        return (sizeof...(args) == arity()) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+        return (arity() <= sizeof...(args)) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
     }
 
     /**

@@ -39,3 +39,4 @@ TODO:
 * refine arg and arity on meta_data
 * remove meta invoke/set/get that take meta_any *const args
 * meta: meta_data set/get_arity and set/get_arg or similar
+* meta_type::lookup should not take args*, and construct should be reviewed then

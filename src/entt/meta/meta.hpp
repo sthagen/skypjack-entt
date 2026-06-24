@@ -876,7 +876,7 @@ struct meta_data: meta_object<internal::meta_data_node> {
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     bool set(Instance &&instance, auto &&...args) const {
-        return (arity() <= sizeof...(args)) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+        return (sizeof...(args) == arity()) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
     }
 
     /**
@@ -971,25 +971,12 @@ struct meta_func: meta_object<internal::meta_func_node> {
      * @tparam Instance Type of instance to operate on.
      * @param instance An instance that fits the underlying type.
      * @param args Parameters to use to invoke the function.
-     * @param sz Number of parameters to use to invoke the function.
-     * @return A wrapper containing the returned value, if any.
-     */
-    template<typename Instance = meta_handle>
-    meta_any invoke(Instance &&instance, meta_any *const args, const size_type sz) const {
-        return (sz == arity()) ? node_or_assert().invoke(meta_handle{*ctx, stl::forward<Instance>(instance)}, args) : meta_any{meta_ctx_arg, *ctx};
-    }
-
-    /**
-     * @copybrief invoke
-     * @tparam Instance Type of instance to operate on.
-     * @param instance An instance that fits the underlying type.
-     * @param args Parameters to use to invoke the function.
      * @return A wrapper containing the returned value, if any.
      */
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     meta_any invoke(Instance &&instance, auto &&...args) const {
-        return invoke(stl::forward<Instance>(instance), stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data(), sizeof...(args));
+        return (sizeof...(args) == arity()) ? node_or_assert().invoke(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data()) : meta_any{meta_ctx_arg, *ctx};
     }
 
     /*! @copydoc meta_data::traits */

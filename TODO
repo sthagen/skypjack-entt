@@ -38,6 +38,5 @@ TODO:
 * meta_data should check arity on set/get
 * refine arg and arity on meta_data
 * remove meta invoke/set/get that take meta_any *const args
-* meta: support more args than expected on invoke
-* meta: try to route the meta object path to invoke in meta_setter
+* remove meta construct that takes meta_any *const args
 * meta: meta_data set/get_arity and set/get_arg or similar

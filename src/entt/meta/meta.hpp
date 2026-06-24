@@ -1032,7 +1032,7 @@ class meta_type {
                 size_type pos{};
 
                 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
-                for(; pos < sz && args[pos]; ++pos) {
+                for(; pos < sz; ++pos) {
                     const auto other = curr->arg(*ctx, pos);
                     const auto type = args[pos].type();
 

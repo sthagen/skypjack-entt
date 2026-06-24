@@ -1321,33 +1321,24 @@ public:
     }
 
     /**
-     * @brief Creates an instance of the underlying type, if possible.
-     * @param args Parameters to use to construct the instance.
-     * @param sz Number of parameters to use to construct the instance.
-     * @return A wrapper containing the new instance, if any.
-     */
-    [[nodiscard]] meta_any construct(meta_any *const args, const size_type sz) const {
-        if(const auto &ref = fetch_node(); ref.details) {
-            if(const auto *candidate = lookup(args, sz, false, [first = ref.details->ctor.cbegin(), last = ref.details->ctor.cend()]() mutable { return first == last ? nullptr : &*(first++); }); candidate) {
-                return candidate->invoke(*ctx, args);
-            }
-        }
-
-        if(const auto &ref = fetch_node(); (sz == 0u) && (ref.default_constructor != nullptr)) {
-            return ref.default_constructor(*ctx);
-        }
-
-        return meta_any{meta_ctx_arg, *ctx};
-    }
-
-    /**
      * @copybrief construct
      * @param args Parameters to use to construct the instance.
      * @return A wrapper containing the new instance, if any.
      */
     [[nodiscard]] meta_any construct(auto &&...args) const {
-        return construct(stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data(), sizeof...(args));
-        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
+        stl::array<meta_any, sizeof...(args)> all{meta_any{*ctx, stl::forward<decltype(args)>(args)}...};
+
+        if(const auto &ref = fetch_node(); ref.details) {
+            if(const auto *candidate = lookup(all.data(), all.size(), false, [first = ref.details->ctor.cbegin(), last = ref.details->ctor.cend()]() mutable { return first == last ? nullptr : &*(first++); }); candidate) {
+                return candidate->invoke(*ctx, all.data());
+            }
+        }
+
+        if(const auto &ref = fetch_node(); all.empty() && (ref.default_constructor != nullptr)) {
+            return ref.default_constructor(*ctx);
+        }
+
+        return meta_any{meta_ctx_arg, *ctx};
     }
 
     /**

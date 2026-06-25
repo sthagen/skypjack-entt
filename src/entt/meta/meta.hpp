@@ -1015,7 +1015,7 @@ class meta_type {
         return (node == nullptr) ? internal::resolve<void>(internal::meta_context::from(*ctx)) : *node;
     }
 
-    [[nodiscard]] auto lookup(meta_any *const args, const internal::meta_type_node::size_type sz, [[maybe_unused]] bool constness, auto next) const {
+    [[nodiscard]] auto lookup(meta_handle *const args, const auto sz, [[maybe_unused]] bool constness, auto next) const {
         decltype(next()) candidate = nullptr;
         size_type same{};
         bool ambiguous{};
@@ -1034,7 +1034,7 @@ class meta_type {
                 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
                 for(; pos < sz; ++pos) {
                     const auto other = curr->arg(*ctx, pos);
-                    const auto type = args[pos].type();
+                    const auto type = args[pos]->type();
 
                     if(const auto &info = other.info(); info == type.info()) {
                         ++match;
@@ -1326,15 +1326,13 @@ public:
      * @return A wrapper containing the new instance, if any.
      */
     [[nodiscard]] meta_any construct(auto &&...args) const {
-        stl::array<meta_any, sizeof...(args)> all{meta_any{*ctx, stl::forward<decltype(args)>(args)}...};
-
         if(const auto &ref = fetch_node(); ref.details) {
-            if(const auto *candidate = lookup(all.data(), all.size(), false, [first = ref.details->ctor.cbegin(), last = ref.details->ctor.cend()]() mutable { return first == last ? nullptr : &*(first++); }); candidate) {
-                return candidate->invoke(*ctx, all.data());
+            if(const auto *candidate = lookup(stl::array<meta_handle, sizeof...(args)>{meta_handle{*ctx, args}...}.data(), sizeof...(args), false, [first = ref.details->ctor.cbegin(), last = ref.details->ctor.cend()]() mutable { return first == last ? nullptr : &*(first++); }); candidate) {
+                return candidate->invoke(*ctx, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
             }
         }
 
-        if(const auto &ref = fetch_node(); all.empty() && (ref.default_constructor != nullptr)) {
+        if(const auto &ref = fetch_node(); (sizeof...(args) == 0u) && (ref.default_constructor != nullptr)) {
             return ref.default_constructor(*ctx);
         }
 
@@ -1361,37 +1359,6 @@ public:
     }
 
     /**
-     * @brief Invokes a function given an identifier, if possible.
-     * @tparam Instance Type of instance to operate on.
-     * @param id Unique identifier.
-     * @param instance An instance that fits the underlying type.
-     * @param args Parameters to use to invoke the function.
-     * @param sz Number of parameters to use to invoke the function.
-     * @return A wrapper containing the returned value, if any.
-     */
-    template<typename Instance = meta_handle>
-    // NOLINTNEXTLINE(modernize-use-nodiscard)
-    meta_any invoke(const id_type id, Instance &&instance, meta_any *const args, const size_type sz) const {
-        meta_handle wrapped{*ctx, stl::forward<Instance>(instance)};
-
-        if(const auto &ref = fetch_node(); ref.details) {
-            if(auto *elem = internal::find_member(ref.details->func, id); elem != nullptr) {
-                if(const auto *candidate = lookup(args, sz, (wrapped->base().policy() == any_policy::cref), [curr = elem]() mutable { return (curr != nullptr) ? stl::exchange(curr, curr->next.get()) : nullptr; }); candidate) {
-                    return candidate->invoke(stl::move(wrapped), args);
-                }
-            }
-        }
-
-        for(auto &&curr: base()) {
-            if(auto elem = curr.second.type().invoke(id, *wrapped.operator->(), args, sz); elem) {
-                return elem;
-            }
-        }
-
-        return meta_any{meta_ctx_arg, *ctx};
-    }
-
-    /**
      * @copybrief invoke
      * @param id Unique identifier.
      * @tparam Instance Type of instance to operate on.
@@ -1402,7 +1369,23 @@ public:
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     meta_any invoke(const id_type id, Instance &&instance, auto &&...args) const {
-        return invoke(id, stl::forward<Instance>(instance), stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data(), sizeof...(args));
+        meta_handle wrapped{*ctx, stl::forward<Instance>(instance)};
+
+        if(const auto &ref = fetch_node(); ref.details) {
+            if(auto *elem = internal::find_member(ref.details->func, id); elem != nullptr) {
+                if(const auto *candidate = lookup(stl::array<meta_handle, sizeof...(args)>{meta_handle{*ctx, args}...}.data(), sizeof...(args), (wrapped->base().policy() == any_policy::cref), [curr = elem]() mutable { return (curr != nullptr) ? stl::exchange(curr, curr->next.get()) : nullptr; }); candidate) {
+                    return candidate->invoke(stl::move(wrapped), stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+                }
+            }
+        }
+
+        for(auto &&curr: base()) {
+            if(auto elem = curr.second.type().invoke(id, *wrapped.operator->(), stl::forward<decltype(args)>(args)...); elem) {
+                return elem;
+            }
+        }
+
+        return meta_any{meta_ctx_arg, *ctx};
     }
 
     /**

@@ -200,8 +200,10 @@ TEST_F(MetaData, NonConst) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
@@ -217,8 +219,10 @@ TEST_F(MetaData, Const) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_TRUE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 1);
@@ -233,8 +237,10 @@ TEST_F(MetaData, Static) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_TRUE(data.is_static());
     ASSERT_EQ(data.get({}).cast<int>(), 2);
@@ -249,8 +255,10 @@ TEST_F(MetaData, ConstStatic) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_TRUE(data.is_const());
     ASSERT_TRUE(data.is_static());
     ASSERT_EQ(data.get({}).cast<int>(), 3);
@@ -265,8 +273,10 @@ TEST_F(MetaData, Literal) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<char>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<char>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_TRUE(data.is_const());
     ASSERT_TRUE(data.is_static());
     ASSERT_EQ(data.get({}).cast<char>(), 'c');
@@ -376,8 +386,10 @@ TEST_F(MetaData, SetterGetterAsFreeFunctions) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
@@ -393,8 +405,10 @@ TEST_F(MetaData, SetterGetterAsMemberFunctions) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<double>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
@@ -412,8 +426,10 @@ TEST_F(MetaData, SetterGetterWithRefAsMemberFunctions) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
@@ -429,8 +445,10 @@ TEST_F(MetaData, SetterGetterMixed) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
@@ -446,8 +464,10 @@ TEST_F(MetaData, SetterGetterReadOnly) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 0u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::meta_type{});
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_TRUE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
@@ -463,8 +483,10 @@ TEST_F(MetaData, SetterGetterReadOnlyDataMember) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 0u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::meta_type{});
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_TRUE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
@@ -506,10 +528,12 @@ TEST_F(MetaData, ArrayStatic) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     // NOLINTBEGIN(*-avoid-c-arrays)
     ASSERT_EQ(data.type(), entt::resolve<int[2]>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int[2]>());
     // NOLINTEND(*-avoid-c-arrays)
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_TRUE(data.is_static());
     ASSERT_TRUE(data.type().is_array());
@@ -524,10 +548,12 @@ TEST_F(MetaData, Array) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     // NOLINTBEGIN(*-avoid-c-arrays)
     ASSERT_EQ(data.type(), entt::resolve<int[4]>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int[4]>());
     // NOLINTEND(*-avoid-c-arrays)
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_FALSE(data.is_const());
     ASSERT_FALSE(data.is_static());
     ASSERT_TRUE(data.type().is_array());
@@ -542,8 +568,10 @@ TEST_F(MetaData, AsVoid) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_TRUE(data.set(instance, 1));
     ASSERT_EQ(instance.i, 1);
     ASSERT_EQ(data.get(instance), entt::meta_any{std::in_place_type<void>});
@@ -595,8 +623,10 @@ TEST_F(MetaData, AsRef) {
 
     ASSERT_TRUE(data);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_EQ(instance.i, 0);
 
     data.get(instance).cast<int &>() = 3;
@@ -612,8 +642,10 @@ TEST_F(MetaData, AsConstRef) {
 
     ASSERT_EQ(instance.i, 0);
     ASSERT_EQ(data.set_arity(), 1u);
+    ASSERT_EQ(data.get_arity(), 0u);
     ASSERT_EQ(data.type(), entt::resolve<int>());
     ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.get_arg(0u));
     ASSERT_EQ(data.get(instance).cast<const int &>(), 0);
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
     ASSERT_EQ(instance.i, 0);

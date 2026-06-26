@@ -840,11 +840,19 @@ struct meta_data: meta_object<internal::meta_data_node> {
     }
 
     /**
-     * @brief Returns the number of arguments accepted by a data member.
-     * @return The number of arguments accepted by the data member.
+     * @brief Returns the number of arguments of a data member's setter.
+     * @return The number of arguments accepted by the data member's setter.
      */
-    [[nodiscard]] size_type arity() const noexcept {
+    [[nodiscard]] size_type set_arity() const noexcept {
         return node_or_assert().set_arity;
+    }
+
+    /**
+     * @brief Returns the number of arguments of a data member's getter.
+     * @return The number of arguments accepted by the data member's getter.
+     */
+    [[nodiscard]] size_type get_arity() const noexcept {
+        return node_or_assert().get_arity;
     }
 
     /**
@@ -876,7 +884,7 @@ struct meta_data: meta_object<internal::meta_data_node> {
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     bool set(Instance &&instance, auto &&...args) const {
-        return (sizeof...(args) == arity()) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+        return (sizeof...(args) == set_arity()) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
     }
 
     /**
@@ -888,15 +896,22 @@ struct meta_data: meta_object<internal::meta_data_node> {
      */
     template<typename Instance = meta_handle>
     [[nodiscard]] meta_any get(Instance &&instance, auto &&...args) const {
-        return node_or_assert().get(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+        return (sizeof...(args) == get_arity()) ? node_or_assert().get(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data()) : meta_any{meta_ctx_arg, *ctx};
     }
 
     /**
-     * @brief Returns the type of the i-th argument of a data member.
+     * @brief Returns the type of the i-th argument of a data member's setter.
      * @param index Index of the argument of which to return the type.
-     * @return The type of the i-th argument of a data member.
+     * @return The type of the i-th argument of a data member's setter.
      */
-    [[nodiscard]] inline meta_type arg(size_type index) const noexcept;
+    [[nodiscard]] inline meta_type set_arg(size_type index) const noexcept;
+
+    /**
+     * @brief Returns the type of the i-th argument of a data member's getter.
+     * @param index Index of the argument of which to return the type.
+     * @return The type of the i-th argument of a data member's getter.
+     */
+    [[nodiscard]] inline meta_type get_arg(size_type index) const noexcept;
 
     /**
      * @brief Returns all meta traits for a given meta object.
@@ -1534,8 +1549,12 @@ inline bool meta_any::assign(meta_any &&other) {
     return meta_type{*ctx, node_or_assert().type(internal::meta_context::from(*ctx))};
 }
 
-[[nodiscard]] inline meta_type meta_data::arg(const size_type index) const noexcept {
-    return index < arity() ? node_or_assert().set_arg(*ctx, index) : meta_type{};
+[[nodiscard]] inline meta_type meta_data::set_arg(const size_type index) const noexcept {
+    return index < set_arity() ? node_or_assert().set_arg(*ctx, index) : meta_type{};
+}
+
+[[nodiscard]] inline meta_type meta_data::get_arg(const size_type index) const noexcept {
+    return index < get_arity() ? node_or_assert().get_arg(*ctx, index) : meta_type{};
 }
 
 [[nodiscard]] inline meta_type meta_func::ret() const noexcept {

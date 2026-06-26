@@ -53,6 +53,14 @@ struct MetaData: ::testing::Test {
             return value;
         }
 
+        int setter_multi_arg(int val, double add, double mul) {
+            return value = static_cast<int>((val + add) * mul);
+        }
+
+        [[nodiscard]] int getter_multi_arg(int mul) const {
+            return value * mul;
+        }
+
         static int static_setter(setter_getter &type, int value) {
             return type.value = value;
         }
@@ -111,6 +119,7 @@ struct MetaData: ::testing::Test {
             .data<&setter_getter::setter, &setter_getter::getter>("y"_hs)
             .data<&setter_getter::static_setter, &setter_getter::getter>("z"_hs)
             .data<&setter_getter::setter_with_ref, &setter_getter::getter_with_ref>("w")
+            .data<&setter_getter::setter_multi_arg, &setter_getter::getter_multi_arg>("multi"_hs)
             .data<nullptr, &setter_getter::getter>("z_ro"_hs, "readonly")
             .data<nullptr, &setter_getter::value>("value"_hs);
 
@@ -492,6 +501,30 @@ TEST_F(MetaData, SetterGetterReadOnlyDataMember) {
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
     ASSERT_FALSE(data.set(instance, 1));
     ASSERT_EQ(data.get(instance).cast<int>(), 0);
+}
+
+TEST_F(MetaData, SetterGetterMultiArg) {
+    using namespace entt::literals;
+
+    auto data = entt::resolve<setter_getter>().data("multi"_hs);
+    setter_getter instance{};
+
+    ASSERT_TRUE(data);
+    ASSERT_EQ(data.set_arity(), 3u);
+    ASSERT_EQ(data.get_arity(), 1u);
+    ASSERT_EQ(data.type(), entt::resolve<int>());
+    ASSERT_EQ(data.set_arg(0u), entt::resolve<int>());
+    ASSERT_EQ(data.set_arg(1u), entt::resolve<double>());
+    ASSERT_EQ(data.set_arg(2u), entt::resolve<double>());
+    ASSERT_EQ(data.get_arg(0u), entt::resolve<int>());
+    ASSERT_FALSE(data.is_const());
+    ASSERT_FALSE(data.is_static());
+    ASSERT_FALSE(data.get(instance));
+    ASSERT_EQ(data.get(instance, 2).cast<int>(), 0);
+    ASSERT_FALSE(data.set(instance, 1));
+    ASSERT_FALSE(data.set(instance, 1, 2.0));
+    ASSERT_TRUE(data.set(instance, 0, 0.5, 2.0));
+    ASSERT_EQ(data.get(instance, 2).cast<int>(), 2);
 }
 
 TEST_F(MetaData, ConstInstance) {

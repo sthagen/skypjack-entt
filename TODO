@@ -32,6 +32,4 @@ TODO:
 * make meta_any buffer size configurable (propagate to any)
 * test trivially_destructible optimization
 * finish the imgui viewer/editor!
-* test set/get with multiple values
-* test set/get_arity and set/get_arg
 * document additional arguments to meta setters/getters

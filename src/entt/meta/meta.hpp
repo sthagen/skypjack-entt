@@ -795,7 +795,7 @@ struct meta_object: protected internal::basic_meta_object<Type> {
     /*! @brief Underlying meta node type. */
     using node_type = Type;
     /*! @brief Unsigned integer type. */
-    using size_type = std::size_t;
+    using size_type = stl::size_t;
 
     /*! @brief Default constructor. */
     meta_object() noexcept = default;

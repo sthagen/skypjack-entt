@@ -268,8 +268,8 @@ template<typename List>
 using type_list_unique_t = type_list_unique<List>::type;
 
 /**
- * @brief Provides the member constant `value` equal to true if a type list contains a
- * given type, false otherwise.
+ * @brief Provides the member constant `value` equal to true if a type list
+ * contains a given type, false otherwise.
  * @tparam List Type list.
  * @tparam Type Type to look for.
  */
@@ -530,8 +530,8 @@ template<typename Type>
 using value_list_unique_t = value_list_unique<Type>::type;
 
 /**
- * @brief Provides the member constant `value` equal to true if a value list contains
- * a given value, false otherwise.
+ * @brief Provides the member constant `value` equal to true if a value list
+ * contains a given value, false otherwise.
  * @tparam List Value list.
  * @tparam Value Value to look for.
  */
@@ -566,7 +566,7 @@ struct value_list_diff;
  */
 template<auto... Value, auto... Other>
 struct value_list_diff<value_list<Value...>, value_list<Other...>> {
-    /*! @brief A value list that is the difference between the two value lists. */
+    /*! @brief A value list that is the difference between the two lists. */
     using type = value_list_cat_t<stl::conditional_t<value_list_contains_v<value_list<Other...>, Value>, value_list<>, value_list<Value>>...>;
 };
 
@@ -652,8 +652,8 @@ template<typename Type>
 inline constexpr bool is_complete_v = is_complete<Type>::value;
 
 /**
- * @brief Provides the member constant `value` equal to true if a given type is an
- * iterator, false otherwise.
+ * @brief Provides the member constant `value` equal to true if a given type is
+ * an iterator, false otherwise.
  * @tparam Type The type to test.
  */
 template<typename Type>
@@ -685,8 +685,8 @@ template<typename Type>
 inline constexpr bool is_iterator_v = is_iterator<Type>::value;
 
 /**
- * @brief Provides the member constant `value` equal to true if a given type is both
- * an empty and non-final class, false otherwise.
+ * @brief Provides the member constant `value` equal to true if a given type is
+ * both an empty and non-final class, false otherwise.
  * @tparam Type The type to test
  */
 template<typename Type>
@@ -700,8 +700,8 @@ template<typename Type>
 inline constexpr bool is_ebco_eligible_v = is_ebco_eligible<Type>::value;
 
 /**
- * @brief Provides the member constant `value` equal to true if `Type::is_transparent`
- * is valid and denotes a type, false otherwise.
+ * @brief Provides the member constant `value` equal to true if
+ * `Type::is_transparent` is valid and denotes a type, false otherwise.
  * @tparam Type The type to test.
  */
 template<typename Type>

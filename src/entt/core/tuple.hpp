@@ -8,8 +8,8 @@
 namespace entt {
 
 /**
- * @brief Provides the member constant `value` equal to true if a given type is a
- * tuple, false otherwise.
+ * @brief Provides the member constant `value` equal to true if a given type is
+ * a tuple, false otherwise.
  * @tparam Type The type to test.
  */
 template<typename Type>

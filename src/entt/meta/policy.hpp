@@ -54,8 +54,8 @@ struct as_is_t final: private internal::meta_policy {
 };
 
 /**
- * @brief Provides the member constant `value` equal to true if a type also is a meta
- * policy, false otherwise.
+ * @brief Provides the member constant `value` equal to true if a type also is a
+ * meta policy, false otherwise.
  * @tparam Type Type to check.
  */
 template<typename Type>

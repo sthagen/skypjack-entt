@@ -320,7 +320,7 @@ template<typename, template<typename...> class>
 struct type_list_transform;
 
 /**
- * @brief Applies a given _function_ to a type list and generate a new list.
+ * @brief Applies a given _function_ to a type list and generates a new list.
  * @tparam Type Types provided by the type list.
  * @tparam Op Unary operation as template class with a type member named `type`.
  */

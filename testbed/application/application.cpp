@@ -14,6 +14,7 @@
 #include <system/hud_system.h>
 #include <system/imgui_system.h>
 #include <system/input_system.h>
+#include <system/movement_system.h>
 #include <system/rendering_system.h>
 
 namespace testbed {
@@ -23,8 +24,7 @@ void application::update(entt::registry &registry) {
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    // update...
-    static_cast<void>(registry);
+    movement_system(registry);
 }
 
 void application::draw(entt::registry &registry, const context &context) const {

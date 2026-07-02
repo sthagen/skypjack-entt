@@ -50,6 +50,7 @@ target_sources(
         system/hud_system.cpp
         system/imgui_system.cpp
         system/input_system.cpp
+        system/movement_system.cpp
         system/rendering_system.cpp
         testbed.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp

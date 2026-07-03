@@ -11,6 +11,7 @@
 #include <entt/entity/registry.hpp>
 #include <imgui.h>
 #include <meta/meta.h>
+#include <system/command_system.h>
 #include <system/hud_system.h>
 #include <system/imgui_system.h>
 #include <system/input_system.h>
@@ -24,6 +25,7 @@ void application::update(entt::registry &registry) {
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
+    command_system(registry);
     movement_system(registry);
 }
 

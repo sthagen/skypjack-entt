@@ -37,6 +37,9 @@ void input_system(entt::registry &registry, const SDL_Event &event, bool &quit) 
         case SDLK_RIGHT:
             internal::update_listeners(registry, input_listener_component::type::RIGHT);
             break;
+        case SDLK_SPACE:
+            internal::update_listeners(registry, input_listener_component::type::NONE);
+            break;
         }
         break;
     }

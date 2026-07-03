@@ -8,6 +8,7 @@
 #include <component/position_component.h>
 #include <component/rect_component.h>
 #include <component/renderable_component.h>
+#include <component/velocity_component.h>
 #include <entt/entity/registry.hpp>
 #include <imgui.h>
 #include <meta/meta.h>
@@ -67,8 +68,14 @@ application::~application() {
 static void static_setup_for_dev_purposes(entt::registry &registry) {
     const auto entt = registry.create();
 
+    // makes the entity a vessel for input
     registry.emplace<input_listener_component>(entt);
+
+    // makes the entity able to move around
     registry.emplace<position_component>(entt, SDL_FPoint{400.f, 400.f});
+    registry.emplace<velocity_component>(entt);
+
+    // makes the entity visible on the screen
     registry.emplace<rect_component>(entt, SDL_FRect{0.f, 0.f, 20.f, 20.f});
     registry.emplace<renderable_component>(entt);
 }

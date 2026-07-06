@@ -20,10 +20,14 @@ void command_system(entt::registry &registry) {
         case input_listener_component::type::RIGHT:
             vel.dx = 1.0f;
             break;
-        case input_listener_component::type::NONE:
+        case input_listener_component::type::STOP:
             vel.dx = vel.dy = 0.0f;
             break;
+        default:
+            break;
         }
+
+        input.command = input_listener_component::type::NONE;
     }
 }
 

@@ -9,10 +9,7 @@
 namespace testbed {
 
 void rendering_system(entt::registry &registry, const context &ctx) {
-    constexpr int logical_width = 1920;
-    constexpr int logical_height = 1080;
-
-    SDL_SetRenderLogicalPresentation(ctx, logical_width, logical_height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    SDL_SetRenderLogicalPresentation(ctx, ctx.logical_width(), ctx.logical_height(), SDL_LOGICAL_PRESENTATION_LETTERBOX);
     SDL_SetRenderDrawColor(ctx, 0u, 0u, 0u, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(ctx);
 

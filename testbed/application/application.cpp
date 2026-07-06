@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_stdinc.h>
 #include <application/application.h>
 #include <application/context.h>
 #include <backends/imgui_impl_sdl3.h>
@@ -21,13 +22,13 @@
 
 namespace testbed {
 
-void application::update(entt::registry &registry) {
+void application::update(entt::registry &registry, const context &ctx, const double delta) {
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
     command_system(registry);
-    movement_system(registry);
+    movement_system(registry, ctx, delta);
 }
 
 void application::draw(entt::registry &registry, const context &context) const {
@@ -87,10 +88,18 @@ int application::run() {
     meta_setup();
     static_setup_for_dev_purposes(registry);
 
+    Uint64 last{SDL_GetPerformanceCounter()};
+    Uint64 current{};
+    double delta{};
+
     quit = false;
 
     while(!quit) {
-        update(registry);
+        current = SDL_GetPerformanceCounter();
+        delta = (current - last) / static_cast<double>(SDL_GetPerformanceFrequency());
+        last = current;
+
+        update(registry, context, delta);
         draw(registry, context);
         input(registry);
     }

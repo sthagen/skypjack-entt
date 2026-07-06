@@ -4,6 +4,8 @@
 
 namespace testbed {
 
-void movement_system(entt::registry &);
+struct context;
 
-}
+void movement_system(entt::registry &, const context &, const double);
+
+} // namespace testbed

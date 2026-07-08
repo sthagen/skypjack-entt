@@ -9,7 +9,9 @@ struct input_listener_component {
         DOWN,
         LEFT,
         RIGHT,
-        STOP
+        STOP,
+        PLUS,
+        MINUS
     };
 
     type command{type::NONE};

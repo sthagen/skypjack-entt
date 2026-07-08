@@ -40,6 +40,12 @@ void input_system(entt::registry &registry, const SDL_Event &event, bool &quit) 
         case SDLK_SPACE:
             internal::update_listeners(registry, input_listener_component::type::STOP);
             break;
+        case SDLK_PLUS:
+            internal::update_listeners(registry, input_listener_component::type::PLUS);
+            break;
+        case SDLK_MINUS:
+            internal::update_listeners(registry, input_listener_component::type::MINUS);
+            break;
         }
         break;
     }

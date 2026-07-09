@@ -14,7 +14,6 @@
 #include <imgui.h>
 #include <meta/meta.h>
 #include <system/command_system.h>
-#include <system/hud_system.h>
 #include <system/imgui_system.h>
 #include <system/input_system.h>
 #include <system/movement_system.h>
@@ -36,7 +35,6 @@ void application::draw(entt::registry &registry, const context &context) const {
     SDL_RenderClear(context);
 
     rendering_system(registry, context);
-    hud_system(registry, context);
     imgui_system(registry);
 
     ImGui::Render();

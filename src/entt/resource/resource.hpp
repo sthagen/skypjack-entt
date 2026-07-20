@@ -168,7 +168,7 @@ public:
      */
     template<typename Other>
     [[nodiscard]] bool operator==(const resource<Other> &other) const noexcept {
-        return (stl::addressof(*value) == stl::addressof(*other.value));
+        return (value == other.value);
     }
 
     /**
@@ -179,7 +179,7 @@ public:
      */
     template<typename Other>
     [[nodiscard]] auto operator<=>(const resource<Other> &other) const noexcept {
-        return (stl::addressof(*value) <=> stl::addressof(*other.value));
+        return (value <=> other.value);
     }
 
     /*! @brief Releases the ownership of the managed resource. */

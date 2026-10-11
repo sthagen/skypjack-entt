@@ -1,7 +1,6 @@
 #ifndef ENTT_CONTAINER_DENSE_MAP_HPP
 #define ENTT_CONTAINER_DENSE_MAP_HPP
 
-#include <compare>
 #include "../config/config.h"
 #include "../core/bit.hpp"
 #include "../core/compressed_pair.hpp"
@@ -9,12 +8,11 @@
 #include "../core/memory.hpp"
 #include "../core/type_traits.hpp"
 #include "../stl/bit.hpp"
-#include "../stl/cmath.hpp"
+#include "../stl/compare.hpp"
 #include "../stl/concepts.hpp"
 #include "../stl/cstddef.hpp"
 #include "../stl/functional.hpp"
 #include "../stl/iterator.hpp"
-#include "../stl/limits.hpp"
 #include "../stl/memory.hpp"
 #include "../stl/tuple.hpp"
 #include "../stl/type_traits.hpp"
@@ -27,7 +25,7 @@ namespace entt {
 /*! @cond ENTT_INTERNAL */
 namespace internal {
 
-static constexpr stl::size_t dense_map_placeholder_position = (stl::numeric_limits<stl::size_t>::max)();
+inline constexpr stl::size_t dense_map_placeholder_position = ~static_cast<stl::size_t>(0);
 
 template<typename Key, typename Type>
 struct dense_map_node final {
@@ -469,6 +467,7 @@ public:
      * internal array.
      */
     [[nodiscard]] const_iterator cend() const noexcept {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
         return packed.first().data() + packed.first().size();
     }
 
@@ -479,6 +478,7 @@ public:
 
     /*! @copydoc end */
     [[nodiscard]] iterator end() noexcept {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
         return packed.first().data() + packed.first().size();
     }
 
@@ -790,13 +790,13 @@ public:
      */
     [[nodiscard]] stl::pair<iterator, iterator> equal_range(const key_type &key) {
         const auto it = find(key);
-        return {it, it + !(it == end())};
+        return {it, it + (it != end())};
     }
 
     /*! @copydoc equal_range */
     [[nodiscard]] stl::pair<const_iterator, const_iterator> equal_range(const key_type &key) const {
         const auto it = find(key);
-        return {it, it + !(it == cend())};
+        return {it, it + (it != cend())};
     }
 
     /**
@@ -809,14 +809,14 @@ public:
     [[nodiscard]] stl::pair<iterator, iterator> equal_range(const auto &key)
     requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         const auto it = find(key);
-        return {it, it + !(it == end())};
+        return {it, it + (it != end())};
     }
 
     /*! @copydoc equal_range */
     [[nodiscard]] stl::pair<const_iterator, const_iterator> equal_range(const auto &key) const
     requires is_transparent_v<hasher> && is_transparent_v<key_equal> {
         const auto it = find(key);
-        return {it, it + !(it == cend())};
+        return {it, it + (it != cend())};
     }
 
     /**
@@ -984,7 +984,9 @@ public:
      */
     void reserve(const size_type cnt) {
         packed.first().reserve(cnt);
-        rehash(static_cast<size_type>(stl::ceil(static_cast<float>(cnt) / max_load_factor())));
+        const auto next = static_cast<double>(cnt) / max_load_factor();
+        const auto trunc = static_cast<stl::size_t>(next);
+        rehash(trunc + static_cast<stl::size_t>(next > static_cast<double>(trunc)));
     }
 
     /**

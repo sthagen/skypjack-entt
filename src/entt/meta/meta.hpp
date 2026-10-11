@@ -27,25 +27,8 @@
 
 namespace entt {
 
-/*! @cond ENTT_INTERNAL */
-namespace internal {
-
-template<typename Type>
-struct basic_meta_object {
-    [[nodiscard]] auto &node_or_assert() const noexcept {
-        ENTT_ASSERT(node != nullptr, "Invalid pointer to node");
-        return *node;
-    }
-
-    const Type *node{};
-    const meta_ctx *ctx{&locator<meta_ctx>::value_or()};
-};
-
-} // namespace internal
-/*! @endcond */
-
 /*! @brief Proxy object for sequence containers. */
-class meta_sequence_container {
+class meta_sequence_container final {
     class meta_iterator;
 
 public:
@@ -106,7 +89,7 @@ private:
 };
 
 /*! @brief Proxy object for associative containers. */
-class meta_associative_container {
+class meta_associative_container final {
     class meta_iterator;
 
 public:
@@ -173,7 +156,7 @@ private:
 };
 
 /*! @brief Opaque wrapper for values of any type. */
-class meta_any {
+class meta_any final {
     using vtable_type = void(const internal::meta_traits, const meta_any &, void *);
 
     template<cvref_unqualified Type>
@@ -198,6 +181,7 @@ class meta_any {
             if(req == internal::meta_traits::is_pointer) {
                 if constexpr(stl::is_class_v<Type>) {
                     if(const auto &elem = any_cast<const Type &>(value.storage); elem) {
+                        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
                         return (value.storage.policy() == any_policy::cref) ? static_cast<meta_any *>(other)->emplace<decltype(*elem)>(*elem) : static_cast<meta_any *>(other)->emplace<decltype(*const_cast<Type &>(elem))>(*const_cast<Type &>(elem));
                     }
                 } else if constexpr(!stl::is_array_v<Type> && !stl::is_void_v<stl::remove_const_t<stl::remove_pointer_t<Type>>>) {
@@ -218,9 +202,9 @@ class meta_any {
         if(node == nullptr) {
             ENTT_ASSERT(*this, "Invalid vtable function");
             vtable(internal::meta_traits::is_none, *this, nullptr);
+            ENTT_ASSERT(node != nullptr, "Invalid pointer to node");
         }
 
-        ENTT_ASSERT(node != nullptr, "Invalid pointer to node");
         return *node;
     }
 
@@ -377,6 +361,7 @@ public:
      * @param value An instance of an object to use to initialize the wrapper.
      * @return This meta any object.
      */
+    // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
     meta_any &operator=(auto &&value)
     requires (!stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_any>) {
         emplace<stl::remove_cvref_t<decltype(value)>>(stl::forward<decltype(value)>(value));
@@ -612,7 +597,7 @@ public:
 
     /*! @copydoc any::operator bool */
     [[nodiscard]] explicit operator bool() const noexcept {
-        return !(vtable == nullptr);
+        return (vtable != nullptr);
     }
 
     /*! @copydoc any::operator== */
@@ -673,7 +658,7 @@ private:
 }
 
 /*! @brief Opaque pointers to instances of any type. */
-class meta_handle {
+class meta_handle final {
     meta_handle(int, auto &value, auto &&...args)
     requires stl::same_as<stl::remove_cvref_t<decltype(value)>, meta_any>
         : any{stl::forward<decltype(args)>(args)..., value.as_ref()} {}
@@ -752,7 +737,7 @@ private:
 };
 
 /*! @brief Opaque wrapper for user defined data of any type. */
-struct meta_custom {
+struct meta_custom final {
     /*! @brief Default constructor. */
     meta_custom() noexcept = default;
 
@@ -788,12 +773,27 @@ private:
 
 /**
  * @brief Common opaque wrapper for meta objects.
- * @tparam Type Underlying meta node type.
+ * @tparam Node Underlying meta node type.
  */
-template<typename Type>
-struct meta_object: protected internal::basic_meta_object<Type> {
+template<typename Node>
+class meta_object {
+    friend class meta_any;
+
+protected:
+    /*! @cond ENTT_INTERNAL */
+    [[nodiscard]] auto &node_or_assert() const noexcept {
+        if constexpr(stl::is_same_v<node_type, internal::meta_type_node>) {
+            return (node == nullptr) ? internal::resolve<void>(internal::meta_context::from(*ctx)) : *node;
+        } else {
+            ENTT_ASSERT(node != nullptr, "Invalid pointer to node");
+            return *node;
+        }
+    }
+    /*! @endcond */
+
+public:
     /*! @brief Underlying meta node type. */
-    using node_type = Type;
+    using node_type = Node;
     /*! @brief Unsigned integer type. */
     using size_type = stl::size_t;
 
@@ -806,8 +806,8 @@ struct meta_object: protected internal::basic_meta_object<Type> {
      * @param curr The underlying node with which to construct the instance.
      */
     meta_object(const meta_ctx &area, const node_type &curr) noexcept
-        : internal::basic_meta_object<Type>{&curr, &area} {
-    }
+        : ctx{&area},
+          node{&curr} {}
 
     /**
      * @brief Returns true if an object is valid, false otherwise.
@@ -823,21 +823,55 @@ struct meta_object: protected internal::basic_meta_object<Type> {
      * @return True if the objects refer to the same type, false otherwise.
      */
     [[nodiscard]] bool operator==(const meta_object &other) const noexcept {
-        return (this->ctx == other.ctx) && (this->node == other.node);
+        if constexpr(stl::is_same_v<node_type, internal::meta_type_node>) {
+            return (this->ctx == other.ctx) && (node_or_assert().alias == other.node_or_assert().alias);
+        } else {
+            return (this->ctx == other.ctx) && (this->node == other.node);
+        }
     }
+
+    /**
+     * @brief Returns the name assigned to a meta object, if any.
+     * @return The name assigned to the meta object, if any.
+     */
+    [[nodiscard]] stl::string_view name() const noexcept
+    requires requires(node_type elem) { elem.name; } {
+        return (node_or_assert().name == nullptr) ? stl::string_view{} : stl::string_view{node_or_assert().name};
+    }
+
+    /**
+     * @brief Returns user defined data for a given meta object.
+     * @return User defined arbitrary data.
+     */
+    [[nodiscard]] meta_custom custom() const noexcept
+    requires requires(node_type elem) { elem.custom; } {
+        return node_or_assert().custom;
+    }
+
+    /**
+     * @brief Returns all meta traits for a given meta object.
+     * @tparam Type The type to convert the meta traits to.
+     * @return The registered meta traits, if any.
+     */
+    template<typename Type>
+    [[nodiscard]] Type traits() const noexcept
+    requires requires(node_type elem) { elem.traits; } {
+        return internal::meta_to_user_traits<Type>(node_or_assert().traits);
+    }
+
+    /*! @copydoc meta_any::context */
+    [[nodiscard]] const meta_ctx &context() const noexcept {
+        return *ctx;
+    }
+
+private:
+    const meta_ctx *ctx{&locator<meta_ctx>::value_or()};
+    const node_type *node{};
 };
 
 /*! @brief Opaque wrapper for data members. */
-struct meta_data: meta_object<internal::meta_data_node> {
+struct meta_data final: meta_object<internal::meta_data_node> {
     using meta_object::meta_object;
-
-    /**
-     * @brief Returns the name assigned to a data member, if any.
-     * @return The name assigned to the data member, if any.
-     */
-    [[nodiscard]] stl::string_view name() const noexcept {
-        return (node_or_assert().name == nullptr) ? stl::string_view{} : stl::string_view{node_or_assert().name};
-    }
 
     /**
      * @brief Returns the number of arguments of a data member's setter.
@@ -884,7 +918,8 @@ struct meta_data: meta_object<internal::meta_data_node> {
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     bool set(Instance &&instance, auto &&...args) const {
-        return (sizeof...(args) >= set_arity()) && node_or_assert().set(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+        return (sizeof...(args) >= set_arity()) && node_or_assert().set(meta_handle{context(), stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{context(), stl::forward<decltype(args)>(args)}...}.data());
+        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
     }
 
     /**
@@ -896,7 +931,7 @@ struct meta_data: meta_object<internal::meta_data_node> {
      */
     template<typename Instance = meta_handle>
     [[nodiscard]] meta_any get(Instance &&instance, auto &&...args) const {
-        return (sizeof...(args) >= get_arity()) ? node_or_assert().get(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data()) : meta_any{meta_ctx_arg, *ctx};
+        return (sizeof...(args) >= get_arity()) ? node_or_assert().get(meta_handle{context(), stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{context(), stl::forward<decltype(args)>(args)}...}.data()) : meta_any{meta_ctx_arg, context()};
     }
 
     /**
@@ -912,37 +947,11 @@ struct meta_data: meta_object<internal::meta_data_node> {
      * @return The type of the i-th argument of a data member's getter.
      */
     [[nodiscard]] inline meta_type get_arg(size_type index) const noexcept;
-
-    /**
-     * @brief Returns all meta traits for a given meta object.
-     * @tparam Type The type to convert the meta traits to.
-     * @return The registered meta traits, if any.
-     */
-    template<typename Type>
-    [[nodiscard]] Type traits() const noexcept {
-        return internal::meta_to_user_traits<Type>(node_or_assert().traits);
-    }
-
-    /**
-     * @brief Returns user defined data for a given meta object.
-     * @return User defined arbitrary data.
-     */
-    [[nodiscard]] meta_custom custom() const noexcept {
-        return {node_or_assert().custom};
-    }
 };
 
 /*! @brief Opaque wrapper for member functions. */
-struct meta_func: meta_object<internal::meta_func_node> {
+struct meta_func final: meta_object<internal::meta_func_node> {
     using meta_object::meta_object;
-
-    /**
-     * @brief Returns the name assigned to a member function, if any.
-     * @return The name assigned to the member function, if any.
-     */
-    [[nodiscard]] stl::string_view name() const noexcept {
-        return (node_or_assert().name == nullptr) ? stl::string_view{} : stl::string_view{node_or_assert().name};
-    }
 
     /**
      * @brief Returns the number of arguments accepted by a member function.
@@ -991,18 +1000,7 @@ struct meta_func: meta_object<internal::meta_func_node> {
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     meta_any invoke(Instance &&instance, auto &&...args) const {
-        return (sizeof...(args) == arity()) ? node_or_assert().invoke(meta_handle{*ctx, stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data()) : meta_any{meta_ctx_arg, *ctx};
-    }
-
-    /*! @copydoc meta_data::traits */
-    template<typename Type>
-    [[nodiscard]] Type traits() const noexcept {
-        return internal::meta_to_user_traits<Type>(node_or_assert().traits);
-    }
-
-    /*! @copydoc meta_data::custom */
-    [[nodiscard]] meta_custom custom() const noexcept {
-        return {node_or_assert().custom};
+        return (sizeof...(args) == arity()) ? node_or_assert().invoke(meta_handle{context(), stl::forward<Instance>(instance)}, stl::array<meta_any, sizeof...(args)>{meta_any{context(), stl::forward<decltype(args)>(args)}...}.data()) : meta_any{meta_ctx_arg, context()};
     }
 
     /**
@@ -1010,12 +1008,12 @@ struct meta_func: meta_object<internal::meta_func_node> {
      * @return The next overload of the given function, if any.
      */
     [[nodiscard]] meta_func next() const {
-        return (node_or_assert().next != nullptr) ? meta_func{*ctx, *node_or_assert().next} : meta_func{};
+        return (node_or_assert().next != nullptr) ? meta_func{context(), *node_or_assert().next} : meta_func{};
     }
 };
 
 /*! @brief Opaque wrapper for base types. */
-struct meta_base: meta_object<internal::meta_base_node> {
+struct meta_base final: meta_object<internal::meta_base_node> {
     using meta_object::meta_object;
 
     /*! @copydoc meta_any::type */
@@ -1023,13 +1021,7 @@ struct meta_base: meta_object<internal::meta_base_node> {
 };
 
 /*! @brief Opaque wrapper for types. */
-class meta_type {
-    friend class meta_any;
-
-    [[nodiscard]] const auto &fetch_node() const {
-        return (node == nullptr) ? internal::resolve<void>(internal::meta_context::from(*ctx)) : *node;
-    }
-
+class meta_type final: public meta_object<internal::meta_type_node> {
     [[nodiscard]] auto lookup(meta_handle *const args, const auto sz, [[maybe_unused]] bool constness, auto next) const {
         decltype(next()) candidate = nullptr;
         size_type same{};
@@ -1048,12 +1040,12 @@ class meta_type {
 
                 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic) - waiting for C++20 (and stl::span)
                 for(; pos < sz; ++pos) {
-                    const auto other = curr->arg(*ctx, pos);
+                    const auto other = curr->arg(context(), pos);
                     const auto type = args[pos]->type();
 
                     if(const auto &info = other.info(); info == type.info()) {
                         ++match;
-                    } else if(!(type.fetch_node().conversion_helper && other.fetch_node().conversion_helper) && !(type.fetch_node().details && (internal::find_member(type.fetch_node().details->base, info.hash()) || internal::find_member(type.fetch_node().details->conv, info.hash())))) {
+                    } else if(!(type.node_or_assert().conversion_helper && other.node_or_assert().conversion_helper) && !(type.node_or_assert().details && (internal::find_member(type.node_or_assert().details->base, info.hash()) || internal::find_member(type.node_or_assert().details->conv, info.hash())))) {
                         break;
                     }
                 }
@@ -1083,27 +1075,14 @@ class meta_type {
     }
 
 public:
-    /*! @brief Unsigned integer type. */
-    using size_type = internal::meta_type_node::size_type;
-
-    /*! @brief Default constructor. */
-    meta_type() noexcept = default;
-
-    /**
-     * @brief Context aware constructor for meta objects.
-     * @param area The context from which to search for meta types.
-     * @param curr The underlying node with which to construct the instance.
-     */
-    meta_type(const meta_ctx &area, const internal::meta_type_node &curr) noexcept
-        : node{&curr},
-          ctx{&area} {}
+    using meta_object::meta_object;
 
     /**
      * @brief Returns the type info object of the underlying type.
      * @return The type info object of the underlying type.
      */
     [[nodiscard]] const type_info &info() const noexcept {
-        return *fetch_node().info;
+        return *node_or_assert().info;
     }
 
     /**
@@ -1111,15 +1090,7 @@ public:
      * @return The alias assigned to the type.
      */
     [[nodiscard]] id_type alias() const noexcept {
-        return fetch_node().alias;
-    }
-
-    /**
-     * @brief Returns the name assigned to a type, if any.
-     * @return The name assigned to the type, if any.
-     */
-    [[nodiscard]] stl::string_view name() const noexcept {
-        return (fetch_node().name == nullptr) ? stl::string_view{} : stl::string_view{fetch_node().name};
+        return node_or_assert().alias;
     }
 
     /**
@@ -1127,7 +1098,7 @@ public:
      * @return The size of the underlying type if known, 0 otherwise.
      */
     [[nodiscard]] size_type size_of() const noexcept {
-        return fetch_node().size_of;
+        return node_or_assert().size_of;
     }
 
     /**
@@ -1136,7 +1107,7 @@ public:
      * otherwise.
      */
     [[nodiscard]] bool is_arithmetic() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_arithmetic);
+        return !!(node_or_assert().traits & internal::meta_traits::is_arithmetic);
     }
 
     /**
@@ -1144,7 +1115,7 @@ public:
      * @return True if the underlying type is an integral type, false otherwise.
      */
     [[nodiscard]] bool is_integral() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_integral);
+        return !!(node_or_assert().traits & internal::meta_traits::is_integral);
     }
 
     /**
@@ -1152,7 +1123,7 @@ public:
      * @return True if the underlying type is a signed type, false otherwise.
      */
     [[nodiscard]] bool is_signed() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_signed);
+        return !!(node_or_assert().traits & internal::meta_traits::is_signed);
     }
 
     /**
@@ -1160,7 +1131,7 @@ public:
      * @return True if the underlying type is an array type, false otherwise.
      */
     [[nodiscard]] bool is_array() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_array);
+        return !!(node_or_assert().traits & internal::meta_traits::is_array);
     }
 
     /**
@@ -1168,7 +1139,7 @@ public:
      * @return True if the underlying type is an enum, false otherwise.
      */
     [[nodiscard]] bool is_enum() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_enum);
+        return !!(node_or_assert().traits & internal::meta_traits::is_enum);
     }
 
     /**
@@ -1176,7 +1147,7 @@ public:
      * @return True if the underlying type is a class, false otherwise.
      */
     [[nodiscard]] bool is_class() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_class);
+        return !!(node_or_assert().traits & internal::meta_traits::is_class);
     }
 
     /**
@@ -1184,7 +1155,7 @@ public:
      * @return True if the underlying type is a pointer, false otherwise.
      */
     [[nodiscard]] bool is_pointer() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_pointer);
+        return !!(node_or_assert().traits & internal::meta_traits::is_pointer);
     }
 
     /**
@@ -1193,7 +1164,7 @@ public:
      * doesn't refer to a pointer type.
      */
     [[nodiscard]] meta_type remove_pointer() const noexcept {
-        return meta_type{*ctx, fetch_node().remove_pointer(internal::meta_context::from(*ctx))};
+        return meta_type{context(), node_or_assert().remove_pointer(internal::meta_context::from(context()))};
     }
 
     /**
@@ -1201,7 +1172,7 @@ public:
      * @return True if the underlying type is pointer-like, false otherwise.
      */
     [[nodiscard]] bool is_pointer_like() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_pointer_like);
+        return !!(node_or_assert().traits & internal::meta_traits::is_pointer_like);
     }
 
     /**
@@ -1209,7 +1180,7 @@ public:
      * @return True if the type is a sequence container, false otherwise.
      */
     [[nodiscard]] bool is_sequence_container() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_sequence_container);
+        return !!(node_or_assert().traits & internal::meta_traits::is_sequence_container);
     }
 
     /**
@@ -1217,7 +1188,7 @@ public:
      * @return True if the type is an associative container, false otherwise.
      */
     [[nodiscard]] bool is_associative_container() const noexcept {
-        return !!(fetch_node().traits & internal::meta_traits::is_associative_container);
+        return !!(node_or_assert().traits & internal::meta_traits::is_associative_container);
     }
 
     /**
@@ -1225,7 +1196,7 @@ public:
      * @return True if the type is a template specialization, false otherwise.
      */
     [[nodiscard]] bool is_template_specialization() const noexcept {
-        return (fetch_node().templ.arity != 0u);
+        return (node_or_assert().templ.arity != 0u);
     }
 
     /**
@@ -1233,7 +1204,7 @@ public:
      * @return The number of template arguments.
      */
     [[nodiscard]] size_type template_arity() const noexcept {
-        return fetch_node().templ.arity;
+        return node_or_assert().templ.arity;
     }
 
     /**
@@ -1241,7 +1212,7 @@ public:
      * @return The tag for the class template of the underlying type.
      */
     [[nodiscard]] meta_type template_type() const noexcept {
-        return (fetch_node().templ.resolve != nullptr) ? meta_type{*ctx, fetch_node().templ.resolve(internal::meta_context::from(*ctx))} : meta_type{};
+        return (node_or_assert().templ.resolve != nullptr) ? meta_type{context(), node_or_assert().templ.resolve(internal::meta_context::from(context()))} : meta_type{};
     }
 
     /**
@@ -1250,7 +1221,7 @@ public:
      * @return The type of the i-th template argument of a type.
      */
     [[nodiscard]] meta_type template_arg(const size_type index) const noexcept {
-        return index < template_arity() ? meta_type{*ctx, fetch_node().templ.arg(internal::meta_context::from(*ctx), index)} : meta_type{};
+        return index < template_arity() ? meta_type{context(), node_or_assert().templ.arg(internal::meta_context::from(context()), index)} : meta_type{};
     }
 
     /**
@@ -1260,7 +1231,7 @@ public:
      */
     [[nodiscard]] bool can_cast(const meta_type &other) const noexcept {
         // casting this is UB in all cases but we aren't going to use the resulting pointer, so...
-        return other && ((*this == other) || (internal::try_cast(internal::meta_context::from(*ctx), fetch_node(), other.fetch_node().info->hash(), this) != nullptr));
+        return other && ((*this == other) || (internal::try_cast(internal::meta_context::from(context()), node_or_assert(), other.node_or_assert().info->hash(), this) != nullptr));
     }
 
     /**
@@ -1269,15 +1240,15 @@ public:
      * @return True if the conversion is allowed, false otherwise.
      */
     [[nodiscard]] bool can_convert(const meta_type &other) const noexcept {
-        if(const auto &to = other.info().hash(); (info().hash() == to) || ((fetch_node().conversion_helper != nullptr) && (other.is_arithmetic() || other.is_enum()))) {
+        if(const auto &to = other.info().hash(); (info().hash() == to) || ((node_or_assert().conversion_helper != nullptr) && (other.is_arithmetic() || other.is_enum()))) {
             return true;
-        } else if(const auto &from = fetch_node(); from.details) {
+        } else if(const auto &from = node_or_assert(); from.details) {
             if(const auto *elem = internal::find_member(from.details->conv, to); elem != nullptr) {
                 return true;
             }
 
             for(auto &&curr: from.details->base) {
-                if(curr.id == to || meta_type{*ctx, curr.type(internal::meta_context::from(*ctx))}.can_convert(other)) {
+                if(curr.id == to || meta_type{context(), curr.type(internal::meta_context::from(context()))}.can_convert(other)) {
                     return true;
                 }
             }
@@ -1292,7 +1263,7 @@ public:
      */
     [[nodiscard]] meta_range<meta_base, decltype(internal::meta_type_descriptor::base)::const_iterator> base() const noexcept {
         using range_type = meta_range<meta_base, decltype(internal::meta_type_descriptor::base)::const_iterator>;
-        return fetch_node().details ? range_type{{*ctx, fetch_node().details->base.cbegin()}, {*ctx, fetch_node().details->base.cend()}} : range_type{};
+        return node_or_assert().details ? range_type{{context(), node_or_assert().details->base.cbegin()}, {context(), node_or_assert().details->base.cend()}} : range_type{};
     }
 
     /**
@@ -1301,7 +1272,7 @@ public:
      */
     [[nodiscard]] meta_range<meta_data, decltype(internal::meta_type_descriptor::data)::const_iterator> data() const noexcept {
         using range_type = meta_range<meta_data, decltype(internal::meta_type_descriptor::data)::const_iterator>;
-        return fetch_node().details ? range_type{{*ctx, fetch_node().details->data.cbegin()}, {*ctx, fetch_node().details->data.cend()}} : range_type{};
+        return node_or_assert().details ? range_type{{context(), node_or_assert().details->data.cbegin()}, {context(), node_or_assert().details->data.cend()}} : range_type{};
     }
 
     /**
@@ -1311,8 +1282,8 @@ public:
      * @return The registered meta data for the given identifier, if any.
      */
     [[nodiscard]] meta_data data(const id_type id, const bool recursive = true) const {
-        const auto *elem = internal::look_for<&internal::meta_type_descriptor::data>(internal::meta_context::from(*ctx), fetch_node(), id, recursive);
-        return (elem != nullptr) ? meta_data{*ctx, *elem} : meta_data{};
+        const auto *elem = internal::look_for<&internal::meta_type_descriptor::data>(internal::meta_context::from(context()), node_or_assert(), id, recursive);
+        return (elem != nullptr) ? meta_data{context(), *elem} : meta_data{};
     }
 
     /**
@@ -1321,7 +1292,7 @@ public:
      */
     [[nodiscard]] meta_range<meta_func, decltype(internal::meta_type_descriptor::func)::const_iterator> func() const noexcept {
         using return_type = meta_range<meta_func, decltype(internal::meta_type_descriptor::func)::const_iterator>;
-        return fetch_node().details ? return_type{{*ctx, fetch_node().details->func.cbegin()}, {*ctx, fetch_node().details->func.cend()}} : return_type{};
+        return node_or_assert().details ? return_type{{context(), node_or_assert().details->func.cbegin()}, {context(), node_or_assert().details->func.cend()}} : return_type{};
     }
 
     /**
@@ -1331,27 +1302,27 @@ public:
      * @return The registered meta function for the given identifier, if any.
      */
     [[nodiscard]] meta_func func(const id_type id, const bool recursive = true) const {
-        const auto *elem = internal::look_for<&internal::meta_type_descriptor::func>(internal::meta_context::from(*ctx), fetch_node(), id, recursive);
-        return (elem != nullptr) ? meta_func{*ctx, *elem} : meta_func{};
+        const auto *elem = internal::look_for<&internal::meta_type_descriptor::func>(internal::meta_context::from(context()), node_or_assert(), id, recursive);
+        return (elem != nullptr) ? meta_func{context(), *elem} : meta_func{};
     }
 
     /**
-     * @copybrief construct
+     * @brief Creates an instance of the underlying type, if possible.
      * @param args Parameters to use to construct the instance.
      * @return A wrapper containing the new instance, if any.
      */
     [[nodiscard]] meta_any construct(auto &&...args) const {
-        if(const auto &ref = fetch_node(); ref.details) {
-            if(const auto *candidate = lookup(stl::array<meta_handle, sizeof...(args)>{meta_handle{*ctx, args}...}.data(), sizeof...(args), false, [first = ref.details->ctor.cbegin(), last = ref.details->ctor.cend()]() mutable { return first == last ? nullptr : &*(first++); }); candidate) {
-                return candidate->invoke(*ctx, stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+        if(const auto &ref = node_or_assert(); ref.details) {
+            if(const auto *candidate = lookup(stl::array<meta_handle, sizeof...(args)>{meta_handle{context(), args}...}.data(), sizeof...(args), false, [first = ref.details->ctor.cbegin(), last = ref.details->ctor.cend()]() mutable { return first == last ? nullptr : &*(first++); }); candidate) {
+                return candidate->invoke(context(), stl::array<meta_any, sizeof...(args)>{meta_any{context(), stl::forward<decltype(args)>(args)}...}.data());
             }
         }
 
-        if(const auto &ref = fetch_node(); (sizeof...(args) == 0u) && (ref.default_constructor != nullptr)) {
-            return ref.default_constructor(*ctx);
+        if(const auto &ref = node_or_assert(); (sizeof...(args) == 0u) && (ref.default_constructor != nullptr)) {
+            return ref.default_constructor(context());
         }
 
-        return meta_any{meta_ctx_arg, *ctx};
+        return meta_any{meta_ctx_arg, context()};
     }
 
     /**
@@ -1361,7 +1332,7 @@ public:
      * @return A wrapper that references the given instance.
      */
     [[nodiscard]] meta_any from_void(void *elem, bool transfer_ownership = false) const {
-        return ((elem != nullptr) && (fetch_node().from_void != nullptr)) ? fetch_node().from_void(*ctx, elem, transfer_ownership ? elem : nullptr) : meta_any{meta_ctx_arg, *ctx};
+        return ((elem != nullptr) && (node_or_assert().from_void != nullptr)) ? node_or_assert().from_void(context(), elem, transfer_ownership ? elem : nullptr) : meta_any{meta_ctx_arg, context()};
     }
 
     /**
@@ -1370,11 +1341,11 @@ public:
      * @return A wrapper that references the given instance.
      */
     [[nodiscard]] meta_any from_void(const void *elem) const {
-        return ((elem != nullptr) && (fetch_node().from_void != nullptr)) ? fetch_node().from_void(*ctx, nullptr, elem) : meta_any{meta_ctx_arg, *ctx};
+        return ((elem != nullptr) && (node_or_assert().from_void != nullptr)) ? node_or_assert().from_void(context(), nullptr, elem) : meta_any{meta_ctx_arg, context()};
     }
 
     /**
-     * @copybrief invoke
+     * @brief Invokes a function given an identifier, if possible.
      * @param id Unique identifier.
      * @tparam Instance Type of instance to operate on.
      * @param instance An instance that fits the underlying type.
@@ -1384,12 +1355,12 @@ public:
     template<typename Instance = meta_handle>
     // NOLINTNEXTLINE(modernize-use-nodiscard)
     meta_any invoke(const id_type id, Instance &&instance, auto &&...args) const {
-        meta_handle wrapped{*ctx, stl::forward<Instance>(instance)};
+        meta_handle wrapped{context(), stl::forward<Instance>(instance)};
 
-        if(const auto &ref = fetch_node(); ref.details) {
+        if(const auto &ref = node_or_assert(); ref.details) {
             if(auto *elem = internal::find_member(ref.details->func, id); elem != nullptr) {
-                if(const auto *candidate = lookup(stl::array<meta_handle, sizeof...(args)>{meta_handle{*ctx, args}...}.data(), sizeof...(args), (wrapped->base().policy() == any_policy::cref), [curr = elem]() mutable { return (curr != nullptr) ? stl::exchange(curr, curr->next.get()) : nullptr; }); candidate) {
-                    return candidate->invoke(stl::move(wrapped), stl::array<meta_any, sizeof...(args)>{meta_any{*ctx, stl::forward<decltype(args)>(args)}...}.data());
+                if(const auto *candidate = lookup(stl::array<meta_handle, sizeof...(args)>{meta_handle{context(), args}...}.data(), sizeof...(args), (wrapped->base().policy() == any_policy::cref), [curr = elem]() mutable { return (curr != nullptr) ? stl::exchange(curr, curr->next.get()) : nullptr; }); candidate) {
+                    return candidate->invoke(stl::move(wrapped), stl::array<meta_any, sizeof...(args)>{meta_any{context(), stl::forward<decltype(args)>(args)}...}.data());
                 }
             }
         }
@@ -1400,7 +1371,7 @@ public:
             }
         }
 
-        return meta_any{meta_ctx_arg, *ctx};
+        return meta_any{meta_ctx_arg, context()};
     }
 
     /**
@@ -1429,37 +1400,12 @@ public:
     template<typename Instance = meta_handle>
     [[nodiscard]] meta_any get(const id_type id, Instance &&instance, auto &&...args) const {
         const auto candidate = data(id);
-        return candidate ? candidate.get(stl::forward<Instance>(instance), stl::forward<decltype(args)>(args)...) : meta_any{meta_ctx_arg, *ctx};
+        return candidate ? candidate.get(stl::forward<Instance>(instance), stl::forward<decltype(args)>(args)...) : meta_any{meta_ctx_arg, context()};
     }
-
-    /*! @copydoc meta_data::traits */
-    template<typename Type>
-    [[nodiscard]] Type traits() const noexcept {
-        return internal::meta_to_user_traits<Type>(fetch_node().traits);
-    }
-
-    /*! @copydoc meta_data::custom */
-    [[nodiscard]] meta_custom custom() const noexcept {
-        return fetch_node().custom;
-    }
-
-    /*! @copydoc meta_data::operator bool */
-    [[nodiscard]] explicit operator bool() const noexcept {
-        return (node != nullptr);
-    }
-
-    /*! @copydoc meta_data::operator== */
-    [[nodiscard]] bool operator==(const meta_type &other) const noexcept {
-        return (ctx == other.ctx) && (fetch_node().alias == other.fetch_node().alias);
-    }
-
-private:
-    mutable const internal::meta_type_node *node{};
-    const meta_ctx *ctx{&locator<meta_ctx>::value_or()};
 };
 
 [[nodiscard]] inline meta_type meta_any::type() const noexcept {
-    return *this ? meta_type{*ctx, fetch_node()} : meta_type{};
+    return *this ? meta_type{context(), fetch_node()} : meta_type{};
 }
 
 inline void meta_any::type(const meta_type &alias) noexcept {
@@ -1546,27 +1492,27 @@ inline bool meta_any::assign(meta_any &&other) {
 }
 
 [[nodiscard]] inline meta_type meta_data::type() const noexcept {
-    return meta_type{*ctx, node_or_assert().type(internal::meta_context::from(*ctx))};
+    return meta_type{context(), node_or_assert().type(internal::meta_context::from(context()))};
 }
 
 [[nodiscard]] inline meta_type meta_data::set_arg(const size_type index) const noexcept {
-    return index < set_arity() ? node_or_assert().set_arg(*ctx, index) : meta_type{};
+    return index < set_arity() ? node_or_assert().set_arg(context(), index) : meta_type{};
 }
 
 [[nodiscard]] inline meta_type meta_data::get_arg(const size_type index) const noexcept {
-    return index < get_arity() ? node_or_assert().get_arg(*ctx, index) : meta_type{};
+    return index < get_arity() ? node_or_assert().get_arg(context(), index) : meta_type{};
 }
 
 [[nodiscard]] inline meta_type meta_func::ret() const noexcept {
-    return meta_type{*ctx, node_or_assert().ret(internal::meta_context::from(*ctx))};
+    return meta_type{context(), node_or_assert().ret(internal::meta_context::from(context()))};
 }
 
 [[nodiscard]] inline meta_type meta_func::arg(const size_type index) const noexcept {
-    return index < arity() ? node_or_assert().arg(*ctx, index) : meta_type{};
+    return index < arity() ? node_or_assert().arg(context(), index) : meta_type{};
 }
 
 [[nodiscard]] inline meta_type meta_base::type() const noexcept {
-    return meta_type{*ctx, node_or_assert().type(internal::meta_context::from(*ctx))};
+    return meta_type{context(), node_or_assert().type(internal::meta_context::from(context()))};
 }
 
 /*! @cond ENTT_INTERNAL */

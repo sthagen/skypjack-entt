@@ -1,4 +1,3 @@
-#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -199,6 +198,15 @@ TEST_F(MetaData, Comparison) {
     ASSERT_NE(data, entt::meta_data{});
     ASSERT_FALSE(data != data);
     ASSERT_TRUE(data == data);
+}
+
+TEST_F(MetaData, Context) {
+    using namespace entt::literals;
+
+    const auto type = entt::resolve<clazz>();
+    const auto data = type.data("i"_hs);
+
+    ASSERT_EQ(&data.context(), &type.context());
 }
 
 TEST_F(MetaData, NonConst) {

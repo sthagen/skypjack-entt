@@ -1,8 +1,8 @@
 #ifndef ENTT_CORE_TYPE_INFO_HPP
 #define ENTT_CORE_TYPE_INFO_HPP
 
-#include <compare>
 #include "../config/config.h"
+#include "../stl/compare.hpp"
 #include "../stl/string_view.hpp"
 #include "../stl/type_traits.hpp"
 #include "../stl/utility.hpp"
@@ -103,11 +103,10 @@ struct type_hash final {
      * @brief Returns the numeric representation of a given type.
      * @return The numeric representation of the given type.
      */
-#if defined ENTT_PRETTY_FUNCTION
     [[nodiscard]] static constexpr id_type value() noexcept {
+#if defined ENTT_PRETTY_FUNCTION
         return internal::type_hash<Type>(0);
 #else
-    [[nodiscard]] static constexpr id_type value() noexcept {
         return type_index<Type>::value();
 #endif
     }

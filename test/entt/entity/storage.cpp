@@ -49,6 +49,10 @@ struct StorageBase: testing::Test {
     private:
         entt::basic_storage<update_from_destructor, my_entity> *storage{};
         my_entity target{entt::null};
+
+    private:
+        // used to trigger an assertion failure in case of double destruction
+        std::unordered_set<char> set{};
     };
 
     struct create_from_constructor {
@@ -1724,7 +1728,7 @@ TYPED_TEST(Storage, ReferencesGuaranteed) {
     ASSERT_EQ(pool.get(entity_type{1}), value_type{1});
 
     for(auto &&elem: pool) {
-        if(!(elem == value_type{})) {
+        if(elem != value_type{}) {
             elem = value_type{4};
         }
     }
@@ -1769,6 +1773,26 @@ TEST(Storage, UpdateFromDestructor) {
         for(std::size_t next{}; next < size; ++next) {
             ASSERT_FALSE(pool.contains(entity_type(next)));
         }
+    }
+}
+
+TEST(Storage, UpdateFromDestructorOnDestroy) {
+    using entity_type = StorageBase::my_entity;
+
+    constexpr auto size = 10u;
+    const std::array entity{entity_type{4u}, entity_type{2u}, entity_type{0u}};
+
+    for(auto target: entity) {
+        entt::basic_storage<StorageBase::update_from_destructor, entity_type> pool;
+
+        for(std::size_t next{}; next < size; ++next) {
+            const auto other = entity_type(next);
+            pool.emplace(other, pool, other == entity_type(size / 2) ? target : other);
+        }
+
+        pool.erase(entity_type(size / 2));
+
+        // the storage goes out of scope here
     }
 }
 

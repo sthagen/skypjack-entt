@@ -154,6 +154,7 @@ if(ENTT_INCLUDE_HEADERS)
         entity/handle.hpp
         entity/mixin.hpp
         entity/helper.hpp
+        entity/io.hpp
         entity/organizer.hpp
         entity/ranges.hpp
         entity/registry.hpp
@@ -199,17 +200,14 @@ if(ENTT_INCLUDE_HEADERS)
         stl/array.hpp
         stl/atomic.hpp
         stl/bit.hpp
-        stl/cmath.hpp
+        stl/cassert.hpp
+        stl/compare.hpp
         stl/concepts.hpp
         stl/cstddef.hpp
         stl/cstdint.hpp
         stl/functional.hpp
-        stl/ios.hpp
         stl/iterator.hpp
-        stl/limits.hpp
         stl/memory.hpp
-        stl/ostream.hpp
-        stl/sstream.hpp
         stl/string.hpp
         stl/string_view.hpp
         stl/tuple.hpp
@@ -345,28 +343,37 @@ if(ENTT_INSTALL)
     export(PACKAGE EnTT)
 endif()
 
-# Tests and testbed
+# Tests
 
 option(ENTT_BUILD_TESTING "Enable building tests." OFF)
+
+if(ENTT_BUILD_TESTING)
+    set(ENTT_ID_TYPE std::uint32_t CACHE STRING "Type of identifiers to use for tests")
+    set(ENTT_CXX_STD cxx_std_20 CACHE STRING "C++ standard revision to use for tests")
+
+    option(ENTT_FIND_GTEST_PACKAGE "Enable finding gtest package." OFF)
+    
+    option(ENTT_BUILD_BENCHMARK "Build benchmark." OFF)
+    option(ENTT_BUILD_EXAMPLE "Build examples." OFF)
+    option(ENTT_BUILD_LIB "Build lib tests." OFF)
+    option(ENTT_BUILD_SNAPSHOT "Build snapshot test with Cereal." OFF)
+    
+    include(CTest)
+    enable_testing()
+    add_subdirectory(test)
+endif()
+
+# Testbed
+
 option(ENTT_BUILD_TESTBED "Enable building testbed." OFF)
 
-if(ENTT_BUILD_TESTING OR ENTT_BUILD_TESTBED)
-    set(ENTT_ID_TYPE std::uint32_t CACHE STRING "Type of identifiers to use for tests and testbed")
-    set(ENTT_CXX_STD cxx_std_20 CACHE STRING "C++ standard revision to use for tests and testbed")
-
-    # Tests and tesetbed do not work together because SDL gets confused with EnTT tests
+if(ENTT_BUILD_TESTBED)
     if(ENTT_BUILD_TESTING)
-        option(ENTT_FIND_GTEST_PACKAGE "Enable finding gtest package." OFF)
-    
-        option(ENTT_BUILD_BENCHMARK "Build benchmark." OFF)
-        option(ENTT_BUILD_EXAMPLE "Build examples." OFF)
-        option(ENTT_BUILD_LIB "Build lib tests." OFF)
-        option(ENTT_BUILD_SNAPSHOT "Build snapshot test with Cereal." OFF)
-    
-        include(CTest)
-        enable_testing()
-        add_subdirectory(test)
-    elseif(ENTT_BUILD_TESTBED)
+        message(VERBOSE "Tests and testbed do not work together because SDL gets confused with EnTT tests")
+    else()
+        set(ENTT_ID_TYPE std::uint32_t CACHE STRING "Type of identifiers to use for testbed")
+        set(ENTT_CXX_STD cxx_std_20 CACHE STRING "C++ standard revision to use for testbed")
+
         add_subdirectory(testbed)
     endif()
 endif()
